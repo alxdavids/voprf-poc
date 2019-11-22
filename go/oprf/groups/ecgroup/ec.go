@@ -48,9 +48,13 @@ func (c GroupCurve) Generator() Point {
 // EncodeToGroup invokes the hash_to_curve method for encoding bytes as curve
 // points
 func (c GroupCurve) EncodeToGroup(buf []byte) (Point, error) {
-	p := c.hashToCurve(buf)
-	if !p.IsValid(c) {
-		return Point{}, gg.ErrInvalidGroupElement
+	params, err := getH2CParams(c)
+	if err != nil {
+		return Point{}, err
+	}
+	p, err := params.hashToCurve(buf)
+	if err != nil {
+		return Point{}, err
 	}
 	return p, nil
 }

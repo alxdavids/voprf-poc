@@ -1,6 +1,7 @@
 package ecgroup
 
 import (
+	"fmt"
 	"hash"
 	"math/big"
 
@@ -10,7 +11,7 @@ import (
 
 // big.Int constants
 var (
-	zero, one, minusOne, two *big.Int = big.NewInt(0), big.NewInt(1), big.NewInt(-1), big.NewInt(2)
+	zero, one, minusOne, two, four *big.Int = big.NewInt(0), big.NewInt(1), big.NewInt(-1), big.NewInt(2), big.NewInt(4)
 )
 
 // h2cParams contains all of the parameters required for computing the
@@ -73,8 +74,12 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error)
 	if err != nil {
 		return nil, gg.ErrInternalInstantiation
 	}
-	hashFunc := func() hash.Hash { return params.hash }
-	msgPrime := hkdf.Extract(hashFunc, params.dst, append(buf, os...))
+	hashFunc := func() hash.Hash {
+		hash := params.hash
+		hash.Reset()
+		return hash
+	}
+	msgPrime := hkdf.Extract(hashFunc, append(buf, os...), params.dst)
 	osCtr, err := i2osp(ctr, 1)
 	if err != nil {
 		return nil, gg.ErrInternalInstantiation
@@ -91,8 +96,8 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error)
 		reader := hkdf.Expand(hashFunc, msgPrime, info)
 		t := make([]byte, params.l)
 		reader.Read(t)
-		ei := int64(os2ip(t))
-		res[i-1] = new(big.Int).Mod(big.NewInt(ei), params.p)
+		ei := os2ip(t)
+		res[i-1] = new(big.Int).Mod(ei, params.p)
 		i++
 	}
 	return res, nil
@@ -115,8 +120,7 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
 	Q1 := Point{}
 	var e0, e1 error
 	switch params.gc.Name() {
-	case "P-384":
-	case "P-521":
+	case "P-384", "P-521":
 		Q0, e0 = params.sswu(u0)
 		Q1, e1 = params.sswu(u1)
 		break
@@ -132,16 +136,16 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
 	}
 
 	// construct the output point R
-	R := Point{}
-	err = R.Add(params.gc, Q0)
+	fmt.Println(Q0)
+	fmt.Println(Q1)
+	err = Q0.Add(params.gc, Q1)
 	if err != nil {
 		return Point{}, err
 	}
-	err = R.Add(params.gc, Q1)
-	if err != nil {
-		return Point{}, err
-	}
+	R := Q0
+	fmt.Println(R)
 	err = R.clearCofactor(params.gc, params.hEff)
+	fmt.Println(R)
 	if err != nil {
 		return Point{}, err
 	}
@@ -156,7 +160,8 @@ func (params h2cParams) sswu(uArr []*big.Int) (Point, error) {
 	}
 	u := uArr[0]
 	p, A, B, Z := params.p, params.a, params.b, big.NewInt(int64(params.z))
-	expRoot := new(big.Int).Mul(new(big.Int).Sub(p, one), new(big.Int).ModInverse(two, p))
+	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, one), new(big.Int).ModInverse(two, p)), p)
+	sqrtExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, one), new(big.Int).ModInverse(four, p)), p)
 
 	// consts
 	// c1 := -B/A, c2 := -1/Z
@@ -164,39 +169,45 @@ func (params h2cParams) sswu(uArr []*big.Int) (Point, error) {
 	c2 := new(big.Int).Mul(minusOne, new(big.Int).ModInverse(Z, p))
 
 	// steps
-	t1 := new(big.Int).Mul(Z, new(big.Int).Exp(u, two, p))  // 1
-	t2 := new(big.Int).Exp(t1, two, p)                      // 2
-	x1 := new(big.Int).Add(t1, t2)                          // 3
-	x1 = inv0(x1, p)                                        // 4
-	e1 := new(big.Int).Abs(big.NewInt(int64(x1.Cmp(zero)))) // 5
-	x1 = x1.Add(x1, one)                                    // 6
-	x1 = cmov(x1, c2, e1)                                   // 7
-	x1 = x1.Mul(x1, c1)                                     // 8
-	gx1 := new(big.Int).Exp(x1, two, p)                     // 9
-	gx1 = gx1.Add(gx1, A)                                   // 10
-	gx1 = gx1.Mul(gx1, x1)                                  // 11
-	gx1 = gx1.Add(gx1, B)                                   // 12
-	x2 := new(big.Int).Mul(t1, x1)                          // 13
-	t2 = t2.Mul(t1, t2)                                     // 14
-	gx2 := new(big.Int).Mul(gx1, t2)                        // 15
-	e2 := isSquare(gx1, expRoot, p)                         // 16
-	x := cmov(x2, x1, e2)                                   // 17
-	y2 := cmov(gx2, gx1, e2)                                // 18
-	y := sqrt(y2, expRoot, p)                               // 19
-	e3 := sgnCmp(u, y)                                      // 20
-	y = cmov(y.Mul(y, minusOne), y, e3)                     // 21
+	t1 := new(big.Int).Mul(Z, new(big.Int).Exp(u, two, p))   // 1.     t1 = Z * u^2
+	t2 := new(big.Int).Exp(t1, two, p)                       // 2.     t2 = t1^2
+	x1 := new(big.Int).Add(t1, t2)                           // 3.     x1 = t1 + t2
+	x1 = inv0(x1, p)                                         // 4.     x1 = inv0(x1)
+	e1 := revCmpBit(new(big.Int).Abs(cmpToBigInt(x1, zero))) // 5.     e1 = x1 == 0
+	x1 = x1.Add(x1, one)                                     // 6.     x1 = x1 + 1
+	x1 = cmov(x1, c2, e1)                                    // 7.     x1 = CMOV(x1, c2, e1)
+	x1 = x1.Mul(x1, c1)                                      // 8.     x1 = x1 * c1
+	gx1 := new(big.Int).Exp(x1, two, p)                      // 9.    gx1 = x1^2
+	gx1 = gx1.Add(gx1, A)                                    // 10.   gx1 = gx1 + A
+	gx1 = gx1.Mul(gx1, x1)                                   // 11.   gx1 = gx1 * x1
+	gx1 = gx1.Add(gx1, B)                                    // 12.   gx1 = gx1 + B
+	x2 := new(big.Int).Mul(t1, x1)                           // 13.    x2 = t1 * x1
+	t2 = t2.Mul(t1, t2)                                      // 14.    t2 = t1 * t2
+	gx2 := new(big.Int).Mul(gx1, t2)                         // 15.   gx2 = gx1 * t2
+	e2 := isSquare(gx1, isSqExp, p)                          // 16.    e2 = is_square(gx1)
+	x := cmov(x2, x1, e2)                                    // 17.     x = CMOV(x2, x1, e2)
+	y2 := cmov(gx2, gx1, e2)                                 // 18.    y2 = CMOV(gx2, gx1, e2)
+	y := sqrt(y2, sqrtExp, p)                                // 19.     y = sqrt(y2)
+	e3 := sgnCmp(u, y)                                       // 20.    e3 = sgn0(u) == sgn0(y)
+	y = cmov(new(big.Int).Mul(y, minusOne), y, e3)           // 21.     y = CMOV(-y, y, e3)
 
 	// construct point and assert that it is correct
-	P := Point{X: x, Y: y}
+	P := Point{X: x.Mod(x, p), Y: y.Mod(y, p)}
 	if !P.IsValid(params.gc) {
 		return Point{}, gg.ErrInvalidGroupElement
 	}
 	return Point{X: x, Y: y}, nil
 }
 
+// cmpToBigInt converts the return value from a comparison operation into a
+// *big.Int
+func cmpToBigInt(a, b *big.Int) *big.Int {
+	return big.NewInt(int64(a.Cmp(b)))
+}
+
 // returns 1 if the signs of s1 and s2 are the same, and 0 otherwise
 func sgnCmp(s1, s2 *big.Int) *big.Int {
-	c := new(big.Int).Abs(big.NewInt(int64(sgn0(s1).Cmp(sgn0(s2)))))
+	c := new(big.Int).Abs(cmpToBigInt(sgn0(s1), sgn0(s2)))
 	return revCmpBit(c)
 }
 
@@ -213,18 +224,20 @@ func sgn0(x *big.Int) *big.Int {
 // sqrt computes the sqrt of x mod p (pass in exp explicitly so that we don't
 // have to recompute)
 func sqrt(x, exp, p *big.Int) *big.Int {
-	return new(big.Int).Exp(x, exp, p)
+	x = x.Mod(x, p)
+	y := new(big.Int).Exp(x, exp, p)
+	return y
 }
 
 // isSquare returns 1 if x is a square integer in FF_p and 0 otherwise, passes
 // in the value exp to compute the square root in the exponent
 func isSquare(x, exp, p *big.Int) *big.Int {
-	b := sqrt(x, exp, p)
+	b := new(big.Int).Exp(x, exp, p)
 	c := b.Cmp(one)
 	d := b.Cmp(zero)
-	e := c * d
-	f := new(big.Int).Abs(big.NewInt(int64(big.NewInt(int64(e)).Cmp(zero)))) // should be 0 if it is square, and 1 otherwise
-	return revCmpBit(f)                                                      // returns 1 if square, and 0 otherwise
+	e := int64(c * d)
+	f := new(big.Int).Abs(cmpToBigInt(big.NewInt(e), zero)) // should be 0 if it is square, and 1 otherwise
+	return revCmpBit(f)                                     // returns 1 if square, and 0 otherwise
 }
 
 // revCmp reverses the result of a comparison bit indicator
@@ -260,11 +273,6 @@ func i2osp(x, xLen int) ([]byte, error) {
 
 // os2ip converts an octet-string to an integer
 // (https://tools.ietf.org/html/rfc8017#section-4.1)
-func os2ip(x []byte) int {
-	ret := 0
-	for _, b := range x {
-		ret = ret << 8
-		ret += int(b)
-	}
-	return ret
+func os2ip(x []byte) *big.Int {
+	return new(big.Int).SetBytes(x)
 }
