@@ -1,7 +1,6 @@
 package ecgroup
 
 import (
-	"fmt"
 	"hash"
 	"math/big"
 
@@ -136,16 +135,12 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
 	}
 
 	// construct the output point R
-	fmt.Println(Q0)
-	fmt.Println(Q1)
 	err = Q0.Add(params.gc, Q1)
 	if err != nil {
 		return Point{}, err
 	}
 	R := Q0
-	fmt.Println(R)
 	err = R.clearCofactor(params.gc, params.hEff)
-	fmt.Println(R)
 	if err != nil {
 		return Point{}, err
 	}
