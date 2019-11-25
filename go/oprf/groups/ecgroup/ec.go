@@ -122,27 +122,6 @@ func P521() GroupCurve {
 	}
 }
 
-// returns 1 if the signs of s1 and s2 are the same, and 0 otherwise
-func sgnCmp(s1, s2 *big.Int, sgn0 func(*big.Int) *big.Int) *big.Int {
-	return equalsToBigInt(sgn0(s1), sgn0(s2))
-}
-
-// sgn0LE returns -1 if x is negative (in little-endian sense) and 0/1 if x is positive
-func sgn0LE(x *big.Int) *big.Int {
-	res := equalsToBigInt(new(big.Int).Mod(x, two), one)
-	sign := cmov(one, minusOne, res)
-	zeroCmp := equalsToBigInt(x, zero)
-	sign = cmov(sign, zero, zeroCmp)
-	sZeroCmp := equalsToBigInt(sign, zero)
-	return cmov(sign, one, sZeroCmp)
-}
-
-// cmov is a constant-time big.Int conditional selector, returning b if c is 1,
-// and a if c = 0
-func cmov(a, b, c *big.Int) *big.Int {
-	return new(big.Int).Add(new(big.Int).Mul(c, b), new(big.Int).Mul(new(big.Int).Sub(one, c), a))
-}
-
 // Point implements the Group interface and is compatible with the Curve
 // Group-type
 type Point struct {
@@ -279,4 +258,29 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, error) {
 // multiplication and returning p or an error
 func (p Point) clearCofactor(curve GroupCurve, hEff *big.Int) (Point, error) {
 	return p.ScalarMult(curve, hEff)
+}
+
+/**
+ * Curve utility functions
+ */
+
+// returns 1 if the signs of s1 and s2 are the same, and 0 otherwise
+func sgnCmp(s1, s2 *big.Int, sgn0 func(*big.Int) *big.Int) *big.Int {
+	return equalsToBigInt(sgn0(s1), sgn0(s2))
+}
+
+// sgn0LE returns -1 if x is negative (in little-endian sense) and 0/1 if x is positive
+func sgn0LE(x *big.Int) *big.Int {
+	res := equalsToBigInt(new(big.Int).Mod(x, two), one)
+	sign := cmov(one, minusOne, res)
+	zeroCmp := equalsToBigInt(x, zero)
+	sign = cmov(sign, zero, zeroCmp)
+	sZeroCmp := equalsToBigInt(sign, zero)
+	return cmov(sign, one, sZeroCmp)
+}
+
+// cmov is a constant-time big.Int conditional selector, returning b if c is 1,
+// and a if c = 0
+func cmov(a, b, c *big.Int) *big.Int {
+	return new(big.Int).Add(new(big.Int).Mul(c, b), new(big.Int).Mul(new(big.Int).Sub(one, c), a))
 }
