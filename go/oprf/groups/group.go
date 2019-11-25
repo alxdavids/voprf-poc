@@ -37,6 +37,6 @@ type GroupElement interface {
 	IsValid(PrimeOrderGroup) bool
 	ScalarMult(PrimeOrderGroup, *big.Int) error
 	Add(PrimeOrderGroup, GroupElement) error
-	Serialize(PrimeOrderGroup, bool) []byte
+	Serialize(PrimeOrderGroup) []byte
 	Deserialize(PrimeOrderGroup) (GroupElement, error)
 }

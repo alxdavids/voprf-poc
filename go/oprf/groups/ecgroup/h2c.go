@@ -1,7 +1,6 @@
 package ecgroup
 
 import (
-	"fmt"
 	"hash"
 	"math/big"
 
@@ -120,8 +119,8 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
 	}
 
 	// attempt to encode bytes as curve point
-	Q0 := Point{}
-	Q1 := Point{}
+	Q0 := Point{}.New()
+	Q1 := Point{}.New()
 	var e0, e1 error
 	switch params.gc.Name() {
 	case "P-384", "P-521":
@@ -140,12 +139,10 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
 	}
 
 	// construct the output point R
-	fmt.Println(Q0)
 	R, err := Q0.Add(params.gc, Q1)
 	if err != nil {
 		return Point{}, err
 	}
-	fmt.Println(R)
 	P, err := R.clearCofactor(params.gc, params.hEff)
 	if err != nil {
 		return Point{}, err

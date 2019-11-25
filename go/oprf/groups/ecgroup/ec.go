@@ -77,6 +77,7 @@ func (c GroupCurve) Hash() hash.Hash { return c.hash }
 // performing elliptic curve operations
 type CurveConstants struct {
 	a, sqrtExp, isSqExp *big.Int
+	byteLength          int
 }
 
 // P384 provides access to the NIST P-384 curve
@@ -92,9 +93,10 @@ func P384() GroupCurve {
 		nist: true,
 		sgn0: sgn0LE,
 		consts: CurveConstants{
-			a:       minusThree,
-			sqrtExp: sqrtExp,
-			isSqExp: isSqExp,
+			a:          minusThree,
+			sqrtExp:    sqrtExp,
+			isSqExp:    isSqExp,
+			byteLength: (p384.Params().BitSize + 1) / 8,
 		},
 	}
 }
@@ -112,9 +114,10 @@ func P521() GroupCurve {
 		nist: true,
 		sgn0: sgn0LE,
 		consts: CurveConstants{
-			a:       minusThree,
-			sqrtExp: sqrtExp,
-			isSqExp: isSqExp,
+			a:          minusThree,
+			sqrtExp:    sqrtExp,
+			isSqExp:    isSqExp,
+			byteLength: (p521.Params().BitSize + 1) / 8,
 		},
 	}
 }
@@ -143,7 +146,13 @@ func cmov(a, b, c *big.Int) *big.Int {
 // Point implements the Group interface and is compatible with the Curve
 // Group-type
 type Point struct {
-	X, Y *big.Int
+	X, Y     *big.Int
+	compress bool // indicates that the point should be compressed on serialization.
+}
+
+// New returns a new point intiialised to zero
+func (p Point) New() Point {
+	return Point{X: zero, Y: zero, compress: false}
 }
 
 // IsValid checks that the given point is a valid curve point for the input
@@ -173,9 +182,9 @@ func (p Point) Add(curve GroupCurve, pAdd Point) (Point, error) {
 
 // Serialize marshals the point object into an octet-string, returns nil if
 // serialization is not supported for the given curve
-func (p Point) Serialize(curve GroupCurve, compressed bool) []byte {
+func (p Point) Serialize(curve GroupCurve) []byte {
 	if curve.nist {
-		return p.nistSerialize(compressed)
+		return p.nistSerialize()
 	}
 	return nil
 }
@@ -183,11 +192,11 @@ func (p Point) Serialize(curve GroupCurve, compressed bool) []byte {
 // nistSerialize marshals the point object into an octet-string of either
 // compressed or uncompressed SEC1 format
 // (https://www.secg.org/sec1-v2.pdf#subsubsection.2.3.3)
-func (p Point) nistSerialize(compressed bool) []byte {
+func (p Point) nistSerialize() []byte {
 	xBytes, yBytes := p.X.Bytes(), p.Y.Bytes()
 	var bytes []byte
 	var tag int
-	if !compressed {
+	if !p.compress {
 		bytes = append(xBytes, yBytes...)
 		tag = 4
 	} else {
@@ -197,8 +206,7 @@ func (p Point) nistSerialize(compressed bool) []byte {
 	return append([]byte{byte(tag)}, bytes...)
 }
 
-// TODO
-// Deserializw unmarhsals an octet-string into a valid point on curve
+// Deserialize unmarshals an octet-string into a valid point on curve
 func (p Point) Deserialize(curve GroupCurve, buf []byte) (Point, error) {
 	if curve.nist {
 		return p.nistDeserialize(curve, buf)
@@ -211,7 +219,7 @@ func (p Point) Deserialize(curve GroupCurve, buf []byte) (Point, error) {
 func (p Point) nistDeserialize(curve GroupCurve, buf []byte) (Point, error) {
 	tag := buf[0]
 	compressed := false
-	byteLength := (curve.ops.Params().BitSize + 1) / 8
+	byteLength := curve.consts.byteLength
 	switch tag {
 	case 2, 3:
 		if byteLength != len(buf)-1 {
@@ -230,8 +238,8 @@ func (p Point) nistDeserialize(curve GroupCurve, buf []byte) (Point, error) {
 
 	// deserailize depending on whether point is compressed or not
 	if !compressed {
-		p.X = new(big.Int).SetBytes(buf[1:byteLength])
-		p.Y = new(big.Int).SetBytes(buf[byteLength:])
+		p.X = new(big.Int).SetBytes(buf[1 : byteLength+1])
+		p.Y = new(big.Int).SetBytes(buf[byteLength+1:])
 		return p, nil
 	}
 	return p.nistDecompress(curve, buf)
