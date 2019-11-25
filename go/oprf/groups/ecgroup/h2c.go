@@ -1,6 +1,7 @@
 package ecgroup
 
 import (
+	"fmt"
 	"hash"
 	"math/big"
 
@@ -29,6 +30,7 @@ type h2cParams struct {
 	hash    hash.Hash
 	l       int
 	hEff    *big.Int
+	sgn0    func(*big.Int) *big.Int
 }
 
 // getH2CParams returns the h2cParams object for the specified curve
@@ -47,6 +49,7 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 			hash:    gc.Hash(),
 			l:       72,
 			hEff:    one,
+			sgn0:    sgn0LE,
 		}, nil
 	case "P-521":
 		return h2cParams{
@@ -61,6 +64,7 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 			hash:    gc.Hash(),
 			l:       96,
 			hEff:    one,
+			sgn0:    sgn0LE,
 		}, nil
 	}
 	return h2cParams{}, gg.ErrUnsupportedGroup
@@ -135,16 +139,17 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
 	}
 
 	// construct the output point R
-	err = Q0.Add(params.gc, Q1)
+	fmt.Println(Q0)
+	R, err := Q0.Add(params.gc, Q1)
 	if err != nil {
 		return Point{}, err
 	}
-	R := Q0
-	err = R.clearCofactor(params.gc, params.hEff)
+	fmt.Println(R)
+	P, err := R.clearCofactor(params.gc, params.hEff)
 	if err != nil {
 		return Point{}, err
 	}
-	return R, nil
+	return P, nil
 }
 
 // sswu completes the Simplified SWU method curve mapping defined in
@@ -183,7 +188,7 @@ func (params h2cParams) sswu(uArr []*big.Int) (Point, error) {
 	x := cmov(x2, x1, e2)                                    // 17.     x = CMOV(x2, x1, e2)
 	y2 := cmov(gx2, gx1, e2)                                 // 18.    y2 = CMOV(gx2, gx1, e2)
 	y := sqrt(y2, sqrtExp, p)                                // 19.     y = sqrt(y2)
-	e3 := sgnCmp(u, y)                                       // 20.    e3 = sgn0(u) == sgn0(y)
+	e3 := sgnCmp(u, y, params.sgn0)                          // 20.    e3 = sgn0(u) == sgn0(y)
 	y = cmov(new(big.Int).Mul(y, minusOne), y, e3)           // 21.     y = CMOV(-y, y, e3)
 
 	// construct point and assert that it is correct
@@ -200,20 +205,26 @@ func cmpToBigInt(a, b *big.Int) *big.Int {
 	return big.NewInt(int64(a.Cmp(b)))
 }
 
-// returns 1 if the signs of s1 and s2 are the same, and 0 otherwise
-func sgnCmp(s1, s2 *big.Int) *big.Int {
-	c := new(big.Int).Abs(cmpToBigInt(sgn0(s1), sgn0(s2)))
-	return revCmpBit(c)
+// equalsToBigInt returns big.Int(1) if a == b and big.Int(0) otherwise
+func equalsToBigInt(a, b *big.Int) *big.Int {
+	cmp := cmpToBigInt(a, b)
+	equalsRev := new(big.Int).Abs(cmp)
+	return revCmpBit(equalsRev)
 }
 
-// sgn0 returns -1 if x is negative and 0/1 if x is positive
-func sgn0(x *big.Int) *big.Int {
-	c := int64(x.Cmp(zero))
-	d := big.NewInt(c*2 + 2)
-	// if c = 1 or 0 then d = 4 or 2, so e = 1
-	// if c = -1 then d = 0, so e = -1
-	e := int64(d.Cmp(one))
-	return big.NewInt(e)
+// returns 1 if the signs of s1 and s2 are the same, and 0 otherwise
+func sgnCmp(s1, s2 *big.Int, sgn0 func(*big.Int) *big.Int) *big.Int {
+	return equalsToBigInt(sgn0(s1), sgn0(s2))
+}
+
+// sgn0LE returns -1 if x is negative (in little-endian sense) and 0/1 if x is positive
+func sgn0LE(x *big.Int) *big.Int {
+	res := equalsToBigInt(new(big.Int).Mod(x, two), one)
+	sign := cmov(one, minusOne, res)
+	zeroCmp := equalsToBigInt(x, zero)
+	sign = cmov(sign, zero, zeroCmp)
+	sZeroCmp := equalsToBigInt(sign, zero)
+	return cmov(sign, one, sZeroCmp)
 }
 
 // sqrt computes the sqrt of x mod p (pass in exp explicitly so that we don't
@@ -231,8 +242,7 @@ func isSquare(x, exp, p *big.Int) *big.Int {
 	c := b.Cmp(one)
 	d := b.Cmp(zero)
 	e := int64(c * d)
-	f := new(big.Int).Abs(cmpToBigInt(big.NewInt(e), zero)) // should be 0 if it is square, and 1 otherwise
-	return revCmpBit(f)                                     // returns 1 if square, and 0 otherwise
+	return equalsToBigInt(big.NewInt(e), zero) // returns 1 if square, and 0 otherwise
 }
 
 // revCmp reverses the result of a comparison bit indicator

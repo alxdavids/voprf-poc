@@ -100,21 +100,21 @@ func (p Point) IsValid(curve GroupCurve) bool {
 
 // ScalarMult multiplies the given curve point by the provided Scalar value,
 // returns nil if no errors occur
-func (p Point) ScalarMult(curve GroupCurve, k *big.Int) error {
+func (p Point) ScalarMult(curve GroupCurve, k *big.Int) (Point, error) {
 	if !p.IsValid(curve) {
-		return gg.ErrInvalidGroupElement
+		return Point{}, gg.ErrInvalidGroupElement
 	}
 	p.X, p.Y = curve.ops.ScalarMult(p.X, p.Y, k.Bytes())
-	return nil
+	return p, nil
 }
 
 // Add adds pAdd to the current point object and returns nil if no errors occur
-func (p Point) Add(curve GroupCurve, pAdd Point) error {
+func (p Point) Add(curve GroupCurve, pAdd Point) (Point, error) {
 	if !p.IsValid(curve) {
-		return gg.ErrInvalidGroupElement
+		return Point{}, gg.ErrInvalidGroupElement
 	}
 	p.X, p.Y = curve.ops.Add(p.X, p.Y, pAdd.X, pAdd.Y)
-	return nil
+	return p, nil
 }
 
 // Serialize marshals the point object into an octet-string
@@ -151,6 +151,6 @@ func (p Point) Deserialize(curve GroupCurve) (Point, error) {
 
 // clearCofactor clears the cofactor (hEff) of the produced point by performing
 // a scalar multiplication
-func (p Point) clearCofactor(curve GroupCurve, hEff *big.Int) error {
+func (p Point) clearCofactor(curve GroupCurve, hEff *big.Int) (Point, error) {
 	return p.ScalarMult(curve, hEff)
 }
