@@ -11,12 +11,12 @@ import (
 // Even though groups == curves, we keep the abstraction to fit with curve
 // implementations
 type Ciphersuite struct {
-	GG  groups.Group
-	H_1 crypto.Hash
-	H_2 crypto.Hash
-	H_3 crypto.Hash
-	H_4 crypto.Hash
-	H_5 crypto.Hash
+	GG    groups.PrimeOrderGroup
+	Hash1 crypto.Hash
+	Hash2 crypto.Hash
+	Hash3 crypto.Hash
+	Hash4 crypto.Hash
+	Hash5 crypto.Hash
 }
 
 type PublicKey struct {
