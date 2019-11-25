@@ -9,11 +9,6 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
-// big.Int constants
-var (
-	zero, one, minusOne, two, four *big.Int = big.NewInt(0), big.NewInt(1), big.NewInt(-1), big.NewInt(2), big.NewInt(4)
-)
-
 // h2cParams contains all of the parameters required for computing the
 // hash_to_curve mapping algorithm, see
 // https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-05 for more
@@ -30,6 +25,8 @@ type h2cParams struct {
 	hash    hash.Hash
 	l       int
 	hEff    *big.Int
+	isSqExp *big.Int
+	sqrtExp *big.Int
 	sgn0    func(*big.Int) *big.Int
 }
 
@@ -42,14 +39,16 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 			dst:     []byte("VOPRF-P384-SHA512-SSWU-RO-"),
 			mapping: 0,
 			z:       -12,
-			a:       big.NewInt(-3),
+			a:       gc.consts.a,
 			b:       gc.ops.Params().B,
 			p:       gc.Order(),
 			m:       1,
 			hash:    gc.Hash(),
 			l:       72,
 			hEff:    one,
-			sgn0:    sgn0LE,
+			isSqExp: gc.consts.isSqExp,
+			sqrtExp: gc.consts.sqrtExp,
+			sgn0:    gc.sgn0,
 		}, nil
 	case "P-521":
 		return h2cParams{
@@ -57,14 +56,16 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 			dst:     []byte("VOPRF-P521-SHA512-SSWU-RO-"),
 			mapping: 0,
 			z:       -4,
-			a:       big.NewInt(-3),
+			a:       gc.consts.a,
 			b:       gc.ops.Params().B,
 			p:       gc.Order(),
 			m:       1,
 			hash:    gc.Hash(),
 			l:       96,
 			hEff:    one,
-			sgn0:    sgn0LE,
+			isSqExp: gc.consts.isSqExp,
+			sqrtExp: gc.consts.sqrtExp,
+			sgn0:    gc.sgn0,
 		}, nil
 	}
 	return h2cParams{}, gg.ErrUnsupportedGroup
@@ -160,8 +161,6 @@ func (params h2cParams) sswu(uArr []*big.Int) (Point, error) {
 	}
 	u := uArr[0]
 	p, A, B, Z := params.p, params.a, params.b, big.NewInt(int64(params.z))
-	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, one), new(big.Int).ModInverse(two, p)), p)
-	sqrtExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, one), new(big.Int).ModInverse(four, p)), p)
 
 	// consts
 	// c1 := -B/A, c2 := -1/Z
@@ -184,10 +183,10 @@ func (params h2cParams) sswu(uArr []*big.Int) (Point, error) {
 	x2 := new(big.Int).Mul(t1, x1)                           // 13.    x2 = t1 * x1
 	t2 = t2.Mul(t1, t2)                                      // 14.    t2 = t1 * t2
 	gx2 := new(big.Int).Mul(gx1, t2)                         // 15.   gx2 = gx1 * t2
-	e2 := isSquare(gx1, isSqExp, p)                          // 16.    e2 = is_square(gx1)
+	e2 := isSquare(gx1, params.isSqExp, p)                   // 16.    e2 = is_square(gx1)
 	x := cmov(x2, x1, e2)                                    // 17.     x = CMOV(x2, x1, e2)
 	y2 := cmov(gx2, gx1, e2)                                 // 18.    y2 = CMOV(gx2, gx1, e2)
-	y := sqrt(y2, sqrtExp, p)                                // 19.     y = sqrt(y2)
+	y := sqrt(y2, params.sqrtExp, p)                         // 19.     y = sqrt(y2)
 	e3 := sgnCmp(u, y, params.sgn0)                          // 20.    e3 = sgn0(u) == sgn0(y)
 	y = cmov(new(big.Int).Mul(y, minusOne), y, e3)           // 21.     y = CMOV(-y, y, e3)
 
@@ -212,21 +211,6 @@ func equalsToBigInt(a, b *big.Int) *big.Int {
 	return revCmpBit(equalsRev)
 }
 
-// returns 1 if the signs of s1 and s2 are the same, and 0 otherwise
-func sgnCmp(s1, s2 *big.Int, sgn0 func(*big.Int) *big.Int) *big.Int {
-	return equalsToBigInt(sgn0(s1), sgn0(s2))
-}
-
-// sgn0LE returns -1 if x is negative (in little-endian sense) and 0/1 if x is positive
-func sgn0LE(x *big.Int) *big.Int {
-	res := equalsToBigInt(new(big.Int).Mod(x, two), one)
-	sign := cmov(one, minusOne, res)
-	zeroCmp := equalsToBigInt(x, zero)
-	sign = cmov(sign, zero, zeroCmp)
-	sZeroCmp := equalsToBigInt(sign, zero)
-	return cmov(sign, one, sZeroCmp)
-}
-
 // sqrt computes the sqrt of x mod p (pass in exp explicitly so that we don't
 // have to recompute)
 func sqrt(x, exp, p *big.Int) *big.Int {
@@ -248,12 +232,6 @@ func isSquare(x, exp, p *big.Int) *big.Int {
 // revCmp reverses the result of a comparison bit indicator
 func revCmpBit(cmp *big.Int) *big.Int {
 	return new(big.Int).Mod(new(big.Int).Add(cmp, one), two)
-}
-
-// cmov is a constant-time big.Int conditional selector, returning b if c is 1,
-// and a if c = 0
-func cmov(a, b, c *big.Int) *big.Int {
-	return new(big.Int).Add(new(big.Int).Mul(c, b), new(big.Int).Mul(new(big.Int).Sub(one, c), a))
 }
 
 // inv0 returns the inverse of x in FF_p, also returning 0^{-1} => 0
