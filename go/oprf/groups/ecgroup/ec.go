@@ -98,8 +98,8 @@ func (p Point) IsValid(curve GroupCurve) bool {
 	return curve.ops.IsOnCurve(p.X, p.Y)
 }
 
-// ScalarMult multiplies the given curve point by the provided Scalar value,
-// returns nil if no errors occur
+// ScalarMult multiplies p by the provided Scalar value, and returns p or an
+// error
 func (p Point) ScalarMult(curve GroupCurve, k *big.Int) (Point, error) {
 	if !p.IsValid(curve) {
 		return Point{}, gg.ErrInvalidGroupElement
@@ -108,7 +108,7 @@ func (p Point) ScalarMult(curve GroupCurve, k *big.Int) (Point, error) {
 	return p, nil
 }
 
-// Add adds pAdd to the current point object and returns nil if no errors occur
+// Add adds pAdd to p and returns p or an error
 func (p Point) Add(curve GroupCurve, pAdd Point) (Point, error) {
 	if !p.IsValid(curve) {
 		return Point{}, gg.ErrInvalidGroupElement
@@ -117,7 +117,8 @@ func (p Point) Add(curve GroupCurve, pAdd Point) (Point, error) {
 	return p, nil
 }
 
-// Serialize marshals the point object into an octet-string
+// Serialize marshals the point object into an octet-string, returns nil if
+// serialization is not supported for the given curve
 func (p Point) Serialize(curve GroupCurve, compressed bool) []byte {
 	if curve.nist {
 		return p.nistSerialize(compressed)
@@ -149,8 +150,8 @@ func (p Point) Deserialize(curve GroupCurve) (Point, error) {
 	return Point{}, nil
 }
 
-// clearCofactor clears the cofactor (hEff) of the produced point by performing
-// a scalar multiplication
+// clearCofactor clears the cofactor (hEff) of p by performing a scalar
+// multiplication and returning p or an error
 func (p Point) clearCofactor(curve GroupCurve, hEff *big.Int) (Point, error) {
 	return p.ScalarMult(curve, hEff)
 }
