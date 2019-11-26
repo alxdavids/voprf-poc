@@ -17,14 +17,9 @@ var (
 	zero, one, minusOne, minusThree, two, four *big.Int = big.NewInt(0), big.NewInt(1), big.NewInt(-1), big.NewInt(-3), big.NewInt(2), big.NewInt(4)
 )
 
-// baseCurve extends the standard elliptic curve interface
-type baseCurve interface {
-	elliptic.Curve
-}
-
 // GroupCurve implements the PrimeOrderGroup interface
 type GroupCurve struct {
-	ops        baseCurve
+	ops        elliptic.Curve
 	name       string
 	hash       hash.Hash
 	ee         oc.ExtractorExpander
@@ -37,7 +32,7 @@ type GroupCurve struct {
 // New constructs a new GroupCurve object implementing the PrimeOrderGroup
 // interface
 func (c GroupCurve) New(name string) (GroupCurve, error) {
-	var curve baseCurve
+	var curve elliptic.Curve
 	var h hash.Hash
 	var ee oc.ExtractorExpander
 	switch name {
@@ -73,7 +68,7 @@ func (c GroupCurve) New(name string) (GroupCurve, error) {
 	}, nil
 }
 
-// Order returns the order of the underlying field for the baseCurve object
+// Order returns the order of the underlying field for the base curve object
 func (c GroupCurve) Order() *big.Int {
 	return c.ops.Params().P
 }
@@ -131,7 +126,7 @@ type CurveConstants struct {
 
 // CreateNistCurve creates an instance of a GroupCurve corresponding to a NIST
 // elliptic curve
-func CreateNistCurve(curve baseCurve, h hash.Hash, ee oc.ExtractorExpander) GroupCurve {
+func CreateNistCurve(curve elliptic.Curve, h hash.Hash, ee oc.ExtractorExpander) GroupCurve {
 	name := ""
 	switch curve {
 	case p384.P384():
