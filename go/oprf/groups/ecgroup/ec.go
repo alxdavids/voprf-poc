@@ -22,13 +22,7 @@ type baseCurve interface {
 	elliptic.Curve
 }
 
-// ExtendedCurve adds functionality required for performing curve operations
-type ExtendedCurve interface {
-	gg.PrimeOrderGroup
-	Name() string
-}
-
-// GroupCurve implements the ExtendedCurve interface
+// GroupCurve implements the PrimeOrderGroup interface
 type GroupCurve struct {
 	ops        baseCurve
 	name       string

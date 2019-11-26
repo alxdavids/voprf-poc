@@ -129,6 +129,7 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 // groups of prime order
 type PrimeOrderGroup interface {
 	New(string) PrimeOrderGroup
+	Name() string
 	Generator() GroupElement
 	GeneratorMult(*big.Int) (GroupElement, error)
 	Order() *big.Int
