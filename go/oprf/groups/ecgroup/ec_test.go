@@ -11,7 +11,7 @@ import (
 )
 
 func TestGroupCurveEncodingP384(t *testing.T) {
-	curve := CreateNistCurve(p384.P384(), "P-384", sha512.New(), oc.HKDFExtExp{})
+	curve := CreateNistCurve(p384.P384(), sha512.New(), oc.HKDFExtExp{})
 	_, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -19,7 +19,7 @@ func TestGroupCurveEncodingP384(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationP384(t *testing.T) {
-	curve := CreateNistCurve(p384.P384(), "P-384", sha512.New(), oc.HKDFExtExp{})
+	curve := CreateNistCurve(p384.P384(), sha512.New(), oc.HKDFExtExp{})
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -29,7 +29,7 @@ func TestGroupCurvePointSerializationP384(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationWithCompressionP384(t *testing.T) {
-	curve := CreateNistCurve(p384.P384(), "P-384", sha512.New(), oc.HKDFExtExp{})
+	curve := CreateNistCurve(p384.P384(), sha512.New(), oc.HKDFExtExp{})
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -40,7 +40,7 @@ func TestGroupCurvePointSerializationWithCompressionP384(t *testing.T) {
 }
 
 func TestGroupCurveEncodingP521(t *testing.T) {
-	curve := CreateNistCurve(elliptic.P521(), "P-521", sha512.New(), oc.HKDFExtExp{})
+	curve := CreateNistCurve(elliptic.P521(), sha512.New(), oc.HKDFExtExp{})
 	_, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +48,7 @@ func TestGroupCurveEncodingP521(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationP521(t *testing.T) {
-	curve := CreateNistCurve(elliptic.P521(), "P-521", sha512.New(), oc.HKDFExtExp{})
+	curve := CreateNistCurve(elliptic.P521(), sha512.New(), oc.HKDFExtExp{})
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +58,7 @@ func TestGroupCurvePointSerializationP521(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationWithCompressionP521(t *testing.T) {
-	curve := CreateNistCurve(elliptic.P521(), "P-521", sha512.New(), oc.HKDFExtExp{})
+	curve := CreateNistCurve(elliptic.P521(), sha512.New(), oc.HKDFExtExp{})
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)

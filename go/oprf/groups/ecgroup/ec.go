@@ -2,12 +2,14 @@ package ecgroup
 
 import (
 	"crypto/elliptic"
+	"crypto/sha512"
 	"crypto/subtle"
 	"hash"
 	"math/big"
 
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
 	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
+	"github.com/cloudflare/circl/ecc/p384"
 )
 
 // big.Int constants
@@ -37,6 +39,45 @@ type GroupCurve struct {
 	nist       bool
 	sgn0       func(*big.Int) *big.Int
 	consts     CurveConstants
+}
+
+// New constructs a new GroupCurve object implementing the PrimeOrderGroup
+// interface
+func (c GroupCurve) New(name string) (GroupCurve, error) {
+	var curve baseCurve
+	var h hash.Hash
+	var ee oc.ExtractorExpander
+	switch name {
+	case "P-384":
+		curve = p384.P384()
+		h = sha512.New()
+		ee = oc.HKDFExtExp{}
+		break
+	case "P-521":
+		curve = elliptic.P521()
+		h = sha512.New()
+		ee = oc.HKDFExtExp{}
+		break
+	default:
+		return GroupCurve{}, gg.ErrUnsupportedGroup
+	}
+	p := curve.Params().P
+	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, one), new(big.Int).ModInverse(two, p)), p)
+	sqrtExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, one), new(big.Int).ModInverse(four, p)), p)
+	return GroupCurve{
+		ops:        curve,
+		name:       name,
+		hash:       h,
+		ee:         ee,
+		byteLength: (curve.Params().BitSize + 7) / 8,
+		nist:       true,
+		sgn0:       sgn0LE,
+		consts: CurveConstants{
+			a:       minusThree,
+			sqrtExp: sqrtExp,
+			isSqExp: isSqExp,
+		},
+	}, nil
 }
 
 // Order returns the order of the underlying field for the baseCurve object
@@ -86,6 +127,9 @@ func (c GroupCurve) Name() string { return c.name }
 // P-384 curve
 func (c GroupCurve) Hash() hash.Hash { return c.hash }
 
+// EE returns the ExtractorExpander function associated with the GroupCurve
+func (c GroupCurve) EE() oc.ExtractorExpander { return c.ee }
+
 // CurveConstants keeps track of a number of constants that are useful for
 // performing elliptic curve operations
 type CurveConstants struct {
@@ -94,7 +138,14 @@ type CurveConstants struct {
 
 // CreateNistCurve creates an instance of a GroupCurve corresponding to a NIST
 // elliptic curve
-func CreateNistCurve(curve baseCurve, name string, h hash.Hash, ee oc.ExtractorExpander) GroupCurve {
+func CreateNistCurve(curve baseCurve, h hash.Hash, ee oc.ExtractorExpander) GroupCurve {
+	name := ""
+	switch curve {
+	case p384.P384():
+		name = "P-384"
+	case elliptic.P521():
+		name = "P-521"
+	}
 	p := curve.Params().P
 	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, one), new(big.Int).ModInverse(two, p)), p)
 	sqrtExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, one), new(big.Int).ModInverse(four, p)), p)
