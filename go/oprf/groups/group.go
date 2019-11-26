@@ -2,7 +2,11 @@ package groups
 
 import (
 	"fmt"
+	"hash"
 	"math/big"
+	"strings"
+
+	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
 )
 
 var (
@@ -23,11 +27,33 @@ var (
 	ErrInternalInstantiation error = fmt.Errorf("Internal error occurred with internal group instantiation")
 )
 
+// Ciphersuite corresponds to the OPRF ciphersuite that is chosen
+//
+// Even though groups == curves, we keep the abstraction to fit with curve
+// implementations
+type Ciphersuite struct {
+	name  string
+	pog   PrimeOrderGroup
+	hash1 func([]byte) (GroupElement, error)
+	hash2 oc.ExtractorExpander
+	hash3 hash.Hash
+	hash4 hash.Hash
+	hash5 string
+}
+
+// FromString derives a ciphersuite from the string that was provided
+func (c Ciphersuite) FromString(s string) Ciphersuite {
+	split := strings.Split(s, "-")
+	return Ciphersuite{}
+}
+
 // PrimeOrderGroup is an interface that defines operations within a mathematical
 // groups of prime order
 type PrimeOrderGroup interface {
 	Generator() GroupElement
+	GeneratorMult(*big.Int) (GroupElement, error)
 	Order() *big.Int
+	ByteLength() int
 	EncodeToGroup([]byte) (GroupElement, error)
 }
 

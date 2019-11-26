@@ -1,14 +1,19 @@
 package ecgroup
 
 import (
+	"crypto/elliptic"
+	"crypto/sha512"
 	"errors"
 	"fmt"
 	"math/big"
 	"testing"
+
+	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
+	"github.com/cloudflare/circl/ecc/p384"
 )
 
 func TestHashToBaseP384(t *testing.T) {
-	curve := P384()
+	curve := CreateNistCurve(p384.P384(), "P-384", sha512.New(), oc.HKDFExtExp{})
 	err := performHashToBase(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -16,7 +21,7 @@ func TestHashToBaseP384(t *testing.T) {
 }
 
 func TestSswuP384(t *testing.T) {
-	curve := P384()
+	curve := CreateNistCurve(p384.P384(), "P-384", sha512.New(), oc.HKDFExtExp{})
 	err := performSswu(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -24,7 +29,7 @@ func TestSswuP384(t *testing.T) {
 }
 
 func TestHashToCurveP384(t *testing.T) {
-	curve := P384()
+	curve := CreateNistCurve(p384.P384(), "P-384", sha512.New(), oc.HKDFExtExp{})
 	err := performHashToCurve(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -32,7 +37,7 @@ func TestHashToCurveP384(t *testing.T) {
 }
 
 func TestHashToBaseP521(t *testing.T) {
-	curve := P521()
+	curve := CreateNistCurve(elliptic.P521(), "P-521", sha512.New(), oc.HKDFExtExp{})
 	err := performHashToBase(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -40,7 +45,7 @@ func TestHashToBaseP521(t *testing.T) {
 }
 
 func TestSswuP521(t *testing.T) {
-	curve := P521()
+	curve := CreateNistCurve(elliptic.P521(), "P-521", sha512.New(), oc.HKDFExtExp{})
 	err := performSswu(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +53,7 @@ func TestSswuP521(t *testing.T) {
 }
 
 func TestHashToCurveP521(t *testing.T) {
-	curve := P521()
+	curve := CreateNistCurve(elliptic.P521(), "P-521", sha512.New(), oc.HKDFExtExp{})
 	err := performHashToCurve(curve)
 	if err != nil {
 		t.Fatal(err)

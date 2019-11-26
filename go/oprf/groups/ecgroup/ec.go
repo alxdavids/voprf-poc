@@ -2,13 +2,12 @@ package ecgroup
 
 import (
 	"crypto/elliptic"
-	"crypto/sha512"
 	"crypto/subtle"
 	"hash"
 	"math/big"
 
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
-	"github.com/cloudflare/circl/ecc/p384"
+	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
 )
 
 // big.Int constants
@@ -30,12 +29,14 @@ type ExtendedCurve interface {
 
 // GroupCurve implements the ExtendedCurve interface
 type GroupCurve struct {
-	ops    baseCurve
-	name   string
-	hash   hash.Hash
-	nist   bool
-	sgn0   func(*big.Int) *big.Int
-	consts CurveConstants
+	ops        baseCurve
+	name       string
+	hash       hash.Hash
+	ee         oc.ExtractorExpander
+	byteLength int
+	nist       bool
+	sgn0       func(*big.Int) *big.Int
+	consts     CurveConstants
 }
 
 // Order returns the order of the underlying field for the baseCurve object
@@ -50,6 +51,18 @@ func (c GroupCurve) Generator() Point {
 		X: c.ops.Params().Gx,
 		Y: c.ops.Params().Gy,
 	}
+}
+
+// GeneratorMult returns k*G, where G is the generator of the curve
+func (c GroupCurve) GeneratorMult(k *big.Int) (Point, error) {
+	G := c.Generator()
+	return G.ScalarMult(c, k)
+}
+
+// ByteLength returns the length, in bytes, of a valid representation of a group
+// element
+func (c GroupCurve) ByteLength() int {
+	return c.byteLength
 }
 
 // EncodeToGroup invokes the hash_to_curve method for encoding bytes as curve
@@ -77,47 +90,26 @@ func (c GroupCurve) Hash() hash.Hash { return c.hash }
 // performing elliptic curve operations
 type CurveConstants struct {
 	a, sqrtExp, isSqExp *big.Int
-	byteLength          int
 }
 
-// P384 provides access to the NIST P-384 curve
-func P384() GroupCurve {
-	p384 := p384.P384()
-	p := p384.Params().P
+// CreateNistCurve creates an instance of a GroupCurve corresponding to a NIST
+// elliptic curve
+func CreateNistCurve(curve baseCurve, name string, h hash.Hash, ee oc.ExtractorExpander) GroupCurve {
+	p := curve.Params().P
 	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, one), new(big.Int).ModInverse(two, p)), p)
 	sqrtExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, one), new(big.Int).ModInverse(four, p)), p)
 	return GroupCurve{
-		ops:  p384,
-		name: "P-384",
-		hash: sha512.New(),
-		nist: true,
-		sgn0: sgn0LE,
+		ops:        curve,
+		name:       name,
+		hash:       h,
+		ee:         ee,
+		byteLength: (curve.Params().BitSize + 7) / 8,
+		nist:       true,
+		sgn0:       sgn0LE,
 		consts: CurveConstants{
-			a:          minusThree,
-			sqrtExp:    sqrtExp,
-			isSqExp:    isSqExp,
-			byteLength: (p384.Params().BitSize + 1) / 8,
-		},
-	}
-}
-
-// P521 provides access to the NIST P-521 curve
-func P521() GroupCurve {
-	p521 := elliptic.P521()
-	p := p521.Params().P
-	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, one), new(big.Int).ModInverse(two, p)), p)
-	sqrtExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, one), new(big.Int).ModInverse(four, p)), p)
-	return GroupCurve{
-		ops:  elliptic.P521(),
-		name: "P-521",
-		hash: sha512.New(),
-		nist: true,
-		sgn0: sgn0LE,
-		consts: CurveConstants{
-			a:          minusThree,
-			sqrtExp:    sqrtExp,
-			isSqExp:    isSqExp,
-			byteLength: (p521.Params().BitSize + 1) / 8,
+			a:       minusThree,
+			sqrtExp: sqrtExp,
+			isSqExp: isSqExp,
 		},
 	}
 }
@@ -198,7 +190,7 @@ func (p Point) Deserialize(curve GroupCurve, buf []byte) (Point, error) {
 func (p Point) nistDeserialize(curve GroupCurve, buf []byte) (Point, error) {
 	tag := buf[0]
 	compressed := false
-	byteLength := curve.consts.byteLength
+	byteLength := curve.ByteLength()
 	switch tag {
 	case 2, 3:
 		if byteLength != len(buf)-1 {

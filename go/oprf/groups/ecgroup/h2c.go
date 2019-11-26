@@ -1,11 +1,12 @@
 package ecgroup
 
 import (
+	"fmt"
 	"hash"
 	"math/big"
 
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
-	"golang.org/x/crypto/hkdf"
+	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
 )
 
 // h2cParams contains all of the parameters required for computing the
@@ -14,6 +15,7 @@ import (
 // information.
 type h2cParams struct {
 	gc      GroupCurve
+	name    string
 	dst     []byte
 	mapping int
 	z       int
@@ -22,6 +24,7 @@ type h2cParams struct {
 	p       *big.Int
 	m       int
 	hash    hash.Hash
+	ee      oc.ExtractorExpander
 	l       int
 	hEff    *big.Int
 	isSqExp *big.Int
@@ -31,11 +34,13 @@ type h2cParams struct {
 
 // getH2CParams returns the h2cParams object for the specified curve
 func getH2CParams(gc GroupCurve) (h2cParams, error) {
+	h2cName := "SSWU-RO"
 	switch gc.Name() {
 	case "P-384":
 		return h2cParams{
 			gc:      gc,
-			dst:     []byte("VOPRF-P384-SHA512-SSWU-RO-"),
+			name:    h2cName,
+			dst:     []byte(fmt.Sprintf("VOPRF-P384-SHA512-%s-", h2cName)),
 			mapping: 0,
 			z:       -12,
 			a:       gc.consts.a,
@@ -43,6 +48,7 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 			p:       gc.Order(),
 			m:       1,
 			hash:    gc.Hash(),
+			ee:      gc.ee,
 			l:       72,
 			hEff:    one,
 			isSqExp: gc.consts.isSqExp,
@@ -52,7 +58,8 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 	case "P-521":
 		return h2cParams{
 			gc:      gc,
-			dst:     []byte("VOPRF-P521-SHA512-SSWU-RO-"),
+			name:    h2cName,
+			dst:     []byte(fmt.Sprintf("VOPRF-P521-SHA512-%s-", h2cName)),
 			mapping: 0,
 			z:       -4,
 			a:       gc.consts.a,
@@ -60,6 +67,7 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 			p:       gc.Order(),
 			m:       1,
 			hash:    gc.Hash(),
+			ee:      gc.ee,
 			l:       96,
 			hEff:    one,
 			isSqExp: gc.consts.isSqExp,
@@ -82,7 +90,8 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error)
 		hash.Reset()
 		return hash
 	}
-	msgPrime := hkdf.Extract(hashFunc, append(buf, os...), params.dst)
+	extractor := params.ee.Extractor()
+	msgPrime := extractor(hashFunc, append(buf, os...), params.dst)
 	osCtr, err := i2osp(ctr, 1)
 	if err != nil {
 		return nil, gg.ErrInternalInstantiation
@@ -90,13 +99,14 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error)
 	infoPfx := append([]byte("H2C"), osCtr...)
 	i := 1
 	res := make([]*big.Int, params.m)
+	expander := params.ee.Expander()
 	for i <= params.m {
 		osi, err := i2osp(i, 1)
 		if err != nil {
 			return nil, gg.ErrInternalInstantiation
 		}
 		info := append(infoPfx, osi...)
-		reader := hkdf.Expand(hashFunc, msgPrime, info)
+		reader := expander(hashFunc, msgPrime, info)
 		t := make([]byte, params.l)
 		reader.Read(t)
 		ei := os2ip(t)

@@ -1,66 +1,71 @@
 package ecgroup
 
 import (
+	"crypto/elliptic"
+	"crypto/sha512"
 	"fmt"
 	"testing"
+
+	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
+	"github.com/cloudflare/circl/ecc/p384"
 )
 
 func TestGroupCurveEncodingP384(t *testing.T) {
-	p384 := P384()
-	_, err := curveEncoding(p384)
+	curve := CreateNistCurve(p384.P384(), "P-384", sha512.New(), oc.HKDFExtExp{})
+	_, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestGroupCurvePointSerializationP384(t *testing.T) {
-	p384 := P384()
-	P, err := curveEncoding(p384)
+	curve := CreateNistCurve(p384.P384(), "P-384", sha512.New(), oc.HKDFExtExp{})
+	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	checkSerialize(p384, P)
+	checkSerialize(curve, P)
 }
 
 func TestGroupCurvePointSerializationWithCompressionP384(t *testing.T) {
-	p384 := P384()
-	P, err := curveEncoding(p384)
+	curve := CreateNistCurve(p384.P384(), "P-384", sha512.New(), oc.HKDFExtExp{})
+	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	P.compress = true
-	checkSerialize(p384, P)
+	checkSerialize(curve, P)
 }
 
 func TestGroupCurveEncodingP521(t *testing.T) {
-	p521 := P521()
-	_, err := curveEncoding(p521)
+	curve := CreateNistCurve(elliptic.P521(), "P-521", sha512.New(), oc.HKDFExtExp{})
+	_, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestGroupCurvePointSerializationP521(t *testing.T) {
-	p521 := P521()
-	P, err := curveEncoding(p521)
+	curve := CreateNistCurve(elliptic.P521(), "P-521", sha512.New(), oc.HKDFExtExp{})
+	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	checkSerialize(p521, P)
+	checkSerialize(curve, P)
 }
 
 func TestGroupCurvePointSerializationWithCompressionP521(t *testing.T) {
-	p521 := P521()
-	P, err := curveEncoding(p521)
+	curve := CreateNistCurve(elliptic.P521(), "P-521", sha512.New(), oc.HKDFExtExp{})
+	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	P.compress = true
-	checkSerialize(p521, P)
+	checkSerialize(curve, P)
 }
 
 func curveEncoding(curve GroupCurve) (Point, error) {
@@ -83,8 +88,8 @@ func checkSerialize(curve GroupCurve, P Point) error {
 		return err
 	}
 
-	if (P.compress && len(buf) != curve.consts.byteLength+1) ||
-		len(buf) != (2*curve.consts.byteLength)+1 {
+	if (P.compress && len(buf) != curve.ByteLength()+1) ||
+		len(buf) != (2*curve.ByteLength())+1 {
 		return fmt.Errorf("Incorrect buffer length")
 	}
 
