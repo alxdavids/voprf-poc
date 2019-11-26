@@ -47,14 +47,13 @@ var (
 // Even though groups == curves, we keep the abstraction to fit with curve
 // implementations
 type Ciphersuite struct {
-	Name       string
-	Pog        PrimeOrderGroup
-	Hash1      func([]byte) (GroupElement, error)
-	Hash2      func(func() hash.Hash, []byte) hash.Hash
-	Hash3      hash.Hash
-	Hash4      hash.Hash
-	Hash5      oc.ExtractorExpander
-	Verifiable bool
+	name        string
+	pog         PrimeOrderGroup
+	hash1       func([]byte) (GroupElement, error)
+	hash2       func(func() hash.Hash, []byte) hash.Hash
+	hashGeneric hash.Hash
+	hash5       oc.ExtractorExpander
+	verifiable  bool
 }
 
 // FromString derives a ciphersuite from the string that was provided,
@@ -114,8 +113,7 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 	// derive Ciphersuite object
 	h1 := pogNew.EncodeToGroup
 	h2 := hmac.New
-	h3 := pogNew.Hash()
-	h4 := pogNew.Hash()
+	hashGeneric := pogNew.Hash()
 	var h5 oc.ExtractorExpander
 	verifiable := false
 	if split[0] == "VOPRF" {
@@ -123,16 +121,39 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 		h5 = pogNew.EE()
 	}
 	return Ciphersuite{
-		Name:       s,
-		Pog:        pogNew,
-		Hash1:      h1,
-		Hash2:      h2,
-		Hash3:      h3,
-		Hash4:      h4,
-		Hash5:      h5,
-		Verifiable: verifiable,
+		name:        s,
+		pog:         pogNew,
+		hash1:       h1,
+		hash2:       h2,
+		hashGeneric: hashGeneric,
+		hash5:       h5,
+		verifiable:  verifiable,
 	}, nil
 }
+
+// Name returns the name of the Ciphersuite
+func (c Ciphersuite) Name() string { return c.name }
+
+// H1 returns the hash1 function specified in Ciphersuite
+func (c Ciphersuite) H1() func([]byte) (GroupElement, error) { return c.hash1 }
+
+// H2 returns the hash2 function specified in Ciphersuite
+func (c Ciphersuite) H2() func(func() hash.Hash, []byte) hash.Hash { return c.hash2 }
+
+// H3 returns the hashGeneric function specified in Ciphersuite
+func (c Ciphersuite) H3() hash.Hash { return c.hashGeneric }
+
+// H4 returns the hashGeneric function specified in Ciphersuite
+func (c Ciphersuite) H4() hash.Hash { return c.hashGeneric }
+
+// H5 returns the hash5 function specified in Ciphersuite
+func (c Ciphersuite) H5() oc.ExtractorExpander { return c.hash5 }
+
+// POG returns the PrimeOrderGroup for the current Ciphersuite
+func (c Ciphersuite) POG() PrimeOrderGroup { return c.pog }
+
+// Verifiable returns whether the ciphersuite corresponds to a VOPRF or not
+func (c Ciphersuite) Verifiable() bool { return c.verifiable }
 
 // PrimeOrderGroup is an interface that defines operations within additive
 // groups of prime order

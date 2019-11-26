@@ -111,15 +111,15 @@ func ciphersuiteFromString(t *testing.T, groupName string, verifiable bool) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, ciph.Name, ciphName)
-	assert.Equal(t, ciph.Hash3, sha512.New())
-	assert.Equal(t, ciph.Hash4, sha512.New())
-	assert.Equal(t, ciph.Pog.Name(), groupName)
-	assert.Equal(t, ciph.Verifiable, verifiable)
+	assert.Equal(t, ciph.Name(), ciphName)
+	assert.Equal(t, ciph.H3(), sha512.New())
+	assert.Equal(t, ciph.H4(), sha512.New())
+	assert.Equal(t, ciph.POG().Name(), groupName)
+	assert.Equal(t, ciph.Verifiable(), verifiable)
 	if verifiable {
-		assert.Equal(t, reflect.TypeOf(ciph.Hash5).Name(), "HKDFExtExp")
+		assert.Equal(t, reflect.TypeOf(ciph.H5()).Name(), "HKDFExtExp")
 	} else {
-		assert.Equal(t, ciph.Hash5, nil)
+		assert.Equal(t, ciph.H5(), nil)
 	}
 }
 
