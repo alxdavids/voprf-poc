@@ -2,6 +2,7 @@ package ecgroup
 
 import (
 	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha512"
 	"crypto/subtle"
 	"hash"
@@ -47,7 +48,7 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 		ee = oc.HKDFExtExp{}
 		break
 	default:
-		return GroupCurve{}, gg.ErrUnsupportedGroup
+		return nil, gg.ErrUnsupportedGroup
 	}
 	p := curve.Params().P
 	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, one), new(big.Int).ModInverse(two, p)), p)
@@ -99,13 +100,23 @@ func (c GroupCurve) ByteLength() int {
 func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, error) {
 	params, err := getH2CParams(c)
 	if err != nil {
-		return Point{}, err
+		return nil, err
 	}
 	p, err := params.hashToCurve(buf)
 	if err != nil {
-		return Point{}, err
+		return nil, err
 	}
 	return p, nil
+}
+
+// UniformFieldElement samples a random element from the underling field for the
+// choice of curve
+func (c GroupCurve) UniformFieldElement() (*big.Int, error) {
+	n, err := rand.Int(rand.Reader, c.Order())
+	if err != nil {
+		return nil, gg.ErrInternalInstantiation
+	}
+	return n, nil
 }
 
 // Name returns the name of the NIST P-384 curve
@@ -179,11 +190,11 @@ func (p Point) IsValid(group gg.PrimeOrderGroup) bool {
 // error
 func (p Point) ScalarMult(group gg.PrimeOrderGroup, k *big.Int) (gg.GroupElement, error) {
 	if !p.IsValid(group) {
-		return Point{}, gg.ErrInvalidGroupElement
+		return nil, gg.ErrInvalidGroupElement
 	}
 	curve, ok := group.(GroupCurve)
 	if !ok {
-		return Point{}, gg.ErrTypeAssertion
+		return nil, gg.ErrTypeAssertion
 	}
 	p.X, p.Y = curve.ops.ScalarMult(p.X, p.Y, k.Bytes())
 	return p, nil
@@ -192,15 +203,15 @@ func (p Point) ScalarMult(group gg.PrimeOrderGroup, k *big.Int) (gg.GroupElement
 // Add adds pAdd to p and returns p or an error
 func (p Point) Add(group gg.PrimeOrderGroup, ge gg.GroupElement) (gg.GroupElement, error) {
 	if !p.IsValid(group) {
-		return Point{}, gg.ErrInvalidGroupElement
+		return nil, gg.ErrInvalidGroupElement
 	}
 	curve, err := castToCurve(group)
 	if err != nil {
-		return Point{}, err
+		return nil, err
 	}
 	pAdd, err := castToPoint(ge)
 	if err != nil {
-		return Point{}, err
+		return nil, err
 	}
 	p.X, p.Y = curve.ops.Add(p.X, p.Y, pAdd.X, pAdd.Y)
 	return p, nil
@@ -225,12 +236,12 @@ func (p Point) Serialize(group gg.PrimeOrderGroup) ([]byte, error) {
 func (p Point) Deserialize(group gg.PrimeOrderGroup, buf []byte) (gg.GroupElement, error) {
 	curve, err := castToCurve(group)
 	if err != nil {
-		return Point{}, err
+		return nil, err
 	}
 	if curve.nist {
 		return p.nistDeserialize(curve, buf)
 	}
-	return Point{}, gg.ErrUnsupportedGroup
+	return nil, gg.ErrUnsupportedGroup
 }
 
 // nistSerialize marshals the point object into an octet-string of either

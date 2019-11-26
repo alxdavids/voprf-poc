@@ -134,7 +134,7 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 	}, nil
 }
 
-// PrimeOrderGroup is an interface that defines operations within a mathematical
+// PrimeOrderGroup is an interface that defines operations within additive
 // groups of prime order
 type PrimeOrderGroup interface {
 	New(string) (PrimeOrderGroup, error)
@@ -146,6 +146,7 @@ type PrimeOrderGroup interface {
 	EncodeToGroup([]byte) (GroupElement, error)
 	Hash() hash.Hash
 	EE() oc.ExtractorExpander
+	UniformFieldElement() (*big.Int, error)
 }
 
 // GroupElement is the interface that represents group elements in a given Group
