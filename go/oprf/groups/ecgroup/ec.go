@@ -26,7 +26,6 @@ type baseCurve interface {
 type ExtendedCurve interface {
 	gg.PrimeOrderGroup
 	Name() string
-	Hash() hash.Hash
 }
 
 // GroupCurve implements the ExtendedCurve interface
