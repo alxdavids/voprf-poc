@@ -129,8 +129,8 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
 	}
 
 	// attempt to encode bytes as curve point
-	Q0 := Point{}.New()
-	Q1 := Point{}.New()
+	Q0 := Point{}.New().(Point)
+	Q1 := Point{}.New().(Point)
 	var e0, e1 error
 	switch params.gc.Name() {
 	case "P-384", "P-521":
@@ -153,7 +153,7 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
 	if err != nil {
 		return Point{}, err
 	}
-	P, err := R.clearCofactor(params.gc, params.hEff)
+	P, err := R.(Point).clearCofactor(params.gc, params.hEff)
 	if err != nil {
 		return Point{}, err
 	}

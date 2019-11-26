@@ -37,6 +37,9 @@ var (
 	// ErrInternalInstantiation indicates that an error occurred when attempting to
 	// instantiate the group
 	ErrInternalInstantiation error = fmt.Errorf("Internal error occurred with internal group instantiation")
+	// ErrTypeAssertion indicates that type assertion has failed when attempting
+	// to instantiate the OPRF interface
+	ErrTypeAssertion error = fmt.Errorf("Error attempting OPRF interface type assertion")
 )
 
 // Ciphersuite corresponds to the OPRF ciphersuite that is chosen
@@ -44,32 +47,36 @@ var (
 // Even though groups == curves, we keep the abstraction to fit with curve
 // implementations
 type Ciphersuite struct {
-	name       string
-	pog        PrimeOrderGroup
-	hash1      func([]byte) (GroupElement, error)
-	hash2      func(func() hash.Hash, []byte) hash.Hash
-	hash3      hash.Hash
-	hash4      hash.Hash
-	hash5      oc.ExtractorExpander
-	verifiable bool
+	Name       string
+	Pog        PrimeOrderGroup
+	Hash1      func([]byte) (GroupElement, error)
+	Hash2      func(func() hash.Hash, []byte) hash.Hash
+	Hash3      hash.Hash
+	Hash4      hash.Hash
+	Hash5      oc.ExtractorExpander
+	Verifiable bool
 }
 
 // FromString derives a ciphersuite from the string that was provided,
 // corresponding to a given PrimeOrderGroup implementation
 func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, error) {
-	split := strings.Split(s, "-")
+	split := strings.SplitN(s, "-", 5)
 
 	// construct the PrimeOrderGroup object
 	var pogNew PrimeOrderGroup
+	var err error
 	switch split[1] {
 	case "P384":
-		pogNew = pog.New("P-384")
+		pogNew, err = pog.New("P-384")
 		break
 	case "P521":
-		pogNew = pog.New("P-521")
+		pogNew, err = pog.New("P-521")
 		break
 	default:
 		return Ciphersuite{}, ErrUnsupportedGroup
+	}
+	if err != nil {
+		return Ciphersuite{}, err
 	}
 
 	// Check ExtractorExpander{} is supported (only HKDF currently)
@@ -85,8 +92,9 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 
 	// check hash function support
 	switch split[3] {
-	case "SHA-512":
-		if pog.Hash() != sha512.New() {
+	case "SHA512":
+		if reflect.DeepEqual(pog.Hash(), sha512.New()) {
+			// do a quick check to see if the hash function is the same
 			return Ciphersuite{}, ErrUnsupportedHash
 		}
 		break
@@ -115,21 +123,21 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 		h5 = pogNew.EE()
 	}
 	return Ciphersuite{
-		name:       s,
-		pog:        pogNew,
-		hash1:      h1,
-		hash2:      h2,
-		hash3:      h3,
-		hash4:      h4,
-		hash5:      h5,
-		verifiable: verifiable,
+		Name:       s,
+		Pog:        pogNew,
+		Hash1:      h1,
+		Hash2:      h2,
+		Hash3:      h3,
+		Hash4:      h4,
+		Hash5:      h5,
+		Verifiable: verifiable,
 	}, nil
 }
 
 // PrimeOrderGroup is an interface that defines operations within a mathematical
 // groups of prime order
 type PrimeOrderGroup interface {
-	New(string) PrimeOrderGroup
+	New(string) (PrimeOrderGroup, error)
 	Name() string
 	Generator() GroupElement
 	GeneratorMult(*big.Int) (GroupElement, error)
@@ -144,8 +152,8 @@ type PrimeOrderGroup interface {
 // instantiation
 type GroupElement interface {
 	IsValid(PrimeOrderGroup) bool
-	ScalarMult(PrimeOrderGroup, *big.Int) error
-	Add(PrimeOrderGroup, GroupElement) error
-	Serialize(PrimeOrderGroup) []byte
-	Deserialize(PrimeOrderGroup) (GroupElement, error)
+	ScalarMult(PrimeOrderGroup, *big.Int) (GroupElement, error)
+	Add(PrimeOrderGroup, GroupElement) (GroupElement, error)
+	Serialize(PrimeOrderGroup) ([]byte, error)
+	Deserialize(PrimeOrderGroup, []byte) (GroupElement, error)
 }

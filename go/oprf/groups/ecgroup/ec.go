@@ -31,7 +31,7 @@ type GroupCurve struct {
 
 // New constructs a new GroupCurve object implementing the PrimeOrderGroup
 // interface
-func (c GroupCurve) New(name string) (GroupCurve, error) {
+func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 	var curve elliptic.Curve
 	var h hash.Hash
 	var ee oc.ExtractorExpander
@@ -75,7 +75,7 @@ func (c GroupCurve) Order() *big.Int {
 
 // Generator returns the point in the curve representing the generator for the
 // instantiated prime-order group
-func (c GroupCurve) Generator() Point {
+func (c GroupCurve) Generator() gg.GroupElement {
 	return Point{
 		X: c.ops.Params().Gx,
 		Y: c.ops.Params().Gy,
@@ -83,7 +83,7 @@ func (c GroupCurve) Generator() Point {
 }
 
 // GeneratorMult returns k*G, where G is the generator of the curve
-func (c GroupCurve) GeneratorMult(k *big.Int) (Point, error) {
+func (c GroupCurve) GeneratorMult(k *big.Int) (gg.GroupElement, error) {
 	G := c.Generator()
 	return G.ScalarMult(c, k)
 }
@@ -96,7 +96,7 @@ func (c GroupCurve) ByteLength() int {
 
 // EncodeToGroup invokes the hash_to_curve method for encoding bytes as curve
 // points
-func (c GroupCurve) EncodeToGroup(buf []byte) (Point, error) {
+func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, error) {
 	params, err := getH2CParams(c)
 	if err != nil {
 		return Point{}, err
@@ -161,30 +161,46 @@ type Point struct {
 }
 
 // New returns a new point intiialised to zero
-func (p Point) New() Point {
+func (p Point) New() gg.GroupElement {
 	return Point{X: zero, Y: zero, compress: false}
 }
 
 // IsValid checks that the given point is a valid curve point for the input
 // GroupCurve Object
-func (p Point) IsValid(curve GroupCurve) bool {
+func (p Point) IsValid(group gg.PrimeOrderGroup) bool {
+	curve, ok := group.(GroupCurve)
+	if !ok {
+		return false
+	}
 	return curve.ops.IsOnCurve(p.X, p.Y)
 }
 
 // ScalarMult multiplies p by the provided Scalar value, and returns p or an
 // error
-func (p Point) ScalarMult(curve GroupCurve, k *big.Int) (Point, error) {
-	if !p.IsValid(curve) {
+func (p Point) ScalarMult(group gg.PrimeOrderGroup, k *big.Int) (gg.GroupElement, error) {
+	if !p.IsValid(group) {
 		return Point{}, gg.ErrInvalidGroupElement
+	}
+	curve, ok := group.(GroupCurve)
+	if !ok {
+		return Point{}, gg.ErrTypeAssertion
 	}
 	p.X, p.Y = curve.ops.ScalarMult(p.X, p.Y, k.Bytes())
 	return p, nil
 }
 
 // Add adds pAdd to p and returns p or an error
-func (p Point) Add(curve GroupCurve, pAdd Point) (Point, error) {
-	if !p.IsValid(curve) {
+func (p Point) Add(group gg.PrimeOrderGroup, ge gg.GroupElement) (gg.GroupElement, error) {
+	if !p.IsValid(group) {
 		return Point{}, gg.ErrInvalidGroupElement
+	}
+	curve, err := castToCurve(group)
+	if err != nil {
+		return Point{}, err
+	}
+	pAdd, err := castToPoint(ge)
+	if err != nil {
+		return Point{}, err
 	}
 	p.X, p.Y = curve.ops.Add(p.X, p.Y, pAdd.X, pAdd.Y)
 	return p, nil
@@ -192,11 +208,29 @@ func (p Point) Add(curve GroupCurve, pAdd Point) (Point, error) {
 
 // Serialize marshals the point object into an octet-string, returns nil if
 // serialization is not supported for the given curve
-func (p Point) Serialize(curve GroupCurve) []byte {
-	if curve.nist {
-		return p.nistSerialize()
+func (p Point) Serialize(group gg.PrimeOrderGroup) ([]byte, error) {
+	curve, ok := group.(GroupCurve)
+	if !ok {
+		return nil, gg.ErrTypeAssertion
 	}
-	return nil
+
+	// attempt to deserialize
+	if curve.nist {
+		return p.nistSerialize(), nil
+	}
+	return nil, gg.ErrUnsupportedGroup
+}
+
+// Deserialize unmarshals an octet-string into a valid point on curve
+func (p Point) Deserialize(group gg.PrimeOrderGroup, buf []byte) (gg.GroupElement, error) {
+	curve, err := castToCurve(group)
+	if err != nil {
+		return Point{}, err
+	}
+	if curve.nist {
+		return p.nistDeserialize(curve, buf)
+	}
+	return Point{}, gg.ErrUnsupportedGroup
 }
 
 // nistSerialize marshals the point object into an octet-string of either
@@ -214,14 +248,6 @@ func (p Point) nistSerialize() []byte {
 		tag = subtle.ConstantTimeSelect(int(yBytes[0])&1, 3, 2)
 	}
 	return append([]byte{byte(tag)}, bytes...)
-}
-
-// Deserialize unmarshals an octet-string into a valid point on curve
-func (p Point) Deserialize(curve GroupCurve, buf []byte) (Point, error) {
-	if curve.nist {
-		return p.nistDeserialize(curve, buf)
-	}
-	return Point{}, gg.ErrUnsupportedGroup
 }
 
 // nistDeserialize creates a point object from an octet-string according to the
@@ -288,12 +314,38 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, error) {
 // clearCofactor clears the cofactor (hEff) of p by performing a scalar
 // multiplication and returning p or an error
 func (p Point) clearCofactor(curve GroupCurve, hEff *big.Int) (Point, error) {
-	return p.ScalarMult(curve, hEff)
+	ret, err := p.ScalarMult(curve, hEff)
+	if err != nil {
+		return Point{}, err
+	}
+	point, err := castToPoint(ret)
+	if err != nil {
+		return Point{}, err
+	}
+	return point, nil
 }
 
 /**
  * Curve utility functions
  */
+
+// castToCurve attempts to cast the input PrimeOrderGroup to a GroupCurve object
+func castToCurve(group gg.PrimeOrderGroup) (GroupCurve, error) {
+	curve, ok := group.(GroupCurve)
+	if !ok {
+		return GroupCurve{}, gg.ErrTypeAssertion
+	}
+	return curve, nil
+}
+
+// castToCurve attempts to cast the input GroupElement to a Point object
+func castToPoint(ge gg.GroupElement) (Point, error) {
+	point, ok := ge.(Point)
+	if !ok {
+		return Point{}, gg.ErrTypeAssertion
+	}
+	return point, nil
+}
 
 // returns 1 if the signs of s1 and s2 are the same, and 0 otherwise
 func sgnCmp(s1, s2 *big.Int, sgn0 func(*big.Int) *big.Int) *big.Int {
