@@ -103,6 +103,7 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 		return Ciphersuite{}, ErrUnsupportedH2C
 	}
 
+	// derive Ciphersuite object
 	h1 := pogNew.EncodeToGroup
 	h2 := hmac.New
 	h3 := pogNew.Hash()
