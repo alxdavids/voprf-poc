@@ -10,8 +10,10 @@ import (
 )
 
 var (
-	validOPRFP384Ciphersuite = "OPRF-P384-HKDF-SHA512-SSWU-RO"
-	validOPRFP521Ciphersuite = "OPRF-P521-HKDF-SHA512-SSWU-RO"
+	validOPRFP384Ciphersuite  = "OPRF-P384-HKDF-SHA512-SSWU-RO"
+	validOPRFP521Ciphersuite  = "OPRF-P521-HKDF-SHA512-SSWU-RO"
+	validVOPRFP384Ciphersuite = "VOPRF-P384-HKDF-SHA512-SSWU-RO"
+	validVOPRFP521Ciphersuite = "VOPRF-P521-HKDF-SHA512-SSWU-RO"
 )
 
 func TestServerSetupP384(t *testing.T) {
@@ -55,6 +57,18 @@ func TestServerFinalize(t *testing.T) {
 	}
 }
 
+func TestServerEvalVerifiable(t *testing.T) {
+	s, err := serverSetup(validVOPRFP384Ciphersuite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pog := s.ciph.POG()
+	_, err = s.Eval(s.sk, ecgroup.Point{}.New(pog).(ecgroup.Point))
+	if err != ErrOPRFCiphersuiteUnsupportedFunction {
+		t.Fatal("Verfiable Unblind should not be supported yet")
+	}
+}
+
 func TestClientSetupP384(t *testing.T) {
 	checkClientSetup(t, validOPRFP384Ciphersuite)
 }
@@ -87,6 +101,22 @@ func TestClientEval(t *testing.T) {
 	_, err = c.Eval(SecretKey{}, ecgroup.Point{})
 	if err != ErrOPRFUnimplementedFunctionClient {
 		t.Fatal("Function should be unimplemented")
+	}
+}
+
+func TestClientUnblindVerifiable(t *testing.T) {
+	c, err := clientSetup(validVOPRFP384Ciphersuite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pog := c.ciph.POG()
+	ufe, err := pog.UniformFieldElement()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Unblind(ecgroup.Point{}.New(pog).(ecgroup.Point), ufe)
+	if err != ErrOPRFCiphersuiteUnsupportedFunction {
+		t.Fatal("Verfiable Unblind should not be supported yet")
 	}
 }
 
