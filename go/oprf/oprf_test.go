@@ -24,6 +24,26 @@ func TestServerSetupP521(t *testing.T) {
 	checkServerSetup(t, validOPRFP521Ciphersuite)
 }
 
+func TestServerEvalP384(t *testing.T) {
+	checkServerEval(t, validOPRFP384Ciphersuite)
+}
+
+func TestServerEvalP521(t *testing.T) {
+	checkServerEval(t, validOPRFP521Ciphersuite)
+}
+
+func TestServerEvalVerifiable(t *testing.T) {
+	s, err := serverSetup(validVOPRFP384Ciphersuite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pog := s.ciph.POG()
+	_, err = s.Eval(s.sk, ecgroup.Point{}.New(pog).(ecgroup.Point))
+	if err != ErrOPRFCiphersuiteUnsupportedFunction {
+		t.Fatal("Verfiable Unblind should not be supported yet")
+	}
+}
+
 func TestServerBlind(t *testing.T) {
 	s, err := serverSetup(validOPRFP384Ciphersuite)
 	if err != nil {
@@ -54,18 +74,6 @@ func TestServerFinalize(t *testing.T) {
 	_, err = s.Finalize(ecgroup.Point{}, []byte{}, []byte{})
 	if err != ErrOPRFUnimplementedFunctionServer {
 		t.Fatal("Function should be unimplemented")
-	}
-}
-
-func TestServerEvalVerifiable(t *testing.T) {
-	s, err := serverSetup(validVOPRFP384Ciphersuite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pog := s.ciph.POG()
-	_, err = s.Eval(s.sk, ecgroup.Point{}.New(pog).(ecgroup.Point))
-	if err != ErrOPRFCiphersuiteUnsupportedFunction {
-		t.Fatal("Verfiable Unblind should not be supported yet")
 	}
 }
 
@@ -154,6 +162,31 @@ func clientSetup(ciph string) (Client, error) {
 		return Client{}, err
 	}
 	return s.(Client), nil
+}
+
+func checkServerEval(t *testing.T, validCiphersuite string) {
+	s, err := serverSetup(validOPRFP384Ciphersuite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ciph := s.ciph
+	pog := ciph.POG()
+	x := []byte{1, 2, 3, 4, 6, 7}
+	P, err := pog.EncodeToGroup(x)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Q, err := s.Eval(s.sk, P)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chkQ, err := P.ScalarMult(s.sk.K)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !Q.Equal(chkQ) {
+		t.Fatal("Server evaluation returned inconsistent result")
+	}
 }
 
 func checkClientBlindUnblind(t *testing.T, validCiphersuite string) {
