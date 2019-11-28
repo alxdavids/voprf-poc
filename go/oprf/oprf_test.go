@@ -1,6 +1,7 @@
 package oprf
 
 import (
+	"crypto/hmac"
 	"math/big"
 	"testing"
 
@@ -70,29 +71,12 @@ func TestClientBlindUnblindP521(t *testing.T) {
 	checkClientBlindUnblind(t, validOPRFP521Ciphersuite)
 }
 
-func checkClientBlindUnblind(t *testing.T, validCiphersuite string) {
-	c, err := clientSetup(validCiphersuite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	x := []byte{1, 2, 3, 4, 5}
-	P, blind, err := c.Blind(x)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pog := c.ciph.POG()
-	if !P.IsValid() {
-		t.Fatal("Blinded point is not valid")
-	}
-	N, err := c.Unblind(P, blind)
-	if err != nil {
-		t.Fatal(err)
-	}
-	chkN, err := pog.EncodeToGroup(x)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.True(t, N.Equal(chkN))
+func TestClientFinalizeP384(t *testing.T) {
+	checkClientFinalize(t, validOPRFP384Ciphersuite)
+}
+
+func TestClientFinalizeP521(t *testing.T) {
+	checkClientFinalize(t, validOPRFP521Ciphersuite)
 }
 
 func TestClientEval(t *testing.T) {
@@ -140,4 +124,70 @@ func clientSetup(ciph string) (Client, error) {
 		return Client{}, err
 	}
 	return s.(Client), nil
+}
+
+func checkClientBlindUnblind(t *testing.T, validCiphersuite string) {
+	c, err := clientSetup(validCiphersuite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	x := []byte{1, 2, 3, 4, 5}
+	P, blind, err := c.Blind(x)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pog := c.ciph.POG()
+	if !P.IsValid() {
+		t.Fatal("Blinded point is not valid")
+	}
+	N, err := c.Unblind(P, blind)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chkN, err := pog.EncodeToGroup(x)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.True(t, N.Equal(chkN))
+}
+
+func checkClientFinalize(t *testing.T, validCiphersuite string) {
+	c, err := clientSetup(validCiphersuite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	x := []byte{1, 2, 3, 4, 5}
+	aux := []byte{6, 7, 8, 9, 10}
+	pog := c.ciph.POG()
+	P, err := pog.EncodeToGroup(x)
+	if err != nil {
+		t.Fatal(err)
+	}
+	y, err := c.Finalize(P, x, aux)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// recompute
+	bytesP, err := P.Serialize()
+	if err != nil {
+		t.Fatal(err)
+	}
+	DST := []byte("oprf_derive_output")
+	hmacChk := hmac.New(c.ciph.H3, DST)
+	input := append(x, bytesP...)
+	_, err = hmacChk.Write(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dk := hmacChk.Sum(nil)
+	hmacOutChk := hmac.New(c.ciph.H3, dk)
+	_, err = hmacOutChk.Write(aux)
+	if err != nil {
+		t.Fatal(err)
+	}
+	yChk := hmacOutChk.Sum(nil)
+	if !hmac.Equal(y, yChk) {
+		t.Fatal("Finalize failed to produce the correct output")
+	}
 }

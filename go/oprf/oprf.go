@@ -168,8 +168,6 @@ func (c Client) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	rInv := new(big.Int).ModInverse(r, pog.Order())
-	Tchk, err := P.ScalarMult(rInv)
 	return P, r, nil
 }
 
@@ -199,17 +197,28 @@ func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
 	DST := []byte("oprf_derive_output")
 
 	// derive shared key
-	hmacShared := (ciph.H2())(ciph.H3, DST)
-	NBytes, err := N.Serialize()
+	hmacShared := (c.ciph.H2())(ciph.H3, DST)
+	bytesN, err := N.Serialize()
 	if err != nil {
 		return nil, err
 	}
-	hmacShared.Write(x)
-	dk := hmacShared.Sum(NBytes)
+	_, err = hmacShared.Write(x)
+	if err != nil {
+		return nil, gg.ErrInternalInstantiation
+	}
+	_, err = hmacShared.Write(bytesN)
+	if err != nil {
+		return nil, gg.ErrInternalInstantiation
+	}
+	dk := hmacShared.Sum(nil)
 
 	// derive output
-	hmacOut := (ciph.H2())(ciph.H3, dk)
-	y := hmacOut.Sum(aux)
+	hmacOut := (c.ciph.H2())(ciph.H3, dk)
+	_, err = hmacOut.Write(aux)
+	if err != nil {
+		return nil, gg.ErrInternalInstantiation
+	}
+	y := hmacOut.Sum(nil)
 	return y, nil
 }
 

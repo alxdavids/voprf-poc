@@ -141,10 +141,16 @@ func (c Ciphersuite) H1() func([]byte) (GroupElement, error) { return c.hash1 }
 func (c Ciphersuite) H2() func(func() hash.Hash, []byte) hash.Hash { return c.hash2 }
 
 // H3 returns the hashGeneric function specified in Ciphersuite
-func (c Ciphersuite) H3() hash.Hash { return c.hashGeneric }
+func (c Ciphersuite) H3() hash.Hash {
+	c.hashGeneric.Reset()
+	return c.hashGeneric
+}
 
 // H4 returns the hashGeneric function specified in Ciphersuite
-func (c Ciphersuite) H4() hash.Hash { return c.hashGeneric }
+func (c Ciphersuite) H4() hash.Hash {
+	c.hashGeneric.Reset()
+	return c.hashGeneric
+}
 
 // H5 returns the hash5 function specified in Ciphersuite
 func (c Ciphersuite) H5() oc.ExtractorExpander { return c.hash5 }
