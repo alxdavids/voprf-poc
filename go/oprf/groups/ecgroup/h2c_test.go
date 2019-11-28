@@ -106,18 +106,16 @@ func performSswu(curve GroupCurve) error {
 		}
 
 		// check point is valid
-		if !Q.IsValid(curve) {
+		if !Q.IsValid() {
 			return errors.New("Failed to generate a valid point")
 		}
 
 		// check test vectors
-		cmpX := Q.X.Cmp(vectors["x"])
-		if cmpX != 0 {
-			return fmt.Errorf("X coordinate for alpha: %s is incorrect, expected: %s, got: %s", alpha, vectors["x"].String(), Q.X.String())
-		}
-		cmpY := Q.Y.Cmp(vectors["y"])
-		if cmpY != 0 {
-			return fmt.Errorf("Y coordinate for alpha: %s is incorrect, expected: %s, got: %s", alpha, vectors["y"].String(), Q.Y.String())
+		chkQ := Point{X: vectors["x"], Y: vectors["y"], pog: curve, compress: false}
+		if !Q.Equal(chkQ) {
+			fmt.Println(chkQ)
+			fmt.Println(Q)
+			return errors.New("Points are not equal")
 		}
 	}
 	return nil
@@ -137,19 +135,15 @@ func performHashToCurve(curve GroupCurve) error {
 		}
 
 		// check point is valid
-		if !R.IsValid(curve) {
+		if !R.IsValid() {
 			return errors.New("Failed to generate a valid point")
 		}
 
 		// check test vectors
 		expected := expectedCurveEncodingResponses[curve.Name()]["full"][alpha]
-		cmpX := R.X.Cmp(expected["x"])
-		if cmpX != 0 {
-			return fmt.Errorf("X coordinate for alpha: %s is incorrect, expected: %s, got: %s", alpha, expected["x"].String(), R.X.String())
-		}
-		cmpY := R.Y.Cmp(expected["y"])
-		if cmpY != 0 {
-			return fmt.Errorf("Y coordinate for alpha: %s is incorrect, expected: %s, got: %s", alpha, expected["y"].String(), R.Y.String())
+		chkR := Point{X: expected["x"], Y: expected["y"], pog: curve, compress: false}
+		if !R.Equal(chkR) {
+			return errors.New("Points are not equal")
 		}
 	}
 	return nil

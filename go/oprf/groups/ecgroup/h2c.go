@@ -45,7 +45,7 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 			z:       -12,
 			a:       gc.consts.a,
 			b:       gc.ops.Params().B,
-			p:       gc.Order(),
+			p:       gc.P(),
 			m:       1,
 			hash:    gc.Hash(),
 			ee:      gc.ee,
@@ -64,7 +64,7 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 			z:       -4,
 			a:       gc.consts.a,
 			b:       gc.ops.Params().B,
-			p:       gc.Order(),
+			p:       gc.P(),
 			m:       1,
 			hash:    gc.Hash(),
 			ee:      gc.ee,
@@ -129,8 +129,8 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
 	}
 
 	// attempt to encode bytes as curve point
-	Q0 := Point{}.New().(Point)
-	Q1 := Point{}.New().(Point)
+	Q0 := Point{}.New(params.gc).(Point)
+	Q1 := Point{}.New(params.gc).(Point)
 	var e0, e1 error
 	switch params.gc.Name() {
 	case "P-384", "P-521":
@@ -149,11 +149,11 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
 	}
 
 	// construct the output point R
-	R, err := Q0.Add(params.gc, Q1)
+	R, err := Q0.Add(Q1)
 	if err != nil {
 		return Point{}, err
 	}
-	P, err := R.(Point).clearCofactor(params.gc, params.hEff)
+	P, err := R.(Point).clearCofactor(params.hEff)
 	if err != nil {
 		return Point{}, err
 	}
@@ -198,11 +198,13 @@ func (params h2cParams) sswu(uArr []*big.Int) (Point, error) {
 	y = cmov(new(big.Int).Mul(y, minusOne), y, e3)           // 21.     y = CMOV(-y, y, e3)
 
 	// construct point and assert that it is correct
-	P := Point{X: x.Mod(x, p), Y: y.Mod(y, p)}
-	if !P.IsValid(params.gc) {
+	P := Point{}.New(params.gc).(Point)
+	P.X = x.Mod(x, p)
+	P.Y = y.Mod(y, p)
+	if !P.IsValid() {
 		return Point{}, gg.ErrInvalidGroupElement
 	}
-	return Point{X: x, Y: y}, nil
+	return P, nil
 }
 
 // cmpToBigInt converts the return value from a comparison operation into a

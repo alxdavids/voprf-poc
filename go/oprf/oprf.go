@@ -1,7 +1,6 @@
 package oprf
 
 import (
-	"crypto/rand"
 	"errors"
 	"math/big"
 
@@ -35,7 +34,7 @@ type SecretKey struct {
 // New returns a SecretKey object corresponding to the PrimeOrderGroup that was
 // passed into it
 func (sk SecretKey) New(pog gg.PrimeOrderGroup) (SecretKey, error) {
-	randInt, err := rand.Int(rand.Reader, pog.Order())
+	randInt, err := pog.UniformFieldElement()
 	if err != nil {
 		return SecretKey{}, err
 	}
@@ -48,14 +47,15 @@ func (sk SecretKey) New(pog gg.PrimeOrderGroup) (SecretKey, error) {
 	return SecretKey{K: randInt, PubKey: Y}, nil
 }
 
-// The OPRF interface defines the functions necessary for implenting an OPRF
+// The Participant interface defines the functions necessary for implenting an OPRF
 // protocol
-type OPRF interface {
-	Setup(string, gg.PrimeOrderGroup) (SecretKey, gg.Ciphersuite, error)
-	Blind(gg.Ciphersuite, []byte) (gg.GroupElement, *big.Int, error)
-	Unblind(gg.Ciphersuite, gg.GroupElement, *big.Int) (gg.GroupElement, error)
-	Eval(gg.Ciphersuite, SecretKey, gg.GroupElement) (gg.GroupElement, error)
-	Finalize(gg.Ciphersuite, gg.GroupElement, []byte, []byte) ([]byte, error)
+type Participant interface {
+	Ciphersuite() gg.Ciphersuite
+	Setup(string, gg.PrimeOrderGroup) (Participant, error)
+	Blind([]byte) (gg.GroupElement, *big.Int, error)
+	Unblind(gg.GroupElement, *big.Int) (gg.GroupElement, error)
+	Eval(SecretKey, gg.GroupElement) (gg.GroupElement, error)
+	Finalize(gg.GroupElement, []byte, []byte) ([]byte, error)
 }
 
 // Server implements the OPRF interface for processing the server-side
@@ -65,20 +65,28 @@ type Server struct {
 	sk   SecretKey
 }
 
+// Ciphersuite returns the Ciphersuite object associated with the Server
+func (s Server) Ciphersuite() gg.Ciphersuite { return s.ciph }
+
+// SecretKey returns the SecretKey object associated with the Server
+func (s Server) SecretKey() SecretKey { return s.sk }
+
 // Setup is run by the server, it generates a SecretKey object based on the
 // choice of ciphersuite that is made
-func (s Server) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (SecretKey, gg.Ciphersuite, error) {
+func (s Server) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participant, error) {
 	ciph, err := gg.Ciphersuite{}.FromString(ciphersuite, pogInit)
 	if err != nil {
-		return SecretKey{}, gg.Ciphersuite{}, err
+		return nil, err
 	}
 
 	sk, err := SecretKey{}.New(ciph.POG())
 	if err != nil {
-		return SecretKey{}, gg.Ciphersuite{}, err
+		return nil, err
 	}
 
-	return sk, ciph, nil
+	s.ciph = ciph
+	s.sk = sk
+	return s, nil
 }
 
 // Eval computes the Server-side evaluation of the (V)OPRF using a secret key
@@ -87,11 +95,10 @@ func (s Server) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (SecretKey
 // TODO: support VOPRF
 func (s Server) Eval(sk SecretKey, M gg.GroupElement) (gg.GroupElement, error) {
 	ciph := s.ciph
-	pog := ciph.POG()
 	var Z gg.GroupElement
 	var err error
 	if !ciph.Verifiable() {
-		Z, err = M.ScalarMult(pog, sk.K)
+		Z, err = M.ScalarMult(sk.K)
 		if err != nil {
 			return nil, err
 		}
@@ -123,6 +130,22 @@ type Client struct {
 	pk   PublicKey
 }
 
+// Ciphersuite returns the Ciphersuite object associated with the Client
+func (c Client) Ciphersuite() gg.Ciphersuite { return c.ciph }
+
+// PublicKey returns the PublicKey object associated with the Client
+func (c Client) PublicKey() PublicKey { return c.pk }
+
+// Setup associates the client with a ciphersuite object
+func (c Client) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participant, error) {
+	ciph, err := gg.Ciphersuite{}.FromString(ciphersuite, pogInit)
+	if err != nil {
+		return nil, err
+	}
+	c.ciph = ciph
+	return c, nil
+}
+
 // Blind samples a new random blind value from ZZp and returns P=r*T where T is
 // the representation of the input bytes x in the group pog
 func (c Client) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
@@ -141,10 +164,12 @@ func (c Client) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
 	}
 
 	// compute blinded group element
-	P, err := T.ScalarMult(pog, r)
+	P, err := T.ScalarMult(r)
 	if err != nil {
 		return nil, nil, err
 	}
+	rInv := new(big.Int).ModInverse(r, pog.Order())
+	Tchk, err := P.ScalarMult(rInv)
 	return P, r, nil
 }
 
@@ -161,7 +186,7 @@ func (c Client) Unblind(Z gg.GroupElement, r *big.Int) (gg.GroupElement, error) 
 	}
 
 	rInv := new(big.Int).ModInverse(r, p)
-	N, err := Z.ScalarMult(pog, rInv)
+	N, err := Z.ScalarMult(rInv)
 	if err != nil {
 		return nil, err
 	}
@@ -171,12 +196,11 @@ func (c Client) Unblind(Z gg.GroupElement, r *big.Int) (gg.GroupElement, error) 
 // Finalize constructs the final client output from the OPRF protocol
 func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
 	ciph := c.ciph
-	pog := ciph.POG()
 	DST := []byte("oprf_derive_output")
 
 	// derive shared key
 	hmacShared := (ciph.H2())(ciph.H3, DST)
-	NBytes, err := N.Serialize(pog)
+	NBytes, err := N.Serialize()
 	if err != nil {
 		return nil, err
 	}
@@ -187,11 +211,6 @@ func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
 	hmacOut := (ciph.H2())(ciph.H3, dk)
 	y := hmacOut.Sum(aux)
 	return y, nil
-}
-
-// Setup is not implemented for the OPRF client
-func (c Client) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (SecretKey, gg.Ciphersuite, error) {
-	return SecretKey{}, gg.Ciphersuite{}, ErrOPRFUnimplementedFunctionClient
 }
 
 // Eval is not implemented for the OPRF client

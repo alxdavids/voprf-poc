@@ -6,6 +6,7 @@ import (
 	"crypto/sha512"
 	"crypto/subtle"
 	"hash"
+	"io"
 	"math/big"
 
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
@@ -69,24 +70,29 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 	}, nil
 }
 
-// Order returns the order of the underlying field for the base curve object
+// Order returns the order of the base point for the base curve object
 func (c GroupCurve) Order() *big.Int {
+	return c.ops.Params().N
+}
+
+// P returns the order of the underlying field for the base curve object
+func (c GroupCurve) P() *big.Int {
 	return c.ops.Params().P
 }
 
 // Generator returns the point in the curve representing the generator for the
 // instantiated prime-order group
 func (c GroupCurve) Generator() gg.GroupElement {
-	return Point{
-		X: c.ops.Params().Gx,
-		Y: c.ops.Params().Gy,
-	}
+	G := Point{}.New(c).(Point)
+	G.X = c.ops.Params().Gx
+	G.Y = c.ops.Params().Gy
+	return G
 }
 
 // GeneratorMult returns k*G, where G is the generator of the curve
 func (c GroupCurve) GeneratorMult(k *big.Int) (gg.GroupElement, error) {
 	G := c.Generator()
-	return G.ScalarMult(c, k)
+	return G.ScalarMult(k)
 }
 
 // ByteLength returns the length, in bytes, of a valid representation of a group
@@ -112,11 +118,32 @@ func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, error) {
 // UniformFieldElement samples a random element from the underling field for the
 // choice of curve
 func (c GroupCurve) UniformFieldElement() (*big.Int, error) {
-	n, err := rand.Int(rand.Reader, c.Order())
-	if err != nil {
-		return nil, gg.ErrInternalInstantiation
+	// This is just a bitmask with the number of ones starting at 8 then
+	// incrementing by index. To account for fields with bitsizes that are not a whole
+	// number of bytes, we mask off the unnecessary bits. h/t agl
+	var mask = []byte{0xff, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f}
+	N := c.ops.Params().N // base point subgroup order
+	bitLen := N.BitLen()
+	byteLen := (bitLen + 7) >> 3
+	buf := make([]byte, byteLen)
+
+	// When in doubt, do what agl does in elliptic.go. Presumably
+	// new(big.Int).SetBytes(b).Mod(N) would introduce bias, so we're sampling.
+	for true {
+		_, err := io.ReadFull(rand.Reader, buf)
+		if err != nil {
+			return nil, gg.ErrInternalInstantiation
+		}
+		// Mask to account for field sizes that are not a whole number of bytes.
+		buf[0] &= mask[bitLen%8]
+		// Check if scalar is in the correct range.
+		if new(big.Int).SetBytes(buf).Cmp(N) >= 0 {
+			continue
+		}
+		break
 	}
-	return n, nil
+
+	return new(big.Int).SetBytes(buf), nil
 }
 
 // Name returns the name of the NIST P-384 curve
@@ -168,18 +195,29 @@ func CreateNistCurve(curve elliptic.Curve, h hash.Hash, ee oc.ExtractorExpander)
 // Group-type
 type Point struct {
 	X, Y     *big.Int
+	pog      gg.PrimeOrderGroup
 	compress bool // indicates that the point should be compressed on serialization.
 }
 
 // New returns a new point intiialised to zero
-func (p Point) New() gg.GroupElement {
-	return Point{X: zero, Y: zero, compress: false}
+func (p Point) New(pog gg.PrimeOrderGroup) gg.GroupElement {
+	return Point{X: zero, Y: zero, pog: pog, compress: false}
+}
+
+// Equal returns true if the two Point objects have the same X and Y
+// coordinates, and false otherwise
+func (p Point) Equal(ge gg.GroupElement) bool {
+	pEq, err := castToPoint(ge)
+	if err != nil {
+		return false
+	}
+	return (p.X.Cmp(pEq.X) == 0) && (p.Y.Cmp(pEq.Y) == 0) && (p.pog.Name() == pEq.pog.Name())
 }
 
 // IsValid checks that the given point is a valid curve point for the input
 // GroupCurve Object
-func (p Point) IsValid(group gg.PrimeOrderGroup) bool {
-	curve, ok := group.(GroupCurve)
+func (p Point) IsValid() bool {
+	curve, ok := p.pog.(GroupCurve)
 	if !ok {
 		return false
 	}
@@ -188,8 +226,9 @@ func (p Point) IsValid(group gg.PrimeOrderGroup) bool {
 
 // ScalarMult multiplies p by the provided Scalar value, and returns p or an
 // error
-func (p Point) ScalarMult(group gg.PrimeOrderGroup, k *big.Int) (gg.GroupElement, error) {
-	if !p.IsValid(group) {
+func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, error) {
+	group := p.pog
+	if !p.IsValid() {
 		return nil, gg.ErrInvalidGroupElement
 	}
 	curve, ok := group.(GroupCurve)
@@ -201,8 +240,9 @@ func (p Point) ScalarMult(group gg.PrimeOrderGroup, k *big.Int) (gg.GroupElement
 }
 
 // Add adds pAdd to p and returns p or an error
-func (p Point) Add(group gg.PrimeOrderGroup, ge gg.GroupElement) (gg.GroupElement, error) {
-	if !p.IsValid(group) {
+func (p Point) Add(ge gg.GroupElement) (gg.GroupElement, error) {
+	group := p.pog
+	if !p.IsValid() {
 		return nil, gg.ErrInvalidGroupElement
 	}
 	curve, err := castToCurve(group)
@@ -219,7 +259,8 @@ func (p Point) Add(group gg.PrimeOrderGroup, ge gg.GroupElement) (gg.GroupElemen
 
 // Serialize marshals the point object into an octet-string, returns nil if
 // serialization is not supported for the given curve
-func (p Point) Serialize(group gg.PrimeOrderGroup) ([]byte, error) {
+func (p Point) Serialize() ([]byte, error) {
+	group := p.pog
 	curve, ok := group.(GroupCurve)
 	if !ok {
 		return nil, gg.ErrTypeAssertion
@@ -233,7 +274,8 @@ func (p Point) Serialize(group gg.PrimeOrderGroup) ([]byte, error) {
 }
 
 // Deserialize unmarshals an octet-string into a valid point on curve
-func (p Point) Deserialize(group gg.PrimeOrderGroup, buf []byte) (gg.GroupElement, error) {
+func (p Point) Deserialize(buf []byte) (gg.GroupElement, error) {
+	group := p.pog
 	curve, err := castToCurve(group)
 	if err != nil {
 		return nil, err
@@ -300,7 +342,7 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, error) {
 	sign := buf[0] & 1
 
 	// recompute curve equation y^2 = x^3 + ax + b
-	order := curve.Order()
+	order := curve.P()
 	x := new(big.Int).SetBytes(buf[1:])
 	rhs := new(big.Int).Add(new(big.Int).Exp(x, two, order), minusThree) // a = -3
 	rhs = rhs.Mul(rhs, x)
@@ -316,7 +358,7 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, error) {
 	// construct point and check validity
 	p.X = x
 	p.Y = y
-	if !p.IsValid(curve) {
+	if !p.IsValid() {
 		return Point{}, gg.ErrInvalidGroupElement
 	}
 	return p, nil
@@ -324,8 +366,8 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, error) {
 
 // clearCofactor clears the cofactor (hEff) of p by performing a scalar
 // multiplication and returning p or an error
-func (p Point) clearCofactor(curve GroupCurve, hEff *big.Int) (Point, error) {
-	ret, err := p.ScalarMult(curve, hEff)
+func (p Point) clearCofactor(hEff *big.Int) (Point, error) {
+	ret, err := p.ScalarMult(hEff)
 	if err != nil {
 		return Point{}, err
 	}

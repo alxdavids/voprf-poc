@@ -173,9 +173,11 @@ type PrimeOrderGroup interface {
 // GroupElement is the interface that represents group elements in a given Group
 // instantiation
 type GroupElement interface {
-	IsValid(PrimeOrderGroup) bool
-	ScalarMult(PrimeOrderGroup, *big.Int) (GroupElement, error)
-	Add(PrimeOrderGroup, GroupElement) (GroupElement, error)
-	Serialize(PrimeOrderGroup) ([]byte, error)
-	Deserialize(PrimeOrderGroup, []byte) (GroupElement, error)
+	New(PrimeOrderGroup) GroupElement
+	IsValid() bool
+	ScalarMult(*big.Int) (GroupElement, error)
+	Add(GroupElement) (GroupElement, error)
+	Serialize() ([]byte, error)
+	Deserialize([]byte) (GroupElement, error)
+	Equal(GroupElement) bool
 }

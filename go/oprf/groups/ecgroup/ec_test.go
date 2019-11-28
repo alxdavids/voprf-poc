@@ -153,7 +153,7 @@ func curveEncoding(curve GroupCurve) (Point, error) {
 		return Point{}, err
 	}
 
-	if !P.IsValid(curve) {
+	if !P.IsValid() {
 		return Point{}, fmt.Errorf("Didn't generated valid curve point")
 	}
 
@@ -166,11 +166,11 @@ func curveEncoding(curve GroupCurve) (Point, error) {
 }
 
 func checkSerialize(curve GroupCurve, P Point) error {
-	buf, err := P.Serialize(curve)
+	buf, err := P.Serialize()
 	if err != nil {
 		return err
 	}
-	Q, err := Point{}.New().Deserialize(curve, buf)
+	Q, err := Point{}.New(curve).Deserialize(buf)
 	if err != nil {
 		return err
 	}
@@ -184,10 +184,8 @@ func checkSerialize(curve GroupCurve, P Point) error {
 	if err != nil {
 		return err
 	}
-	if qPoint.X.Cmp(P.X) != 0 {
-		return fmt.Errorf("X coordinates are not equal, Q.X: %v, P.X: %v", qPoint.X, P.X)
-	} else if qPoint.Y.Cmp(P.Y) != 0 {
-		return fmt.Errorf("Y coordinates are not equal, Q.Y: %v, P.Y: %v", qPoint.Y, P.Y)
+	if qPoint.Equal(P) {
+		return fmt.Errorf("qPoint and P are not equal points")
 	}
 	return nil
 }
