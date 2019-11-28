@@ -13,12 +13,12 @@ var (
 	// function is not supported for the configuration specified by the
 	// ciphersuite
 	ErrOPRFCiphersuiteUnsupportedFunction = errors.New("Chosen OPRF function is not yet supported for the chosen ciphersuite")
-	// ErrUnimplementedFunctionClient indicates that the function that has been
+	// ErrOPRFUnimplementedFunctionClient indicates that the function that has been
 	// called is not implemented for the client in the OPRF protocol
-	ErrUnimplementedFunctionClient = errors.New("Function is unimplemented for the OPRF client")
-	// ErrUnimplementedFunctionServer indicates that the function that has been
+	ErrOPRFUnimplementedFunctionClient = errors.New("Function is unimplemented for the OPRF client")
+	// ErrOPRFUnimplementedFunctionServer indicates that the function that has been
 	// called is not implemented for the server in the OPRF protocol
-	ErrUnimplementedFunctionServer = errors.New("Function is unimplemented for the OPRF server")
+	ErrOPRFUnimplementedFunctionServer = errors.New("Function is unimplemented for the OPRF server")
 )
 
 // PublicKey represents a commitment to a given secret key that is made public
@@ -103,17 +103,17 @@ func (s Server) Eval(sk SecretKey, M gg.GroupElement) (gg.GroupElement, error) {
 
 // Blind is unimplemented for the server
 func (s Server) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
-	return nil, nil, ErrUnimplementedFunctionServer
+	return nil, nil, ErrOPRFUnimplementedFunctionServer
 }
 
 // Unblind is unimplemented for the server
 func (s Server) Unblind(Z gg.GroupElement, r *big.Int) (gg.GroupElement, error) {
-	return nil, ErrUnimplementedFunctionServer
+	return nil, ErrOPRFUnimplementedFunctionServer
 }
 
 // Finalize is unimplemented for the server
 func (s Server) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
-	return nil, ErrUnimplementedFunctionServer
+	return nil, ErrOPRFUnimplementedFunctionServer
 }
 
 // Client implements the OPRF interface for processing the client-side
@@ -191,10 +191,10 @@ func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
 
 // Setup is not implemented for the OPRF client
 func (c Client) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (SecretKey, gg.Ciphersuite, error) {
-	return SecretKey{}, gg.Ciphersuite{}, ErrUnimplementedFunctionClient
+	return SecretKey{}, gg.Ciphersuite{}, ErrOPRFUnimplementedFunctionClient
 }
 
 // Eval is not implemented for the OPRF client
 func (c Client) Eval(sk SecretKey, M gg.GroupElement) (gg.GroupElement, error) {
-	return nil, ErrUnimplementedFunctionClient
+	return nil, ErrOPRFUnimplementedFunctionClient
 }
