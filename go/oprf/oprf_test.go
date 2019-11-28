@@ -16,6 +16,14 @@ var (
 	validVOPRFP521Ciphersuite = "VOPRF-P521-HKDF-SHA512-SSWU-RO"
 )
 
+func TestFullOPRFP384(t *testing.T) {
+	fullOPRF(t, validOPRFP384Ciphersuite)
+}
+
+func TestFullOPRFP521(t *testing.T) {
+	fullOPRF(t, validOPRFP521Ciphersuite)
+}
+
 func TestServerSetupP384(t *testing.T) {
 	checkServerSetup(t, validOPRFP384Ciphersuite)
 }
@@ -253,4 +261,64 @@ func checkClientFinalize(t *testing.T, validCiphersuite string) {
 	if !hmac.Equal(y, yChk) {
 		t.Fatal("Finalize failed to produce the correct output")
 	}
+}
+
+func fullOPRF(t *testing.T, validCiphersuite string) {
+	s, err := serverSetup(validCiphersuite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := clientSetup(validCiphersuite)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if c.ciph.Name() != s.ciph.Name() {
+		t.Fatal("Ciphersuites are inconsistent")
+	}
+
+	clientInput := []byte{1, 2, 3, 4, 5}
+	auxFinal := []byte{6, 7, 8, 9, 10}
+	c.pk = s.sk.PubKey
+
+	// compute blinded point
+	P, r, err := c.Blind(clientInput)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// compute server evaluation
+	Q, err := s.Eval(s.sk, P)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// compute client unblinding
+	N, err := c.Unblind(Q, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// compute client finalization
+	y, err := c.Finalize(N, clientInput, auxFinal)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// compute server finalization
+	T, err := s.ciph.POG().EncodeToGroup(clientInput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Z, err := s.Eval(s.sk, T)
+	if err != nil {
+		t.Fatal(err)
+	}
+	yServer, err := c.Finalize(Z, clientInput, auxFinal)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check that client & server agree
+	assert.True(t, hmac.Equal(y, yServer))
 }
