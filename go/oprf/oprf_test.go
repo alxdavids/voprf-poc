@@ -17,11 +17,11 @@ var (
 )
 
 func TestFullOPRFP384(t *testing.T) {
-	fullOPRF(t, validOPRFP384Ciphersuite)
+	checkFullOPRF(t, validOPRFP384Ciphersuite)
 }
 
 func TestFullOPRFP521(t *testing.T) {
-	fullOPRF(t, validOPRFP521Ciphersuite)
+	checkFullOPRF(t, validOPRFP521Ciphersuite)
 }
 
 func TestServerSetupP384(t *testing.T) {
@@ -263,7 +263,7 @@ func checkClientFinalize(t *testing.T, validCiphersuite string) {
 	}
 }
 
-func fullOPRF(t *testing.T, validCiphersuite string) {
+func checkFullOPRF(t *testing.T, validCiphersuite string) {
 	s, err := serverSetup(validCiphersuite)
 	if err != nil {
 		t.Fatal(err)
