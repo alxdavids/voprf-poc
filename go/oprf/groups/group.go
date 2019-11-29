@@ -153,6 +153,7 @@ type GroupElement interface {
 	Serialize() ([]byte, oerr.Error)
 	Deserialize([]byte) (GroupElement, oerr.Error)
 	Equal(GroupElement) bool
+	Normalize() (GroupElement, oerr.Error)
 }
 
 // CreateGroupElement creates a new group element from scratch

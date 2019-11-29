@@ -44,7 +44,7 @@ type Config struct {
 }
 
 // CreateConfig returns a HTTP Server object
-func CreateConfig(tls bool, ciphersuite string, pogInit gg.PrimeOrderGroup) (*Config, oerr.Error) {
+func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, tls bool) (*Config, oerr.Error) {
 	ptpnt, err := oprf.Server{}.Setup(ciphersuite, pogInit)
 	if err.Err() != nil {
 		return nil, err
@@ -92,9 +92,9 @@ func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// parse and action JSONRPC request
-	ret, err, status := cfg.processJSONRPCRequest(jsonReq)
+	ret, err := cfg.processJSONRPCRequest(jsonReq)
 	if err.Err() != nil {
-		respError(w, err, status)
+		respError(w, err, http.StatusBadRequest)
 		return
 	}
 
@@ -104,26 +104,26 @@ func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
 
 // processJSONRPCRequest parses the JSONRPC request and attempts to run the OPRF
 // functionality specified in the request
-func (cfg *Config) processJSONRPCRequest(jsonReq *JSONRPCRequest) ([]byte, oerr.Error, int) {
+func (cfg *Config) processJSONRPCRequest(jsonReq *JSONRPCRequest) ([]byte, oerr.Error) {
 	var ret []byte
 	var err oerr.Error
 	params := jsonReq.Params
 	switch jsonReq.Method {
 	case "eval":
 		if len(params) == 0 {
-			return nil, oerr.ErrJSONRPCInvalidMethodParams, http.StatusBadRequest
+			return nil, oerr.ErrJSONRPCInvalidMethodParams
 		}
 		// evaluate OPRF
 		ret, err = cfg.processEval(params[0])
 		break
 	default:
-		return nil, oerr.ErrJSONRPCMethodNotFound, http.StatusBadRequest
+		return nil, oerr.ErrJSONRPCMethodNotFound
 	}
 	if err.Err() != nil {
-		return nil, err, http.StatusBadRequest
+		return nil, err
 	}
 
-	return ret, oerr.Nil(), -1
+	return ret, oerr.Nil()
 }
 
 // processEval processes an evaluation request from the client
@@ -136,9 +136,7 @@ func (cfg *Config) processEval(param string) ([]byte, oerr.Error) {
 	// create GroupElement
 	osrv := cfg.osrv
 	pog := osrv.Ciphersuite().POG()
-	ge := gg.CreateGroupElement(pog)
-	var err oerr.Error
-	ge, err = ge.Deserialize(buf)
+	ge, err := gg.CreateGroupElement(pog).Deserialize(buf)
 	if err.Err() != nil {
 		return nil, err
 	}

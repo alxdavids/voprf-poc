@@ -12,7 +12,7 @@ var (
 )
 
 func main() {
-	cfg, err := server.CreateConfig(false, validP384Ciphersuite, ecgroup.GroupCurve{})
+	cfg, err := server.CreateConfig(validP384Ciphersuite, ecgroup.GroupCurve{}, false)
 	if err.Err() != nil {
 		fmt.Println("Failed to establish server configuration")
 		os.Exit(1)

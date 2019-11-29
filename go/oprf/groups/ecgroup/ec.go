@@ -223,6 +223,25 @@ func (p Point) Equal(ge gg.GroupElement) bool {
 	if !pChkGroup.IsValid() {
 		return false
 	}
+
+	// normalize coordinates
+	normP, err := p.Normalize()
+	if err.Err() != nil {
+		return false
+	}
+	normEq, err := pEq.Normalize()
+	if err.Err() != nil {
+		return false
+	}
+	p, err = castToPoint(normP)
+	if err.Err() != nil {
+		return false
+	}
+	pEq, err = castToPoint(normEq)
+	if err.Err() != nil {
+		return false
+	}
+
 	// check that the point coordinates are the same
 	return (p.X.Cmp(pEq.X) == 0) && (p.Y.Cmp(pEq.Y) == 0)
 }
@@ -281,7 +300,7 @@ func (p Point) Serialize() ([]byte, oerr.Error) {
 
 	// attempt to deserialize
 	if curve.nist {
-		return p.nistSerialize(), oerr.Error{}
+		return p.nistSerialize(curve), oerr.Error{}
 	}
 	return nil, oerr.ErrUnsupportedGroup
 }
@@ -299,11 +318,29 @@ func (p Point) Deserialize(buf []byte) (gg.GroupElement, oerr.Error) {
 	return nil, oerr.ErrUnsupportedGroup
 }
 
+// Normalize returns the Point object with normalized coordinates
+func (p Point) Normalize() (gg.GroupElement, oerr.Error) {
+	group := p.pog
+	curve, ok := group.(GroupCurve)
+	if !ok {
+		return Point{}, oerr.ErrTypeAssertion
+	}
+	p.X = new(big.Int).Mod(p.X, curve.Order())
+	p.Y = new(big.Int).Mod(p.Y, curve.Order())
+	return p, oerr.Nil()
+}
+
 // nistSerialize marshals the point object into an octet-string of either
 // compressed or uncompressed SEC1 format
 // (https://www.secg.org/sec1-v2.pdf#subsubsection.2.3.3)
-func (p Point) nistSerialize() []byte {
+//
+// NOT CONSTANT-TIME due to variable number of bytes
+func (p Point) nistSerialize(curve GroupCurve) []byte {
 	xBytes, yBytes := p.X.Bytes(), p.Y.Bytes()
+	// append zeroes to the front if the bytes are not filled up
+	xBytes = append(make([]byte, curve.ByteLength()-len(xBytes)), xBytes...)
+	yBytes = append(make([]byte, curve.ByteLength()-len(yBytes)), yBytes...)
+
 	var bytes []byte
 	var tag int
 	if !p.compress {
@@ -324,13 +361,13 @@ func (p Point) nistDeserialize(curve GroupCurve, buf []byte) (Point, oerr.Error)
 	byteLength := curve.ByteLength()
 	switch tag {
 	case 2, 3:
-		if byteLength != len(buf)-1 {
+		if byteLength < len(buf)-1 {
 			return Point{}, oerr.ErrDeserializing
 		}
 		compressed = true
 		break
 	case 4:
-		if byteLength*2 != len(buf)-1 {
+		if byteLength*2 < len(buf)-1 {
 			return Point{}, oerr.ErrDeserializing
 		}
 		break
