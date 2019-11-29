@@ -91,29 +91,38 @@ func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// parse and action JSONRPC request
+	ret, err, status := cfg.processJSONRPCRequest(jsonReq)
+	if err.Err() != nil {
+		respError(w, err, status)
+	}
+
+	// return success response
+	respSuccess(w, []string{hex.EncodeToString(ret)})
+}
+
+// processJSONRPCRequest parses the JSONRPC request and attempts to run the OPRF
+// functionality specified in the request
+func (cfg *Config) processJSONRPCRequest(jsonReq *JSONRPCRequest) ([]byte, oerr.Error, int) {
 	var ret []byte
 	var err oerr.Error
 	params := jsonReq.Params
 	switch jsonReq.Method {
 	case "eval":
 		if len(params) == 0 {
-			respError(w, oerr.ErrJSONRPCInvalidMethodParams, http.StatusBadRequest)
-			return
+			return nil, oerr.ErrJSONRPCInvalidMethodParams, http.StatusBadRequest
 		}
 		// evaluate OPRF
 		ret, err = cfg.processEval(params[0])
 		break
 	default:
-		respError(w, oerr.ErrJSONRPCMethodNotFound, http.StatusBadRequest)
-		return
+		return nil, oerr.ErrJSONRPCMethodNotFound, http.StatusBadRequest
 	}
 	if err.Err() != nil {
-		respError(w, err, http.StatusInternalServerError)
-		return
+		return nil, err, http.StatusInternalServerError
 	}
 
-	// return success response
-	respSuccess(w, []string{hex.EncodeToString(ret)})
+	return ret, oerr.Nil(), -1
 }
 
 // processEval processes an evaluation request from the client
@@ -166,5 +175,5 @@ func respError(w http.ResponseWriter, e oerr.Error, status int) {
 	resp, _ := json.Marshal(JSONRPCResponseError{Version: "2.0", Error: e.JSON(), ID: 1})
 	w.WriteHeader(status)
 	w.Write(resp)
-	fmt.Printf("Error occurred processing client request (%v)", e.Err())
+	fmt.Printf("Error occurred processing client request (%v)\n", e.Err())
 }
