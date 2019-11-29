@@ -154,3 +154,8 @@ type GroupElement interface {
 	Deserialize([]byte) (GroupElement, oerr.Error)
 	Equal(GroupElement) bool
 }
+
+// CreateGroupElement creates a new group element from scratch
+func CreateGroupElement(pog PrimeOrderGroup) GroupElement {
+	return pog.Generator().New(pog)
+}

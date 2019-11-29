@@ -202,7 +202,7 @@ type Point struct {
 
 // New returns a new point initialised to zero
 func (p Point) New(pog gg.PrimeOrderGroup) gg.GroupElement {
-	return Point{X: zero, Y: zero, pog: pog, compress: false}
+	return Point{X: zero, Y: zero, pog: pog, compress: true}
 }
 
 // Equal returns true if the two Point objects have the same X and Y

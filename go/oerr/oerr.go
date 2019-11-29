@@ -23,9 +23,11 @@ var (
 	// ErrServerUnsupportedFunctionality indicates that unsupported
 	// functionality was requested when initialising the Server object.
 	ErrServerUnsupportedFunctionality = Error{message: errors.New("Unsupported server functionality requested"), code: -32000}
+	// ErrServerInternal indicates that an internal error occurred
+	ErrServerInternal = Error{message: errors.New("Unsupported server functionality requested"), code: -32001}
 	// ErrClientMalformedRequest indicates that the request sent by the client
 	// cannot be processed due to malformation
-	ErrClientMalformedRequest = Error{message: errors.New("Client request is malformed"), code: -32001}
+	ErrClientMalformedRequest = Error{message: errors.New("Client request is malformed"), code: -32011}
 
 	// ErrOPRFCiphersuiteUnsupportedFunction indicates that the given OPRF
 	// function is not supported for the configuration specified by the
@@ -83,6 +85,9 @@ func (e Error) Err() error { return e.message }
 // Code returns the int error code associated with the Error object
 func (e Error) Code() int { return e.code }
 
+// JSON returns an object that can be used as a JSON output
+func (e Error) JSON() ErrorJSON { return ErrorJSON{Message: e.Err().Error(), Code: e.Code()} }
+
 // New returns a new Error object with the supplied message and error code
 func New(message string, code int) Error {
 	return Error{message: errors.New(message), code: code}
@@ -91,4 +96,10 @@ func New(message string, code int) Error {
 // Nil returns a nil Error object
 func Nil() Error {
 	return Error{}
+}
+
+// ErrorJSON is a converted Error object for encoding errors into JSON
+type ErrorJSON struct {
+	Message string `json:"message"`
+	Code    int    `json:"code"`
 }

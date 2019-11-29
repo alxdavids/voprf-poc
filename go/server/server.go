@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -13,10 +14,10 @@ import (
 
 // JSONRPCRequest describes the structure of a JSONRPC request
 type JSONRPCRequest struct {
-	Version string `json:"jsonrpc"`
-	Method  string `json:"method"`
-	Params  interface{}
-	ID      int `json:"id"`
+	Version string   `json:"jsonrpc"`
+	Method  string   `json:"method"`
+	Params  []string `json:"params"`
+	ID      int      `json:"id"`
 }
 
 // JSONRPCResponseSuccess constructs a successful JSONRPC response back to a
@@ -29,9 +30,9 @@ type JSONRPCResponseSuccess struct {
 
 // JSONRPCResponseError constructs a failed JSONRPC response back to a client
 type JSONRPCResponseError struct {
-	Version string     `json:"jsonrpc"`
-	Error   oerr.Error `json:"error"`
-	ID      int        `json:"id"`
+	Version string         `json:"jsonrpc"`
+	Error   oerr.ErrorJSON `json:"error"`
+	ID      int            `json:"id"`
 }
 
 // Config corresponds to the actual HTTP instantiation of the server in the OPRF
@@ -68,14 +69,15 @@ func CreateConfig(tls bool, ciphersuite string, pogInit gg.PrimeOrderGroup) (*Co
 
 // ListenAndServe listens for connections and responds to request using the OPRF
 // functionality
-func (cfg *Config) ListenAndServe() error {
+func (cfg *Config) ListenAndServe() oerr.Error {
+	fmt.Println("Server listening on port 3001")
 	for true {
 		e := cfg.hsrv.ListenAndServe()
 		if e != nil {
-			return e
+			return oerr.ErrServerInternal
 		}
 	}
-	return nil
+	return oerr.Nil()
 }
 
 // handleOPRF handles the HTTP request that arrives
@@ -85,25 +87,34 @@ func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
 	if e != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(respError(oerr.ErrJSONRPCParse))
+		return
 	}
 
 	var ret []byte
 	var err oerr.Error
+	params := jsonReq.Params
 	switch jsonReq.Method {
 	case "eval":
-		ret, err = cfg.processEval((jsonReq.Params.([]string))[0])
+		if len(params) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(respError(oerr.ErrJSONRPCInvalidMethodParams))
+			return
+		}
+		// evaluate OPRF
+		ret, err = cfg.processEval(params[0])
 		break
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(respError(oerr.ErrJSONRPCMethodNotFound))
+		return
 	}
 	if err.Err() != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write(respError(err))
+		return
 	}
 
 	// return success response
-	w.WriteHeader(http.StatusOK)
 	w.Write(respSuccess(hex.EncodeToString(ret)))
 }
 
@@ -117,8 +128,7 @@ func (cfg *Config) processEval(param string) ([]byte, oerr.Error) {
 	// create GroupElement
 	osrv := cfg.osrv
 	pog := osrv.Ciphersuite().POG()
-	var ge gg.GroupElement
-	ge = ge.New(pog)
+	ge := gg.CreateGroupElement(pog)
 	var err oerr.Error
 	ge, err = ge.Deserialize(buf)
 	if err.Err() != nil {
@@ -137,17 +147,8 @@ func (cfg *Config) processEval(param string) ([]byte, oerr.Error) {
 
 // readRequestBody tries to read a JSONRPCRequest object from the HTTP Request
 func readRequestBody(r *http.Request) (*JSONRPCRequest, error) {
-	body, e := r.GetBody()
-	if e != nil {
-		return nil, e
-	}
-	var buf []byte
-	_, e = body.Read(buf)
-	if e != nil {
-		return nil, e
-	}
 	req := &JSONRPCRequest{}
-	e = json.Unmarshal(buf, req)
+	e := json.NewDecoder(r.Body).Decode(req)
 	if e != nil {
 		return nil, e
 	}
@@ -164,6 +165,6 @@ func respSuccess(result string) []byte {
 func respError(e oerr.Error) []byte {
 	// if an error occurs here then we have no hope so I'm going to
 	// ignore it
-	resp, _ := json.Marshal(JSONRPCResponseError{Version: "2.0", Error: e, ID: 1})
+	resp, _ := json.Marshal(JSONRPCResponseError{Version: "2.0", Error: e.JSON(), ID: 1})
 	return resp
 }
