@@ -95,6 +95,7 @@ func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
 	ret, err, status := cfg.processJSONRPCRequest(jsonReq)
 	if err.Err() != nil {
 		respError(w, err, status)
+		return
 	}
 
 	// return success response
@@ -119,7 +120,7 @@ func (cfg *Config) processJSONRPCRequest(jsonReq *JSONRPCRequest) ([]byte, oerr.
 		return nil, oerr.ErrJSONRPCMethodNotFound, http.StatusBadRequest
 	}
 	if err.Err() != nil {
-		return nil, err, http.StatusInternalServerError
+		return nil, err, http.StatusBadRequest
 	}
 
 	return ret, oerr.Nil(), -1
