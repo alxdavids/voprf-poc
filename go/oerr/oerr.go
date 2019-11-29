@@ -3,6 +3,23 @@ package oerr
 import "errors"
 
 var (
+	// ErrJSONRPCParse indicates that a JSON-RPC parsing error occurred
+	// (https://www.jsonrpc.org/specification#error_object)
+	ErrJSONRPCParse = Error{message: errors.New("Invalid JSON was received by the server, an error occurred on the server while parsing the JSON text"), code: -32700}
+	// ErrJSONRPCInvalidRequest indicates that the JSON-RPC request was invalid
+	// (https://www.jsonrpc.org/specification#error_object)
+	ErrJSONRPCInvalidRequest = Error{message: errors.New("The JSON sent is not a valid Request object"), code: -32600}
+	// ErrJSONRPCMethodNotFound indicates that the specified method was not
+	// found or supported (https://www.jsonrpc.org/specification#error_object)
+	ErrJSONRPCMethodNotFound = Error{message: errors.New("The method is not available"), code: -32601}
+	// ErrJSONRPCInvalidMethodParams indiocates that the supplied method
+	// parameters were invalid
+	// (https://www.jsonrpc.org/specification#error_object)
+	ErrJSONRPCInvalidMethodParams = Error{message: errors.New("Invalid method parameters"), code: -32602}
+	// ErrJSONRPCInternal indicates that an internal JSON-RPC error occurred
+	// (https://www.jsonrpc.org/specification#error_object)
+	ErrJSONRPCInternal = Error{message: errors.New("Internal JSON-RPC Error"), code: -32603}
+
 	// ErrServerUnsupportedFunctionality indicates that unsupported
 	// functionality was requested when initialising the Server object.
 	ErrServerUnsupportedFunctionality = Error{message: errors.New("Unsupported server functionality requested"), code: -32000}
