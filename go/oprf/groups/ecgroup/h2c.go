@@ -5,7 +5,7 @@ import (
 	"hash"
 	"math/big"
 
-	oErr "github.com/alxdavids/oprf-poc/go/err"
+	"github.com/alxdavids/oprf-poc/go/oerr"
 	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
 )
 
@@ -33,7 +33,7 @@ type h2cParams struct {
 }
 
 // getH2CParams returns the h2cParams object for the specified curve
-func getH2CParams(gc GroupCurve) (h2cParams, error) {
+func getH2CParams(gc GroupCurve) (h2cParams, oerr.Error) {
 	h2cName := "SSWU-RO"
 	switch gc.Name() {
 	case "P-384":
@@ -54,7 +54,7 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 			isSqExp: gc.consts.isSqExp,
 			sqrtExp: gc.consts.sqrtExp,
 			sgn0:    gc.sgn0,
-		}, nil
+		}, oerr.Error{}
 	case "P-521":
 		return h2cParams{
 			gc:      gc,
@@ -73,17 +73,17 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 			isSqExp: gc.consts.isSqExp,
 			sqrtExp: gc.consts.sqrtExp,
 			sgn0:    gc.sgn0,
-		}, nil
+		}, oerr.Error{}
 	}
-	return h2cParams{}, oErr.ErrUnsupportedGroup.Err()
+	return h2cParams{}, oerr.ErrUnsupportedGroup
 }
 
 // hashToBase hashes a buffer into a vector of underlying base field elements,
 // where the base field is chosen depending on the associated elliptic curve
-func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error) {
+func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, oerr.Error) {
 	os, err := i2osp(0, 1)
-	if err != nil {
-		return nil, oErr.ErrInternalInstantiation.Err()
+	if err.Err() != nil {
+		return nil, oerr.ErrInternalInstantiation
 	}
 	hashFunc := func() hash.Hash {
 		hash := params.hash
@@ -93,8 +93,8 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error)
 	extractor := params.ee.Extractor()
 	msgPrime := extractor(hashFunc, append(buf, os...), params.dst)
 	osCtr, err := i2osp(ctr, 1)
-	if err != nil {
-		return nil, oErr.ErrInternalInstantiation.Err()
+	if err.Err() != nil {
+		return nil, oerr.ErrInternalInstantiation
 	}
 	infoPfx := append([]byte("H2C"), osCtr...)
 	i := 1
@@ -102,8 +102,8 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error)
 	expander := params.ee.Expander()
 	for i <= params.m {
 		osi, err := i2osp(i, 1)
-		if err != nil {
-			return nil, oErr.ErrInternalInstantiation.Err()
+		if err.Err() != nil {
+			return nil, oerr.ErrInternalInstantiation
 		}
 		info := append(infoPfx, osi...)
 		reader := expander(hashFunc, msgPrime, info)
@@ -113,58 +113,58 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error)
 		res[i-1] = new(big.Int).Mod(ei, params.p)
 		i++
 	}
-	return res, nil
+	return res, oerr.Error{}
 }
 
 // hashToCurve hashes a buffer to a curve point on the chosen curve, this
 // function can be modelled as a random oracle.
-func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
+func (params h2cParams) hashToCurve(alpha []byte) (Point, oerr.Error) {
 	u0, err := params.hashToBaseField(alpha, 0)
-	if err != nil {
+	if err.Err() != nil {
 		return Point{}, err
 	}
 	u1, err := params.hashToBaseField(alpha, 1)
-	if err != nil {
+	if err.Err() != nil {
 		return Point{}, err
 	}
 
 	// attempt to encode bytes as curve point
 	Q0 := Point{}.New(params.gc).(Point)
 	Q1 := Point{}.New(params.gc).(Point)
-	var e0, e1 error
+	var e0, e1 oerr.Error
 	switch params.gc.Name() {
 	case "P-384", "P-521":
 		Q0, e0 = params.sswu(u0)
 		Q1, e1 = params.sswu(u1)
 		break
 	default:
-		e0 = oErr.ErrIncompatibleGroupParams.Err()
+		e0 = oerr.ErrIncompatibleGroupParams
 	}
 
-	// return error if one occurred, or the point that was encoded
-	if e0 != nil {
+	// return oerr.Error if one occurred, or the point that was encoded
+	if e0.Err() != nil {
 		return Point{}, e0
-	} else if e1 != nil {
+	} else if e1.Err() != nil {
 		return Point{}, e1
 	}
 
 	// construct the output point R
 	R, err := Q0.Add(Q1)
-	if err != nil {
+	if err.Err() != nil {
 		return Point{}, err
 	}
 	P, err := R.(Point).clearCofactor(params.hEff)
-	if err != nil {
+	if err.Err() != nil {
 		return Point{}, err
 	}
-	return P, nil
+	return P, oerr.Error{}
 }
 
 // sswu completes the Simplified SWU method curve mapping defined in
 // https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-05#section-6.6.2
-func (params h2cParams) sswu(uArr []*big.Int) (Point, error) {
+func (params h2cParams) sswu(uArr []*big.Int) (Point, oerr.Error) {
 	if len(uArr) > 1 {
-		return Point{}, oErr.ErrIncompatibleGroupParams.Err()
+		return Point{}, oerr.ErrIncompatibleGroupParams
 	}
 	u := uArr[0]
 	p, A, B, Z := params.p, params.a, params.b, big.NewInt(int64(params.z))
@@ -202,9 +202,9 @@ func (params h2cParams) sswu(uArr []*big.Int) (Point, error) {
 	P.X = x.Mod(x, p)
 	P.Y = y.Mod(y, p)
 	if !P.IsValid() {
-		return Point{}, oErr.ErrInvalidGroupElement.Err()
+		return Point{}, oerr.ErrInvalidGroupElement
 	}
-	return P, nil
+	return P, oerr.Error{}
 }
 
 // cmpToBigInt converts the return value from a comparison operation into a
@@ -250,9 +250,9 @@ func inv0(x, p *big.Int) *big.Int {
 
 // i2osp converts an integer to an octet-string
 // (https://tools.ietf.org/html/rfc8017#section-4.1)
-func i2osp(x, xLen int) ([]byte, error) {
+func i2osp(x, xLen int) ([]byte, oerr.Error) {
 	if x < 0 || x >= (1<<(8*xLen)) {
-		return nil, oErr.ErrInternalInstantiation.Err()
+		return nil, oerr.ErrInternalInstantiation
 	}
 	ret := make([]byte, xLen)
 	val := x
@@ -260,7 +260,7 @@ func i2osp(x, xLen int) ([]byte, error) {
 		ret[i] = byte(val & 0xff)
 		val = val >> 8
 	}
-	return ret, nil
+	return ret, oerr.Error{}
 }
 
 // os2ip converts an octet-string to an integer

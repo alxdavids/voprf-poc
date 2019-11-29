@@ -1,4 +1,4 @@
-package err
+package oerr
 
 import "errors"
 
@@ -65,3 +65,13 @@ func (e Error) Err() error { return e.message }
 
 // Code returns the int error code associated with the Error object
 func (e Error) Code() int { return e.code }
+
+// New returns a new Error object with the supplied message and error code
+func New(message string, code int) Error {
+	return Error{message: errors.New(message), code: code}
+}
+
+// Nil returns a nil Error object
+func Nil() Error {
+	return Error{}
+}

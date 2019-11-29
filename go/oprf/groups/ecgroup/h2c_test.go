@@ -3,11 +3,11 @@ package ecgroup
 import (
 	"crypto/elliptic"
 	"crypto/sha512"
-	"errors"
 	"fmt"
 	"math/big"
 	"testing"
 
+	"github.com/alxdavids/oprf-poc/go/oerr"
 	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
 	"github.com/cloudflare/circl/ecc/p384"
 )
@@ -15,7 +15,7 @@ import (
 func TestHashToBaseP384(t *testing.T) {
 	curve := CreateNistCurve(p384.P384(), sha512.New(), oc.HKDFExtExp{})
 	err := performHashToBase(curve)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 }
@@ -23,7 +23,7 @@ func TestHashToBaseP384(t *testing.T) {
 func TestSswuP384(t *testing.T) {
 	curve := CreateNistCurve(p384.P384(), sha512.New(), oc.HKDFExtExp{})
 	err := performSswu(curve)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 }
@@ -31,7 +31,7 @@ func TestSswuP384(t *testing.T) {
 func TestHashToCurveP384(t *testing.T) {
 	curve := CreateNistCurve(p384.P384(), sha512.New(), oc.HKDFExtExp{})
 	err := performHashToCurve(curve)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 }
@@ -39,7 +39,7 @@ func TestHashToCurveP384(t *testing.T) {
 func TestHashToBaseP521(t *testing.T) {
 	curve := CreateNistCurve(elliptic.P521(), sha512.New(), oc.HKDFExtExp{})
 	err := performHashToBase(curve)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 }
@@ -47,7 +47,7 @@ func TestHashToBaseP521(t *testing.T) {
 func TestSswuP521(t *testing.T) {
 	curve := CreateNistCurve(elliptic.P521(), sha512.New(), oc.HKDFExtExp{})
 	err := performSswu(curve)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 }
@@ -55,26 +55,26 @@ func TestSswuP521(t *testing.T) {
 func TestHashToCurveP521(t *testing.T) {
 	curve := CreateNistCurve(elliptic.P521(), sha512.New(), oc.HKDFExtExp{})
 	err := performHashToCurve(curve)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 }
 
 // performHashToBase performs full hash-to-base for each of the test inputs and
 // checks against expected responses
-func performHashToBase(curve GroupCurve) error {
+func performHashToBase(curve GroupCurve) oerr.Error {
 	params, err := getH2CParams(curve)
-	if err != nil {
+	if err.Err() != nil {
 		return err
 	}
 	for _, alpha := range testInputs {
 		uArr, err := params.hashToBaseField([]byte(alpha), 0)
-		if err != nil {
+		if err.Err() != nil {
 			return err
 		}
 
 		if len(uArr) != 1 {
-			return fmt.Errorf("Only expecting one field element to be returned")
+			return oerr.New("Only expecting one field element to be returned", -1)
 		}
 		u := uArr[0]
 
@@ -82,17 +82,17 @@ func performHashToBase(curve GroupCurve) error {
 		expected := expectedHashToBaseResponses[curve.Name()][alpha]
 		cmp := u.Cmp(expected)
 		if cmp != 0 {
-			return fmt.Errorf("hash-to-base output for input alpha: %s is incorrect, expected: %s, got: %s", alpha, expected.String(), u.String())
+			return oerr.New(fmt.Sprintf("hash-to-base output for input alpha: %s is incorrect, expected: %s, got: %s", alpha, expected.String(), u.String()), -1)
 		}
 	}
-	return nil
+	return oerr.Error{}
 }
 
 // performSswu performs sswu for each of the test inputs and checks against
 // expected responses
-func performSswu(curve GroupCurve) error {
+func performSswu(curve GroupCurve) oerr.Error {
 	params, err := getH2CParams(curve)
-	if err != nil {
+	if err.Err() != nil {
 		return err
 	}
 
@@ -101,13 +101,13 @@ func performSswu(curve GroupCurve) error {
 		vectors := testVectors[alpha]
 		input := vectors["input"]
 		Q, err := params.sswu([]*big.Int{input})
-		if err != nil {
+		if err.Err() != nil {
 			return err
 		}
 
 		// check point is valid
 		if !Q.IsValid() {
-			return errors.New("Failed to generate a valid point")
+			return oerr.New("Failed to generate a valid point", -1)
 		}
 
 		// check test vectors
@@ -115,38 +115,38 @@ func performSswu(curve GroupCurve) error {
 		if !Q.Equal(chkQ) {
 			fmt.Println(chkQ)
 			fmt.Println(Q)
-			return errors.New("Points are not equal")
+			return oerr.New("Points are not equal", -1)
 		}
 	}
-	return nil
+	return oerr.Error{}
 }
 
 // performHashToCurve performs full hash-to-curve for each of the test inputs
 // and checks against expected responses
-func performHashToCurve(curve GroupCurve) error {
+func performHashToCurve(curve GroupCurve) oerr.Error {
 	params, err := getH2CParams(curve)
-	if err != nil {
+	if err.Err() != nil {
 		return err
 	}
 	for _, alpha := range testInputs {
 		R, err := params.hashToCurve([]byte(alpha))
-		if err != nil {
+		if err.Err() != nil {
 			return err
 		}
 
 		// check point is valid
 		if !R.IsValid() {
-			return errors.New("Failed to generate a valid point")
+			return oerr.New("Failed to generate a valid point", -1)
 		}
 
 		// check test vectors
 		expected := expectedCurveEncodingResponses[curve.Name()]["full"][alpha]
 		chkR := Point{X: expected["x"], Y: expected["y"], pog: curve, compress: false}
 		if !R.Equal(chkR) {
-			return errors.New("Points are not equal")
+			return oerr.New("Points are not equal", -1)
 		}
 	}
-	return nil
+	return oerr.Error{}
 }
 
 // getBigIntFromDecString returns a bigint (without success value) from a decimal

@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	oErr "github.com/alxdavids/oprf-poc/go/err"
+	"github.com/alxdavids/oprf-poc/go/oerr"
 	"github.com/alxdavids/oprf-poc/go/oprf/groups/ecgroup"
 	"github.com/stretchr/testify/assert"
 )
@@ -43,45 +43,45 @@ func TestServerEvalP521(t *testing.T) {
 
 func TestServerEvalVerifiable(t *testing.T) {
 	s, err := serverSetup(validVOPRFP384Ciphersuite)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	pog := s.Ciphersuite().POG()
 	_, err = s.Eval(s.SecretKey(), ecgroup.Point{}.New(pog).(ecgroup.Point))
-	if err != oErr.ErrOPRFCiphersuiteUnsupportedFunction.Err() {
+	if err != oerr.ErrOPRFCiphersuiteUnsupportedFunction {
 		t.Fatal("Verfiable Unblind should not be supported yet")
 	}
 }
 
 func TestServerBlind(t *testing.T) {
 	s, err := serverSetup(validOPRFP384Ciphersuite)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	_, _, err = s.Blind([]byte{})
-	if err != oErr.ErrOPRFUnimplementedFunctionServer.Err() {
+	if err != oerr.ErrOPRFUnimplementedFunctionServer {
 		t.Fatal("Function should be unimplemented")
 	}
 }
 
 func TestServerUnblind(t *testing.T) {
 	s, err := serverSetup(validOPRFP384Ciphersuite)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	_, err = s.Unblind(ecgroup.Point{}, new(big.Int))
-	if err != oErr.ErrOPRFUnimplementedFunctionServer.Err() {
+	if err != oerr.ErrOPRFUnimplementedFunctionServer {
 		t.Fatal("Function should be unimplemented")
 	}
 }
 
 func TestServerFinalize(t *testing.T) {
 	s, err := serverSetup(validOPRFP384Ciphersuite)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	_, err = s.Finalize(ecgroup.Point{}, []byte{}, []byte{})
-	if err != oErr.ErrOPRFUnimplementedFunctionServer.Err() {
+	if err != oerr.ErrOPRFUnimplementedFunctionServer {
 		t.Fatal("Function should be unimplemented")
 	}
 }
@@ -112,34 +112,34 @@ func TestClientFinalizeP521(t *testing.T) {
 
 func TestClientEval(t *testing.T) {
 	c, err := clientSetup(validOPRFP384Ciphersuite)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	_, err = c.Eval(SecretKey{}, ecgroup.Point{})
-	if err != oErr.ErrOPRFUnimplementedFunctionClient.Err() {
+	if err != oerr.ErrOPRFUnimplementedFunctionClient {
 		t.Fatal("Function should be unimplemented")
 	}
 }
 
 func TestClientUnblindVerifiable(t *testing.T) {
 	c, err := clientSetup(validVOPRFP384Ciphersuite)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	pog := c.Ciphersuite().POG()
 	ufe, err := pog.UniformFieldElement()
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	_, err = c.Unblind(ecgroup.Point{}.New(pog).(ecgroup.Point), ufe)
-	if err != oErr.ErrOPRFCiphersuiteUnsupportedFunction.Err() {
+	if err != oerr.ErrOPRFCiphersuiteUnsupportedFunction {
 		t.Fatal("Verfiable Unblind should not be supported yet")
 	}
 }
 
 func checkServerSetup(t *testing.T, validCiphersuite string) {
 	s, err := serverSetup(validCiphersuite)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	assert.NotEmpty(t, s)
@@ -150,47 +150,47 @@ func checkServerSetup(t *testing.T, validCiphersuite string) {
 
 func checkClientSetup(t *testing.T, validCiphersuite string) {
 	c, err := clientSetup(validCiphersuite)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	assert.NotEmpty(t, c)
 	assert.NotEmpty(t, c.Ciphersuite())
 }
 
-func serverSetup(ciph string) (Server, error) {
+func serverSetup(ciph string) (Server, oerr.Error) {
 	s, err := Server{}.Setup(ciph, ecgroup.GroupCurve{})
-	if err != nil {
+	if err.Err() != nil {
 		return Server{}, err
 	}
-	return s.(Server), nil
+	return s.(Server), oerr.Nil()
 }
 
-func clientSetup(ciph string) (Client, error) {
+func clientSetup(ciph string) (Client, oerr.Error) {
 	s, err := Client{}.Setup(ciph, ecgroup.GroupCurve{})
-	if err != nil {
+	if err.Err() != nil {
 		return Client{}, err
 	}
-	return s.(Client), nil
+	return s.(Client), oerr.Nil()
 }
 
 func checkServerEval(t *testing.T, validCiphersuite string) {
 	s, err := serverSetup(validOPRFP384Ciphersuite)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	ciph := s.Ciphersuite()
 	pog := ciph.POG()
 	x := []byte{1, 2, 3, 4, 6, 7}
 	P, err := pog.EncodeToGroup(x)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	Q, err := s.Eval(s.SecretKey(), P)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	chkQ, err := P.ScalarMult(s.SecretKey().K)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	if !Q.Equal(chkQ) {
@@ -200,12 +200,12 @@ func checkServerEval(t *testing.T, validCiphersuite string) {
 
 func checkClientBlindUnblind(t *testing.T, validCiphersuite string) {
 	c, err := clientSetup(validCiphersuite)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	x := []byte{1, 2, 3, 4, 5}
 	P, blind, err := c.Blind(x)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	pog := c.Ciphersuite().POG()
@@ -213,11 +213,11 @@ func checkClientBlindUnblind(t *testing.T, validCiphersuite string) {
 		t.Fatal("Blinded point is not valid")
 	}
 	N, err := c.Unblind(P, blind)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	chkN, err := pog.EncodeToGroup(x)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	assert.True(t, N.Equal(chkN))
@@ -225,38 +225,38 @@ func checkClientBlindUnblind(t *testing.T, validCiphersuite string) {
 
 func checkClientFinalize(t *testing.T, validCiphersuite string) {
 	c, err := clientSetup(validCiphersuite)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	x := []byte{1, 2, 3, 4, 5}
 	aux := []byte{6, 7, 8, 9, 10}
 	pog := c.Ciphersuite().POG()
 	P, err := pog.EncodeToGroup(x)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	y, err := c.Finalize(P, x, aux)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 
 	// recompute
 	bytesP, err := P.Serialize()
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	DST := []byte("oprf_derive_output")
 	hmacChk := hmac.New(c.Ciphersuite().H3, DST)
 	input := append(x, bytesP...)
-	_, err = hmacChk.Write(input)
-	if err != nil {
-		t.Fatal(err)
+	_, e := hmacChk.Write(input)
+	if e != nil {
+		t.Fatal(e)
 	}
 	dk := hmacChk.Sum(nil)
 	hmacOutChk := hmac.New(c.Ciphersuite().H3, dk)
-	_, err = hmacOutChk.Write(aux)
-	if err != nil {
-		t.Fatal(err)
+	_, e = hmacOutChk.Write(aux)
+	if e != nil {
+		t.Fatal(e)
 	}
 	yChk := hmacOutChk.Sum(nil)
 	if !hmac.Equal(y, yChk) {
@@ -266,11 +266,11 @@ func checkClientFinalize(t *testing.T, validCiphersuite string) {
 
 func checkFullOPRF(t *testing.T, validCiphersuite string) {
 	s, err := serverSetup(validCiphersuite)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	c, err := clientSetup(validCiphersuite)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 
@@ -284,39 +284,39 @@ func checkFullOPRF(t *testing.T, validCiphersuite string) {
 
 	// compute blinded point
 	P, r, err := c.Blind(clientInput)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 
 	// compute server evaluation
 	Q, err := s.Eval(s.SecretKey(), P)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 
 	// compute client unblinding
 	N, err := c.Unblind(Q, r)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 
 	// compute client finalization
 	y, err := c.Finalize(N, clientInput, auxFinal)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 
 	// compute server finalization
 	T, err := s.Ciphersuite().POG().EncodeToGroup(clientInput)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	Z, err := s.Eval(s.SecretKey(), T)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 	yServer, err := c.Finalize(Z, clientInput, auxFinal)
-	if err != nil {
+	if err.Err() != nil {
 		t.Fatal(err)
 	}
 

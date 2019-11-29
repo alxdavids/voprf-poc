@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"strings"
 
-	oErr "github.com/alxdavids/oprf-poc/go/err"
+	"github.com/alxdavids/oprf-poc/go/oerr"
 	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
 )
 
@@ -16,7 +16,7 @@ import (
 type Ciphersuite struct {
 	name        string
 	pog         PrimeOrderGroup
-	hash1       func([]byte) (GroupElement, error)
+	hash1       func([]byte) (GroupElement, oerr.Error)
 	hash2       func(func() hash.Hash, []byte) hash.Hash
 	hashGeneric hash.Hash
 	hash5       oc.ExtractorExpander
@@ -25,12 +25,12 @@ type Ciphersuite struct {
 
 // FromString derives a ciphersuite from the string that was provided,
 // corresponding to a given PrimeOrderGroup implementation
-func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, error) {
+func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, oerr.Error) {
 	split := strings.SplitN(s, "-", 5)
 
 	// construct the PrimeOrderGroup object
 	var pogNew PrimeOrderGroup
-	var err error
+	var err oerr.Error
 	switch split[1] {
 	case "P384":
 		pogNew, err = pog.New("P-384")
@@ -39,9 +39,9 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 		pogNew, err = pog.New("P-521")
 		break
 	default:
-		return Ciphersuite{}, oErr.ErrUnsupportedGroup.Err()
+		return Ciphersuite{}, oerr.ErrUnsupportedGroup
 	}
-	if err != nil {
+	if err.Err() != nil {
 		return Ciphersuite{}, err
 	}
 
@@ -49,11 +49,11 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 	switch split[2] {
 	case "HKDF":
 		if reflect.TypeOf(pogNew.EE()).Name() != "HKDFExtExp" {
-			return Ciphersuite{}, oErr.ErrUnsupportedEE.Err()
+			return Ciphersuite{}, oerr.ErrUnsupportedEE
 		}
 		break
 	default:
-		return Ciphersuite{}, oErr.ErrUnsupportedEE.Err()
+		return Ciphersuite{}, oerr.ErrUnsupportedEE
 	}
 
 	// check hash function support
@@ -61,11 +61,11 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 	case "SHA512":
 		if reflect.DeepEqual(pog.Hash(), sha512.New()) {
 			// do a quick check to see if the hash function is the same
-			return Ciphersuite{}, oErr.ErrUnsupportedHash.Err()
+			return Ciphersuite{}, oerr.ErrUnsupportedHash
 		}
 		break
 	default:
-		return Ciphersuite{}, oErr.ErrUnsupportedHash.Err()
+		return Ciphersuite{}, oerr.ErrUnsupportedHash
 	}
 
 	// check hash-to-curve support
@@ -74,7 +74,7 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 		// do nothing
 		break
 	default:
-		return Ciphersuite{}, oErr.ErrUnsupportedH2C.Err()
+		return Ciphersuite{}, oerr.ErrUnsupportedH2C
 	}
 
 	// derive Ciphersuite object
@@ -95,14 +95,14 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 		hashGeneric: hashGeneric,
 		hash5:       h5,
 		verifiable:  verifiable,
-	}, nil
+	}, oerr.Error{}
 }
 
 // Name returns the name of the Ciphersuite
 func (c Ciphersuite) Name() string { return c.name }
 
 // H1 returns the hash1 function specified in Ciphersuite
-func (c Ciphersuite) H1() func([]byte) (GroupElement, error) { return c.hash1 }
+func (c Ciphersuite) H1() func([]byte) (GroupElement, oerr.Error) { return c.hash1 }
 
 // H2 returns the hash2 function specified in Ciphersuite
 func (c Ciphersuite) H2() func(func() hash.Hash, []byte) hash.Hash { return c.hash2 }
@@ -131,16 +131,16 @@ func (c Ciphersuite) Verifiable() bool { return c.verifiable }
 // PrimeOrderGroup is an interface that defines operations within additive
 // groups of prime order
 type PrimeOrderGroup interface {
-	New(string) (PrimeOrderGroup, error)
+	New(string) (PrimeOrderGroup, oerr.Error)
 	Name() string
 	Generator() GroupElement
-	GeneratorMult(*big.Int) (GroupElement, error)
+	GeneratorMult(*big.Int) (GroupElement, oerr.Error)
 	Order() *big.Int
 	ByteLength() int
-	EncodeToGroup([]byte) (GroupElement, error)
+	EncodeToGroup([]byte) (GroupElement, oerr.Error)
 	Hash() hash.Hash
 	EE() oc.ExtractorExpander
-	UniformFieldElement() (*big.Int, error)
+	UniformFieldElement() (*big.Int, oerr.Error)
 }
 
 // GroupElement is the interface that represents group elements in a given Group
@@ -148,9 +148,9 @@ type PrimeOrderGroup interface {
 type GroupElement interface {
 	New(PrimeOrderGroup) GroupElement
 	IsValid() bool
-	ScalarMult(*big.Int) (GroupElement, error)
-	Add(GroupElement) (GroupElement, error)
-	Serialize() ([]byte, error)
-	Deserialize([]byte) (GroupElement, error)
+	ScalarMult(*big.Int) (GroupElement, oerr.Error)
+	Add(GroupElement) (GroupElement, oerr.Error)
+	Serialize() ([]byte, oerr.Error)
+	Deserialize([]byte) (GroupElement, oerr.Error)
 	Equal(GroupElement) bool
 }
