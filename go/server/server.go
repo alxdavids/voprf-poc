@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/alxdavids/oprf-poc/go/oerr"
 	"github.com/alxdavids/oprf-poc/go/oprf"
@@ -41,33 +42,69 @@ type Config struct {
 }
 
 // CreateConfig returns a HTTP Server object
-func CreateConfig(tls bool, ciphersuite string, pogInit gg.PrimeOrderGroup) (Config, oerr.Error) {
+func CreateConfig(tls bool, ciphersuite string, pogInit gg.PrimeOrderGroup) (*Config, oerr.Error) {
 	ptpnt, err := oprf.Server{}.Setup(ciphersuite, pogInit)
 	if err.Err() != nil {
-		return Config{}, err
+		return nil, err
 	}
 	osrv, err := oprf.CastServer(ptpnt)
 	if err.Err() != nil {
-		return Config{}, err
+		return nil, err
 	}
 
-	return Config{osrv: osrv}, oerr.Nil()
+	// create server config
+	cfg := &Config{
+		osrv: osrv,
+		hsrv: http.Server{
+			Addr:           ":3001",
+			ReadTimeout:    10 * time.Second,
+			WriteTimeout:   10 * time.Second,
+			MaxHeaderBytes: 1 << 20,
+		},
+	}
+	cfg.hsrv.Handler = http.HandlerFunc(cfg.handleOPRF)
+	return cfg, oerr.Nil()
+}
+
+// ListenAndServe listens for connections and responds to request using the OPRF
+// functionality
+func (cfg *Config) ListenAndServe() error {
+	for true {
+		e := cfg.hsrv.ListenAndServe()
+		if e != nil {
+			return e
+		}
+	}
+	return nil
 }
 
 // handleOPRF handles the HTTP request that arrives
 func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
 	jsonReq, e := readRequestBody(r)
 	if e != nil {
+		w.WriteHeader(http.StatusBadRequest)
 		w.Write(respError(oerr.ErrJSONRPCParse))
 	}
 
+	var ret []byte
+	var err oerr.Error
 	switch jsonReq.Method {
 	case "eval":
-		cfg.processEval((jsonReq.Params.([]string))[0])
+		ret, err = cfg.processEval((jsonReq.Params.([]string))[0])
 		break
 	default:
+		w.WriteHeader(http.StatusBadRequest)
 		w.Write(respError(oerr.ErrJSONRPCMethodNotFound))
 	}
+	if err.Err() != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(respError(err))
+	}
+
+	// return success response
+	w.WriteHeader(http.StatusOK)
+	w.Write(respSuccess(hex.EncodeToString(ret)))
 }
 
 // processEval processes an evaluation request from the client
@@ -78,7 +115,8 @@ func (cfg *Config) processEval(param string) ([]byte, oerr.Error) {
 	}
 
 	// create GroupElement
-	pog := cfg.osrv.Ciphersuite().POG()
+	osrv := cfg.osrv
+	pog := osrv.Ciphersuite().POG()
 	var ge gg.GroupElement
 	ge = ge.New(pog)
 	var err oerr.Error
@@ -86,7 +124,15 @@ func (cfg *Config) processEval(param string) ([]byte, oerr.Error) {
 	if err.Err() != nil {
 		return nil, err
 	}
-	return nil, oerr.Nil()
+
+	// compute OPRF evaluation
+	geEval, err := cfg.osrv.Eval(osrv.SecretKey(), ge)
+	if err.Err() != nil {
+		return nil, err
+	}
+
+	// serialize output point and return
+	return geEval.Serialize()
 }
 
 // readRequestBody tries to read a JSONRPCRequest object from the HTTP Request
@@ -106,6 +152,12 @@ func readRequestBody(r *http.Request) (*JSONRPCRequest, error) {
 		return nil, e
 	}
 	return req, nil
+}
+
+// respSuccess constructs a JSONRPC success response to send back to the client
+func respSuccess(result string) []byte {
+	resp, _ := json.Marshal(JSONRPCResponseSuccess{Version: "2.0", Result: result, ID: 1})
+	return resp
 }
 
 // constructs a JSONRPC parse error to return
