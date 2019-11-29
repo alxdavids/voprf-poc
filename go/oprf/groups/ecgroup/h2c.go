@@ -5,7 +5,7 @@ import (
 	"hash"
 	"math/big"
 
-	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
+	oErr "github.com/alxdavids/oprf-poc/go/err"
 	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
 )
 
@@ -75,7 +75,7 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 			sgn0:    gc.sgn0,
 		}, nil
 	}
-	return h2cParams{}, gg.ErrUnsupportedGroup
+	return h2cParams{}, oErr.ErrUnsupportedGroup.Err()
 }
 
 // hashToBase hashes a buffer into a vector of underlying base field elements,
@@ -83,7 +83,7 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error) {
 	os, err := i2osp(0, 1)
 	if err != nil {
-		return nil, gg.ErrInternalInstantiation
+		return nil, oErr.ErrInternalInstantiation.Err()
 	}
 	hashFunc := func() hash.Hash {
 		hash := params.hash
@@ -94,7 +94,7 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error)
 	msgPrime := extractor(hashFunc, append(buf, os...), params.dst)
 	osCtr, err := i2osp(ctr, 1)
 	if err != nil {
-		return nil, gg.ErrInternalInstantiation
+		return nil, oErr.ErrInternalInstantiation.Err()
 	}
 	infoPfx := append([]byte("H2C"), osCtr...)
 	i := 1
@@ -103,7 +103,7 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error)
 	for i <= params.m {
 		osi, err := i2osp(i, 1)
 		if err != nil {
-			return nil, gg.ErrInternalInstantiation
+			return nil, oErr.ErrInternalInstantiation.Err()
 		}
 		info := append(infoPfx, osi...)
 		reader := expander(hashFunc, msgPrime, info)
@@ -138,7 +138,7 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
 		Q1, e1 = params.sswu(u1)
 		break
 	default:
-		e0 = gg.ErrIncompatibleGroupParams
+		e0 = oErr.ErrIncompatibleGroupParams.Err()
 	}
 
 	// return error if one occurred, or the point that was encoded
@@ -164,7 +164,7 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
 // https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-05#section-6.6.2
 func (params h2cParams) sswu(uArr []*big.Int) (Point, error) {
 	if len(uArr) > 1 {
-		return Point{}, gg.ErrIncompatibleGroupParams
+		return Point{}, oErr.ErrIncompatibleGroupParams.Err()
 	}
 	u := uArr[0]
 	p, A, B, Z := params.p, params.a, params.b, big.NewInt(int64(params.z))
@@ -202,7 +202,7 @@ func (params h2cParams) sswu(uArr []*big.Int) (Point, error) {
 	P.X = x.Mod(x, p)
 	P.Y = y.Mod(y, p)
 	if !P.IsValid() {
-		return Point{}, gg.ErrInvalidGroupElement
+		return Point{}, oErr.ErrInvalidGroupElement.Err()
 	}
 	return P, nil
 }
@@ -252,7 +252,7 @@ func inv0(x, p *big.Int) *big.Int {
 // (https://tools.ietf.org/html/rfc8017#section-4.1)
 func i2osp(x, xLen int) ([]byte, error) {
 	if x < 0 || x >= (1<<(8*xLen)) {
-		return nil, gg.ErrInternalInstantiation
+		return nil, oErr.ErrInternalInstantiation.Err()
 	}
 	ret := make([]byte, xLen)
 	val := x

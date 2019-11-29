@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	oErr "github.com/alxdavids/oprf-poc/go/err"
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
 	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
 	"github.com/cloudflare/circl/ecc/p384"
@@ -100,6 +101,68 @@ func TestGroupCurvePointSerializationWithCompressionP521(t *testing.T) {
 	checkSerialize(curve, P)
 }
 
+func TestPointEqualityP384(t *testing.T) {
+	checkPointEquality(t, p384.P384())
+}
+
+func TestPointEqualityP521(t *testing.T) {
+	checkPointEquality(t, elliptic.P521())
+}
+
+func TestPointEqualityFailsOnBadGroups(t *testing.T) {
+	p384 := CreateNistCurve(p384.P384(), sha512.New(), oc.HKDFExtExp{})
+	P, err := curveEncoding(p384)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p521 := CreateNistCurve(elliptic.P521(), sha512.New(), oc.HKDFExtExp{})
+	Q, err := curveEncoding(p521)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.False(t, P.Equal(Q))
+}
+
+func TestPointEqualityFailsOnInvalidCallerPoint(t *testing.T) {
+	p384 := CreateNistCurve(p384.P384(), sha512.New(), oc.HKDFExtExp{})
+	P, err := curveEncoding(p384)
+	if err != nil {
+		t.Fatal(err)
+	}
+	P.X = minusOne
+	p521 := CreateNistCurve(elliptic.P521(), sha512.New(), oc.HKDFExtExp{})
+	Q, err := curveEncoding(p521)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.False(t, P.Equal(Q))
+}
+
+func TestPointEqualityFailsOnInvalidInputPoint(t *testing.T) {
+	p384 := CreateNistCurve(p384.P384(), sha512.New(), oc.HKDFExtExp{})
+	P, err := curveEncoding(p384)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p521 := CreateNistCurve(elliptic.P521(), sha512.New(), oc.HKDFExtExp{})
+	Q, err := curveEncoding(p521)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Q.X = minusOne
+	assert.False(t, P.Equal(Q))
+}
+
+func checkPointEquality(t *testing.T, curve elliptic.Curve) {
+	nistCurve := CreateNistCurve(curve, sha512.New(), oc.HKDFExtExp{})
+	P, err := curveEncoding(nistCurve)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Q := P
+	assert.True(t, P.Equal(Q))
+}
+
 func ciphersuiteFromString(t *testing.T, groupName string, verifiable bool) {
 	s := ""
 	if verifiable {
@@ -126,7 +189,7 @@ func ciphersuiteFromString(t *testing.T, groupName string, verifiable bool) {
 func ciphersuiteFromStringInvalidH2C(t *testing.T, groupName string) {
 	ciphName := fmt.Sprintf("OPRF-%s-HKDF-SHA512-ELL2", strings.ReplaceAll(groupName, "-", ""))
 	_, err := gg.Ciphersuite{}.FromString(ciphName, GroupCurve{})
-	if err != gg.ErrUnsupportedH2C {
+	if err != oErr.ErrUnsupportedH2C.Err() {
 		t.Fatal("Error didn't occur")
 	}
 }
@@ -134,7 +197,7 @@ func ciphersuiteFromStringInvalidH2C(t *testing.T, groupName string) {
 func ciphersuiteFromStringInvalidHash(t *testing.T, groupName string) {
 	ciphName := fmt.Sprintf("OPRF-%s-HKDF-SHA256-SSWU-RO", strings.ReplaceAll(groupName, "-", ""))
 	_, err := gg.Ciphersuite{}.FromString(ciphName, GroupCurve{})
-	if err != gg.ErrUnsupportedHash {
+	if err != oErr.ErrUnsupportedHash.Err() {
 		t.Fatal("Error didn't occur")
 	}
 }
@@ -142,7 +205,7 @@ func ciphersuiteFromStringInvalidHash(t *testing.T, groupName string) {
 func ciphersuiteFromStringInvalidGroup(t *testing.T, groupName string) {
 	ciphName := fmt.Sprintf("OPRF-%s-HKDF-SHA512-SSWU-RO", strings.ReplaceAll(groupName, "-", ""))
 	_, err := gg.Ciphersuite{}.FromString(ciphName, GroupCurve{})
-	if err != gg.ErrUnsupportedGroup {
+	if err != oErr.ErrUnsupportedGroup.Err() {
 		t.Fatal("Error didn't occur")
 	}
 }

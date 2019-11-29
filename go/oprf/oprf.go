@@ -1,23 +1,10 @@
 package oprf
 
 import (
-	"errors"
 	"math/big"
 
+	oErr "github.com/alxdavids/oprf-poc/go/err"
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
-)
-
-var (
-	// ErrOPRFCiphersuiteUnsupportedFunction indicates that the given OPRF
-	// function is not supported for the configuration specified by the
-	// ciphersuite
-	ErrOPRFCiphersuiteUnsupportedFunction = errors.New("Chosen OPRF function is not yet supported for the chosen ciphersuite")
-	// ErrOPRFUnimplementedFunctionClient indicates that the function that has been
-	// called is not implemented for the client in the OPRF protocol
-	ErrOPRFUnimplementedFunctionClient = errors.New("Function is unimplemented for the OPRF client")
-	// ErrOPRFUnimplementedFunctionServer indicates that the function that has been
-	// called is not implemented for the server in the OPRF protocol
-	ErrOPRFUnimplementedFunctionServer = errors.New("Function is unimplemented for the OPRF server")
 )
 
 // PublicKey represents a commitment to a given secret key that is made public
@@ -103,24 +90,24 @@ func (s Server) Eval(sk SecretKey, M gg.GroupElement) (gg.GroupElement, error) {
 			return nil, err
 		}
 	} else {
-		return nil, ErrOPRFCiphersuiteUnsupportedFunction
+		return nil, oErr.ErrOPRFCiphersuiteUnsupportedFunction.Err()
 	}
 	return Z, nil
 }
 
 // Blind is unimplemented for the server
 func (s Server) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
-	return nil, nil, ErrOPRFUnimplementedFunctionServer
+	return nil, nil, oErr.ErrOPRFUnimplementedFunctionServer.Err()
 }
 
 // Unblind is unimplemented for the server
 func (s Server) Unblind(Z gg.GroupElement, r *big.Int) (gg.GroupElement, error) {
-	return nil, ErrOPRFUnimplementedFunctionServer
+	return nil, oErr.ErrOPRFUnimplementedFunctionServer.Err()
 }
 
 // Finalize is unimplemented for the server
 func (s Server) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
-	return nil, ErrOPRFUnimplementedFunctionServer
+	return nil, oErr.ErrOPRFUnimplementedFunctionServer.Err()
 }
 
 // Client implements the OPRF interface for processing the client-side
@@ -180,7 +167,7 @@ func (c Client) Unblind(Z gg.GroupElement, r *big.Int) (gg.GroupElement, error) 
 	p := pog.Order()
 
 	if ciph.Verifiable() {
-		return nil, ErrOPRFCiphersuiteUnsupportedFunction
+		return nil, oErr.ErrOPRFCiphersuiteUnsupportedFunction.Err()
 	}
 
 	rInv := new(big.Int).ModInverse(r, p)
@@ -204,11 +191,11 @@ func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
 	}
 	_, err = hmacShared.Write(x)
 	if err != nil {
-		return nil, gg.ErrInternalInstantiation
+		return nil, oErr.ErrInternalInstantiation.Err()
 	}
 	_, err = hmacShared.Write(bytesN)
 	if err != nil {
-		return nil, gg.ErrInternalInstantiation
+		return nil, oErr.ErrInternalInstantiation.Err()
 	}
 	dk := hmacShared.Sum(nil)
 
@@ -216,7 +203,7 @@ func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
 	hmacOut := (c.ciph.H2())(ciph.H3, dk)
 	_, err = hmacOut.Write(aux)
 	if err != nil {
-		return nil, gg.ErrInternalInstantiation
+		return nil, oErr.ErrInternalInstantiation.Err()
 	}
 	y := hmacOut.Sum(nil)
 	return y, nil
@@ -224,5 +211,27 @@ func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
 
 // Eval is not implemented for the OPRF client
 func (c Client) Eval(sk SecretKey, M gg.GroupElement) (gg.GroupElement, error) {
-	return nil, ErrOPRFUnimplementedFunctionClient
+	return nil, oErr.ErrOPRFUnimplementedFunctionClient.Err()
+}
+
+/**
+ * Utility functions
+ */
+
+// CastServer casts a Participant directly into a Server type
+func CastServer(ptpnt Participant) (Server, error) {
+	srv, ok := ptpnt.(Server)
+	if !ok {
+		return Server{}, oErr.ErrOPRFInvalidParticipant.Err()
+	}
+	return srv, nil
+}
+
+// CastClient casts a Participant directly into a Server type
+func CastClient(ptpnt Participant) (Client, error) {
+	cli, ok := ptpnt.(Client)
+	if !ok {
+		return Client{}, oErr.ErrOPRFInvalidParticipant.Err()
+	}
+	return cli, nil
 }

@@ -3,49 +3,16 @@ package groups
 import (
 	"crypto/hmac"
 	"crypto/sha512"
-	"fmt"
 	"hash"
 	"math/big"
 	"reflect"
 	"strings"
 
+	oErr "github.com/alxdavids/oprf-poc/go/err"
 	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
 )
 
-var (
-	// ErrUnsupportedGroup indicates that the requested group is not supported
-	// the current implementation
-	ErrUnsupportedGroup error = fmt.Errorf("The chosen group is not supported")
-	// ErrUnsupportedEE indicates that the requested ExtractorExpander is not
-	// supported.
-	ErrUnsupportedEE error = fmt.Errorf("The chosen ExtractorExpander function is not supported, currently supported functions: [HKDF]")
-	// ErrUnsupportedHash indicates that the requested function is not
-	// supported.
-	ErrUnsupportedHash error = fmt.Errorf("The chosen hash function is not supported, currently supported functions: [SHA512]")
-	// ErrUnsupportedH2C indicates that the requested hash-to-curve function is
-	// not supported.
-	ErrUnsupportedH2C error = fmt.Errorf("The chosen hash-to-curve function is not supported, currently supported functions: [SSWU-RO (for NIST curves)]")
-	// ErrIncompatibleGroupParams indicates that the requested group has a
-	// parameter setting that is incompatible with our implementation
-	ErrIncompatibleGroupParams error = fmt.Errorf("The chosen group has an incompatible parameter setting")
-	// ErrInvalidGroupElement indicates that the element in possession is not
-	// a part of the expected group
-	ErrInvalidGroupElement error = fmt.Errorf("Group element is invalid")
-	// ErrDeserializing indicates that the conversion of an octet-string into a
-	// group element has failed
-	ErrDeserializing error = fmt.Errorf("Error deserializing group element from octet string")
-	// ErrInternalInstantiation indicates that an error occurred when attempting to
-	// instantiate the group
-	ErrInternalInstantiation error = fmt.Errorf("Internal error occurred with internal group instantiation")
-	// ErrTypeAssertion indicates that type assertion has failed when attempting
-	// to instantiate the OPRF interface
-	ErrTypeAssertion error = fmt.Errorf("Error attempting OPRF interface type assertion")
-)
-
 // Ciphersuite corresponds to the OPRF ciphersuite that is chosen
-//
-// Even though groups == curves, we keep the abstraction to fit with curve
-// implementations
 type Ciphersuite struct {
 	name        string
 	pog         PrimeOrderGroup
@@ -72,7 +39,7 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 		pogNew, err = pog.New("P-521")
 		break
 	default:
-		return Ciphersuite{}, ErrUnsupportedGroup
+		return Ciphersuite{}, oErr.ErrUnsupportedGroup.Err()
 	}
 	if err != nil {
 		return Ciphersuite{}, err
@@ -82,11 +49,11 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 	switch split[2] {
 	case "HKDF":
 		if reflect.TypeOf(pogNew.EE()).Name() != "HKDFExtExp" {
-			return Ciphersuite{}, ErrUnsupportedEE
+			return Ciphersuite{}, oErr.ErrUnsupportedEE.Err()
 		}
 		break
 	default:
-		return Ciphersuite{}, ErrUnsupportedEE
+		return Ciphersuite{}, oErr.ErrUnsupportedEE.Err()
 	}
 
 	// check hash function support
@@ -94,11 +61,11 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 	case "SHA512":
 		if reflect.DeepEqual(pog.Hash(), sha512.New()) {
 			// do a quick check to see if the hash function is the same
-			return Ciphersuite{}, ErrUnsupportedHash
+			return Ciphersuite{}, oErr.ErrUnsupportedHash.Err()
 		}
 		break
 	default:
-		return Ciphersuite{}, ErrUnsupportedHash
+		return Ciphersuite{}, oErr.ErrUnsupportedHash.Err()
 	}
 
 	// check hash-to-curve support
@@ -107,7 +74,7 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 		// do nothing
 		break
 	default:
-		return Ciphersuite{}, ErrUnsupportedH2C
+		return Ciphersuite{}, oErr.ErrUnsupportedH2C.Err()
 	}
 
 	// derive Ciphersuite object

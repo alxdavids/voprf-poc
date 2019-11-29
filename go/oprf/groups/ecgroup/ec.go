@@ -9,6 +9,7 @@ import (
 	"io"
 	"math/big"
 
+	oErr "github.com/alxdavids/oprf-poc/go/err"
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
 	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
 	"github.com/cloudflare/circl/ecc/p384"
@@ -49,7 +50,7 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 		ee = oc.HKDFExtExp{}
 		break
 	default:
-		return nil, gg.ErrUnsupportedGroup
+		return nil, oErr.ErrUnsupportedGroup.Err()
 	}
 	p := curve.Params().P
 	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, one), new(big.Int).ModInverse(two, p)), p)
@@ -132,7 +133,7 @@ func (c GroupCurve) UniformFieldElement() (*big.Int, error) {
 	for true {
 		_, err := io.ReadFull(rand.Reader, buf)
 		if err != nil {
-			return nil, gg.ErrInternalInstantiation
+			return nil, oErr.ErrInternalInstantiation.Err()
 		}
 		// Mask to account for field sizes that are not a whole number of bytes.
 		buf[0] &= mask[bitLen%8]
@@ -199,7 +200,7 @@ type Point struct {
 	compress bool // indicates that the point should be compressed on serialization.
 }
 
-// New returns a new point intiialised to zero
+// New returns a new point initialised to zero
 func (p Point) New(pog gg.PrimeOrderGroup) gg.GroupElement {
 	return Point{X: zero, Y: zero, pog: pog, compress: false}
 }
@@ -211,7 +212,19 @@ func (p Point) Equal(ge gg.GroupElement) bool {
 	if err != nil {
 		return false
 	}
-	return (p.X.Cmp(pEq.X) == 0) && (p.Y.Cmp(pEq.Y) == 0) && (p.pog.Name() == pEq.pog.Name())
+	// check that both points are valid
+	if !p.IsValid() || !pEq.IsValid() {
+		return false
+	}
+	// check that the supplied Point is valid with respect to the group for p
+	pChkGroup := Point{}.New(p.pog).(Point)
+	pChkGroup.X = pEq.X
+	pChkGroup.Y = pEq.Y
+	if !pChkGroup.IsValid() {
+		return false
+	}
+	// check that the point coordinates are the same
+	return (p.X.Cmp(pEq.X) == 0) && (p.Y.Cmp(pEq.Y) == 0)
 }
 
 // IsValid checks that the given point is a valid curve point for the input
@@ -229,11 +242,11 @@ func (p Point) IsValid() bool {
 func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, error) {
 	group := p.pog
 	if !p.IsValid() {
-		return nil, gg.ErrInvalidGroupElement
+		return nil, oErr.ErrInvalidGroupElement.Err()
 	}
 	curve, ok := group.(GroupCurve)
 	if !ok {
-		return nil, gg.ErrTypeAssertion
+		return nil, oErr.ErrTypeAssertion.Err()
 	}
 	p.X, p.Y = curve.ops.ScalarMult(p.X, p.Y, k.Bytes())
 	return p, nil
@@ -243,7 +256,7 @@ func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, error) {
 func (p Point) Add(ge gg.GroupElement) (gg.GroupElement, error) {
 	group := p.pog
 	if !p.IsValid() {
-		return nil, gg.ErrInvalidGroupElement
+		return nil, oErr.ErrInvalidGroupElement.Err()
 	}
 	curve, err := castToCurve(group)
 	if err != nil {
@@ -263,14 +276,14 @@ func (p Point) Serialize() ([]byte, error) {
 	group := p.pog
 	curve, ok := group.(GroupCurve)
 	if !ok {
-		return nil, gg.ErrTypeAssertion
+		return nil, oErr.ErrTypeAssertion.Err()
 	}
 
 	// attempt to deserialize
 	if curve.nist {
 		return p.nistSerialize(), nil
 	}
-	return nil, gg.ErrUnsupportedGroup
+	return nil, oErr.ErrUnsupportedGroup.Err()
 }
 
 // Deserialize unmarshals an octet-string into a valid point on curve
@@ -283,7 +296,7 @@ func (p Point) Deserialize(buf []byte) (gg.GroupElement, error) {
 	if curve.nist {
 		return p.nistDeserialize(curve, buf)
 	}
-	return nil, gg.ErrUnsupportedGroup
+	return nil, oErr.ErrUnsupportedGroup.Err()
 }
 
 // nistSerialize marshals the point object into an octet-string of either
@@ -312,17 +325,17 @@ func (p Point) nistDeserialize(curve GroupCurve, buf []byte) (Point, error) {
 	switch tag {
 	case 2, 3:
 		if byteLength != len(buf)-1 {
-			return Point{}, gg.ErrDeserializing
+			return Point{}, oErr.ErrDeserializing.Err()
 		}
 		compressed = true
 		break
 	case 4:
 		if byteLength*2 != len(buf)-1 {
-			return Point{}, gg.ErrDeserializing
+			return Point{}, oErr.ErrDeserializing.Err()
 		}
 		break
 	default:
-		return Point{}, gg.ErrDeserializing
+		return Point{}, oErr.ErrDeserializing.Err()
 	}
 
 	// deserailize depending on whether point is compressed or not
@@ -359,7 +372,7 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, error) {
 	p.X = x
 	p.Y = y
 	if !p.IsValid() {
-		return Point{}, gg.ErrInvalidGroupElement
+		return Point{}, oErr.ErrInvalidGroupElement.Err()
 	}
 	return p, nil
 }
@@ -386,7 +399,7 @@ func (p Point) clearCofactor(hEff *big.Int) (Point, error) {
 func castToCurve(group gg.PrimeOrderGroup) (GroupCurve, error) {
 	curve, ok := group.(GroupCurve)
 	if !ok {
-		return GroupCurve{}, gg.ErrTypeAssertion
+		return GroupCurve{}, oErr.ErrTypeAssertion.Err()
 	}
 	return curve, nil
 }
@@ -395,7 +408,10 @@ func castToCurve(group gg.PrimeOrderGroup) (GroupCurve, error) {
 func castToPoint(ge gg.GroupElement) (Point, error) {
 	point, ok := ge.(Point)
 	if !ok {
-		return Point{}, gg.ErrTypeAssertion
+		return Point{}, oErr.ErrTypeAssertion.Err()
+	}
+	if !point.IsValid() {
+		return Point{}, oErr.ErrInvalidGroupElement.Err()
 	}
 	return point, nil
 }
