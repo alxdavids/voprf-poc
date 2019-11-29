@@ -54,7 +54,6 @@ func handleOPRF(w http.ResponseWriter, r *http.Request) {
 	mux.HandleFunc("/eval", func(w http.ResponseWriter, r *http.Request) {
 		body, err := r.GetBody()
 		if err != nil {
-
 		}
 	})
 }
