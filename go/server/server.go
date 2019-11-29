@@ -23,9 +23,9 @@ type JSONRPCRequest struct {
 // JSONRPCResponseSuccess constructs a successful JSONRPC response back to a
 // client
 type JSONRPCResponseSuccess struct {
-	Version string `json:"jsonrpc"`
-	Result  string `json:"result"`
-	ID      int    `json:"id"`
+	Version string   `json:"jsonrpc"`
+	Result  []string `json:"result"`
+	ID      int      `json:"id"`
 }
 
 // JSONRPCResponseError constructs a failed JSONRPC response back to a client
@@ -40,6 +40,7 @@ type JSONRPCResponseError struct {
 type Config struct {
 	osrv oprf.Server
 	hsrv http.Server
+	tls  bool
 }
 
 // CreateConfig returns a HTTP Server object
@@ -62,6 +63,7 @@ func CreateConfig(tls bool, ciphersuite string, pogInit gg.PrimeOrderGroup) (*Co
 			WriteTimeout:   10 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
+		tls: tls,
 	}
 	cfg.hsrv.Handler = http.HandlerFunc(cfg.handleOPRF)
 	return cfg, oerr.Nil()
@@ -85,8 +87,7 @@ func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	jsonReq, e := readRequestBody(r)
 	if e != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(respError(oerr.ErrJSONRPCParse))
+		respError(w, oerr.ErrJSONRPCParse, http.StatusBadRequest)
 		return
 	}
 
@@ -96,26 +97,23 @@ func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
 	switch jsonReq.Method {
 	case "eval":
 		if len(params) == 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write(respError(oerr.ErrJSONRPCInvalidMethodParams))
+			respError(w, oerr.ErrJSONRPCInvalidMethodParams, http.StatusBadRequest)
 			return
 		}
 		// evaluate OPRF
 		ret, err = cfg.processEval(params[0])
 		break
 	default:
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(respError(oerr.ErrJSONRPCMethodNotFound))
+		respError(w, oerr.ErrJSONRPCMethodNotFound, http.StatusBadRequest)
 		return
 	}
 	if err.Err() != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(respError(err))
+		respError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	// return success response
-	w.Write(respSuccess(hex.EncodeToString(ret)))
+	respSuccess(w, []string{hex.EncodeToString(ret)})
 }
 
 // processEval processes an evaluation request from the client
@@ -156,15 +154,17 @@ func readRequestBody(r *http.Request) (*JSONRPCRequest, error) {
 }
 
 // respSuccess constructs a JSONRPC success response to send back to the client
-func respSuccess(result string) []byte {
+func respSuccess(w http.ResponseWriter, result []string) {
 	resp, _ := json.Marshal(JSONRPCResponseSuccess{Version: "2.0", Result: result, ID: 1})
-	return resp
+	w.Write(resp)
 }
 
 // constructs a JSONRPC parse error to return
-func respError(e oerr.Error) []byte {
+func respError(w http.ResponseWriter, e oerr.Error, status int) {
 	// if an error occurs here then we have no hope so I'm going to
 	// ignore it
 	resp, _ := json.Marshal(JSONRPCResponseError{Version: "2.0", Error: e.JSON(), ID: 1})
-	return resp
+	w.WriteHeader(status)
+	w.Write(resp)
+	fmt.Printf("Error occurred processing client request (%v)", e.Err())
 }
