@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/alxdavids/oprf-poc/go/oprf/groups/ecgroup"
@@ -50,9 +49,5 @@ func processOPRFEval(t *testing.T, validCiphersuite string) {
 	if err.Err() != nil {
 		t.Fatal(err.Err())
 	}
-
-	fmt.Println(kP)
-	fmt.Println(Q)
-
 	assert.True(t, kP.Equal(Q))
 }

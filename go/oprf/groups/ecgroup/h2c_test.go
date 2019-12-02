@@ -85,7 +85,7 @@ func performHashToBase(curve GroupCurve) oerr.Error {
 			return oerr.New(fmt.Sprintf("hash-to-base output for input alpha: %s is incorrect, expected: %s, got: %s", alpha, expected.String(), u.String()), -1)
 		}
 	}
-	return oerr.Error{}
+	return oerr.Nil()
 }
 
 // performSswu performs sswu for each of the test inputs and checks against
@@ -118,7 +118,7 @@ func performSswu(curve GroupCurve) oerr.Error {
 			return oerr.New("Points are not equal", -1)
 		}
 	}
-	return oerr.Error{}
+	return oerr.Nil()
 }
 
 // performHashToCurve performs full hash-to-curve for each of the test inputs
@@ -146,7 +146,7 @@ func performHashToCurve(curve GroupCurve) oerr.Error {
 			return oerr.New("Points are not equal", -1)
 		}
 	}
-	return oerr.Error{}
+	return oerr.Nil()
 }
 
 // getBigIntFromDecString returns a bigint (without success value) from a decimal

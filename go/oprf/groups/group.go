@@ -95,7 +95,7 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, oer
 		hashGeneric: hashGeneric,
 		hash5:       h5,
 		verifiable:  verifiable,
-	}, oerr.Error{}
+	}, oerr.Nil()
 }
 
 // Name returns the name of the Ciphersuite
@@ -153,7 +153,6 @@ type GroupElement interface {
 	Serialize() ([]byte, oerr.Error)
 	Deserialize([]byte) (GroupElement, oerr.Error)
 	Equal(GroupElement) bool
-	Normalize() (GroupElement, oerr.Error)
 }
 
 // CreateGroupElement creates a new group element from scratch

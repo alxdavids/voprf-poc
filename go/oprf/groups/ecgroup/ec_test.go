@@ -225,7 +225,7 @@ func curveEncoding(curve GroupCurve) (Point, oerr.Error) {
 		return Point{}, err
 	}
 
-	return ret, oerr.Error{}
+	return ret, oerr.Nil()
 }
 
 func checkSerialize(curve GroupCurve, P Point) oerr.Error {
@@ -250,5 +250,5 @@ func checkSerialize(curve GroupCurve, P Point) oerr.Error {
 	if qPoint.Equal(P) {
 		return oerr.New("qPoint and P are not equal points", -1)
 	}
-	return oerr.Error{}
+	return oerr.Nil()
 }

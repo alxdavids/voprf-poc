@@ -68,7 +68,7 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, oerr.Error) {
 			sqrtExp: sqrtExp,
 			isSqExp: isSqExp,
 		},
-	}, oerr.Error{}
+	}, oerr.Nil()
 }
 
 // Order returns the order of the base point for the base curve object
@@ -113,7 +113,7 @@ func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, oerr.Error) {
 	if err.Err() != nil {
 		return nil, err
 	}
-	return p, oerr.Error{}
+	return p.normalize()
 }
 
 // UniformFieldElement samples a random element from the underling field for the
@@ -144,7 +144,7 @@ func (c GroupCurve) UniformFieldElement() (*big.Int, oerr.Error) {
 		break
 	}
 
-	return new(big.Int).SetBytes(buf), oerr.Error{}
+	return new(big.Int).SetBytes(buf), oerr.Nil()
 }
 
 // Name returns the name of the NIST P-384 curve
@@ -224,24 +224,6 @@ func (p Point) Equal(ge gg.GroupElement) bool {
 		return false
 	}
 
-	// normalize coordinates
-	normP, err := p.Normalize()
-	if err.Err() != nil {
-		return false
-	}
-	normEq, err := pEq.Normalize()
-	if err.Err() != nil {
-		return false
-	}
-	p, err = castToPoint(normP)
-	if err.Err() != nil {
-		return false
-	}
-	pEq, err = castToPoint(normEq)
-	if err.Err() != nil {
-		return false
-	}
-
 	// check that the point coordinates are the same
 	return (p.X.Cmp(pEq.X) == 0) && (p.Y.Cmp(pEq.Y) == 0)
 }
@@ -249,8 +231,8 @@ func (p Point) Equal(ge gg.GroupElement) bool {
 // IsValid checks that the given point is a valid curve point for the input
 // GroupCurve Object
 func (p Point) IsValid() bool {
-	curve, ok := p.pog.(GroupCurve)
-	if !ok {
+	curve, err := castToCurve(p.pog)
+	if err.Err() != nil {
 		return false
 	}
 	return curve.ops.IsOnCurve(p.X, p.Y)
@@ -259,74 +241,88 @@ func (p Point) IsValid() bool {
 // ScalarMult multiplies p by the provided Scalar value, and returns p or an
 // oerr.Error
 func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, oerr.Error) {
-	group := p.pog
 	if !p.IsValid() {
 		return nil, oerr.ErrInvalidGroupElement
 	}
-	curve, ok := group.(GroupCurve)
-	if !ok {
-		return nil, oerr.ErrTypeAssertion
+	curve, err := castToCurve(p.pog)
+	if err.Err() != nil {
+		return Point{}, err
+	}
+	// normalize point and perform multiplication
+	p, err = p.normalize()
+	if err.Err() != nil {
+		return nil, err
 	}
 	p.X, p.Y = curve.ops.ScalarMult(p.X, p.Y, k.Bytes())
-	return p, oerr.Error{}
+	return p.normalize()
 }
 
 // Add adds pAdd to p and returns p or an oerr.Error
 func (p Point) Add(ge gg.GroupElement) (gg.GroupElement, oerr.Error) {
-	group := p.pog
 	if !p.IsValid() {
 		return nil, oerr.ErrInvalidGroupElement
 	}
-	curve, err := castToCurve(group)
+	curve, err := castToCurve(p.pog)
 	if err.Err() != nil {
-		return nil, err
+		return Point{}, err
 	}
+	// retrieve and normalize points
 	pAdd, err := castToPoint(ge)
 	if err.Err() != nil {
 		return nil, err
 	}
+	p, err = p.normalize()
+	if err.Err() != nil {
+		return nil, err
+	}
 	p.X, p.Y = curve.ops.Add(p.X, p.Y, pAdd.X, pAdd.Y)
-	return p, oerr.Error{}
+	return p.normalize()
 }
 
 // Serialize marshals the point object into an octet-string, returns nil if
 // serialization is not supported for the given curve
 func (p Point) Serialize() ([]byte, oerr.Error) {
-	group := p.pog
-	curve, ok := group.(GroupCurve)
-	if !ok {
-		return nil, oerr.ErrTypeAssertion
+	curve, err := castToCurve(p.pog)
+	if err.Err() != nil {
+		return nil, err
 	}
 
 	// attempt to deserialize
 	if curve.nist {
-		return p.nistSerialize(curve), oerr.Error{}
+		p, err := p.normalize()
+		if err.Err() != nil {
+			return nil, err
+		}
+		return p.nistSerialize(curve), oerr.Nil()
 	}
 	return nil, oerr.ErrUnsupportedGroup
 }
 
 // Deserialize unmarshals an octet-string into a valid point on curve
 func (p Point) Deserialize(buf []byte) (gg.GroupElement, oerr.Error) {
-	group := p.pog
-	curve, err := castToCurve(group)
+	curve, err := castToCurve(p.pog)
 	if err.Err() != nil {
-		return nil, err
+		return Point{}, err
 	}
 	if curve.nist {
-		return p.nistDeserialize(curve, buf)
+		p, err = p.nistDeserialize(curve, buf)
+		if err.Err() != nil {
+			return nil, err
+		}
+		return p.normalize()
 	}
 	return nil, oerr.ErrUnsupportedGroup
 }
 
-// Normalize returns the Point object with normalized coordinates
-func (p Point) Normalize() (gg.GroupElement, oerr.Error) {
-	group := p.pog
-	curve, ok := group.(GroupCurve)
-	if !ok {
-		return Point{}, oerr.ErrTypeAssertion
+// normalize returns the Point object with normalized coordinates
+func (p Point) normalize() (Point, oerr.Error) {
+	curve, err := castToCurve(p.pog)
+	if err.Err() != nil {
+		return Point{}, err
 	}
-	p.X = new(big.Int).Mod(p.X, curve.Order())
-	p.Y = new(big.Int).Mod(p.Y, curve.Order())
+	p.X = new(big.Int).Mod(p.X, curve.P())
+	p.Y = cmov(p.Y, new(big.Int).Mul(p.Y, minusOne), equalsToBigInt(sgn0LE(p.Y), minusOne))
+	p.Y = p.Y.Mod(p.Y, curve.P())
 	return p, oerr.Nil()
 }
 
@@ -379,7 +375,7 @@ func (p Point) nistDeserialize(curve GroupCurve, buf []byte) (Point, oerr.Error)
 	if !compressed {
 		p.X = new(big.Int).SetBytes(buf[1 : byteLength+1])
 		p.Y = new(big.Int).SetBytes(buf[byteLength+1:])
-		return p, oerr.Error{}
+		return p, oerr.Nil()
 	}
 	return p.nistDecompress(curve, buf)
 }
@@ -411,7 +407,7 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, oerr.Error) 
 	if !p.IsValid() {
 		return Point{}, oerr.ErrInvalidGroupElement
 	}
-	return p, oerr.Error{}
+	return p, oerr.Nil()
 }
 
 // clearCofactor clears the cofactor (hEff) of p by performing a scalar
@@ -425,7 +421,7 @@ func (p Point) clearCofactor(hEff *big.Int) (Point, oerr.Error) {
 	if err.Err() != nil {
 		return Point{}, err
 	}
-	return point, oerr.Error{}
+	return point, oerr.Nil()
 }
 
 /**
@@ -438,10 +434,11 @@ func castToCurve(group gg.PrimeOrderGroup) (GroupCurve, oerr.Error) {
 	if !ok {
 		return GroupCurve{}, oerr.ErrTypeAssertion
 	}
-	return curve, oerr.Error{}
+	return curve, oerr.Nil()
 }
 
-// castToCurve attempts to cast the input GroupElement to a Point object
+// castToPoint attempts to cast the input GroupElement to a normalize Point
+// object
 func castToPoint(ge gg.GroupElement) (Point, oerr.Error) {
 	point, ok := ge.(Point)
 	if !ok {
@@ -450,7 +447,24 @@ func castToPoint(ge gg.GroupElement) (Point, oerr.Error) {
 	if !point.IsValid() {
 		return Point{}, oerr.ErrInvalidGroupElement
 	}
-	return point, oerr.Error{}
+	point, err := point.normalize()
+	if err.Err() != nil {
+		return Point{}, err
+	}
+	return point, oerr.Nil()
+}
+
+// cmpToBigInt converts the return value from a comparison operation into a
+// *big.Int
+func cmpToBigInt(a, b *big.Int) *big.Int {
+	return big.NewInt(int64(a.Cmp(b)))
+}
+
+// equalsToBigInt returns big.Int(1) if a == b and big.Int(0) otherwise
+func equalsToBigInt(a, b *big.Int) *big.Int {
+	cmp := cmpToBigInt(a, b)
+	equalsRev := new(big.Int).Abs(cmp)
+	return revCmpBit(equalsRev)
 }
 
 // returns 1 if the signs of s1 and s2 are the same, and 0 otherwise
@@ -458,7 +472,7 @@ func sgnCmp(s1, s2 *big.Int, sgn0 func(*big.Int) *big.Int) *big.Int {
 	return equalsToBigInt(sgn0(s1), sgn0(s2))
 }
 
-// sgn0LE returns -1 if x is negative (in little-endian sense) and 0/1 if x is positive
+// sgn0LE returns -1 if x is negative (in little-endian sense) and 1 if x is positive
 func sgn0LE(x *big.Int) *big.Int {
 	res := equalsToBigInt(new(big.Int).Mod(x, two), one)
 	sign := cmov(one, minusOne, res)

@@ -130,7 +130,7 @@ func (c Client) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participa
 		return nil, err
 	}
 	c.ciph = ciph
-	return c, oerr.Error{}
+	return c, oerr.Nil()
 }
 
 // Blind samples a new random blind value from ZZp and returns P=r*T where T is
@@ -155,7 +155,7 @@ func (c Client) Blind(x []byte) (gg.GroupElement, *big.Int, oerr.Error) {
 	if err.Err() != nil {
 		return nil, nil, err
 	}
-	return P, r, oerr.Error{}
+	return P, r, oerr.Nil()
 }
 
 // Unblind returns the unblinded group element N = r^{-1}*Z

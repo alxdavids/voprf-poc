@@ -54,7 +54,7 @@ func getH2CParams(gc GroupCurve) (h2cParams, oerr.Error) {
 			isSqExp: gc.consts.isSqExp,
 			sqrtExp: gc.consts.sqrtExp,
 			sgn0:    gc.sgn0,
-		}, oerr.Error{}
+		}, oerr.Nil()
 	case "P-521":
 		return h2cParams{
 			gc:      gc,
@@ -73,7 +73,7 @@ func getH2CParams(gc GroupCurve) (h2cParams, oerr.Error) {
 			isSqExp: gc.consts.isSqExp,
 			sqrtExp: gc.consts.sqrtExp,
 			sgn0:    gc.sgn0,
-		}, oerr.Error{}
+		}, oerr.Nil()
 	}
 	return h2cParams{}, oerr.ErrUnsupportedGroup
 }
@@ -113,7 +113,7 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, oerr.E
 		res[i-1] = new(big.Int).Mod(ei, params.p)
 		i++
 	}
-	return res, oerr.Error{}
+	return res, oerr.Nil()
 }
 
 // hashToCurve hashes a buffer to a curve point on the chosen curve, this
@@ -157,7 +157,7 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, oerr.Error) {
 	if err.Err() != nil {
 		return Point{}, err
 	}
-	return P, oerr.Error{}
+	return P, oerr.Nil()
 }
 
 // sswu completes the Simplified SWU method curve mapping defined in
@@ -175,27 +175,27 @@ func (params h2cParams) sswu(uArr []*big.Int) (Point, oerr.Error) {
 	c2 := new(big.Int).Mul(minusOne, new(big.Int).ModInverse(Z, p))
 
 	// steps
-	t1 := new(big.Int).Mul(Z, new(big.Int).Exp(u, two, p))   // 1.     t1 = Z * u^2
-	t2 := new(big.Int).Exp(t1, two, p)                       // 2.     t2 = t1^2
-	x1 := new(big.Int).Add(t1, t2)                           // 3.     x1 = t1 + t2
-	x1 = inv0(x1, p)                                         // 4.     x1 = inv0(x1)
-	e1 := revCmpBit(new(big.Int).Abs(cmpToBigInt(x1, zero))) // 5.     e1 = x1 == 0
-	x1 = x1.Add(x1, one)                                     // 6.     x1 = x1 + 1
-	x1 = cmov(x1, c2, e1)                                    // 7.     x1 = CMOV(x1, c2, e1)
-	x1 = x1.Mul(x1, c1)                                      // 8.     x1 = x1 * c1
-	gx1 := new(big.Int).Exp(x1, two, p)                      // 9.    gx1 = x1^2
-	gx1 = gx1.Add(gx1, A)                                    // 10.   gx1 = gx1 + A
-	gx1 = gx1.Mul(gx1, x1)                                   // 11.   gx1 = gx1 * x1
-	gx1 = gx1.Add(gx1, B)                                    // 12.   gx1 = gx1 + B
-	x2 := new(big.Int).Mul(t1, x1)                           // 13.    x2 = t1 * x1
-	t2 = t2.Mul(t1, t2)                                      // 14.    t2 = t1 * t2
-	gx2 := new(big.Int).Mul(gx1, t2)                         // 15.   gx2 = gx1 * t2
-	e2 := isSquare(gx1, params.isSqExp, p)                   // 16.    e2 = is_square(gx1)
-	x := cmov(x2, x1, e2)                                    // 17.     x = CMOV(x2, x1, e2)
-	y2 := cmov(gx2, gx1, e2)                                 // 18.    y2 = CMOV(gx2, gx1, e2)
-	y := sqrt(y2, params.sqrtExp, p)                         // 19.     y = sqrt(y2)
-	e3 := sgnCmp(u, y, params.sgn0)                          // 20.    e3 = sgn0(u) == sgn0(y)
-	y = cmov(new(big.Int).Mul(y, minusOne), y, e3)           // 21.     y = CMOV(-y, y, e3)
+	t1 := new(big.Int).Mul(Z, new(big.Int).Exp(u, two, p)) // 1.     t1 = Z * u^2
+	t2 := new(big.Int).Exp(t1, two, p)                     // 2.     t2 = t1^2
+	x1 := new(big.Int).Add(t1, t2)                         // 3.     x1 = t1 + t2
+	x1 = inv0(x1, p)                                       // 4.     x1 = inv0(x1)
+	e1 := equalsToBigInt(x1, zero)                         // 5.     e1 = x1 == 0
+	x1 = x1.Add(x1, one)                                   // 6.     x1 = x1 + 1
+	x1 = cmov(x1, c2, e1)                                  // 7.     x1 = CMOV(x1, c2, e1)
+	x1 = x1.Mul(x1, c1)                                    // 8.     x1 = x1 * c1
+	gx1 := new(big.Int).Exp(x1, two, p)                    // 9.    gx1 = x1^2
+	gx1 = gx1.Add(gx1, A)                                  // 10.   gx1 = gx1 + A
+	gx1 = gx1.Mul(gx1, x1)                                 // 11.   gx1 = gx1 * x1
+	gx1 = gx1.Add(gx1, B)                                  // 12.   gx1 = gx1 + B
+	x2 := new(big.Int).Mul(t1, x1)                         // 13.    x2 = t1 * x1
+	t2 = t2.Mul(t1, t2)                                    // 14.    t2 = t1 * t2
+	gx2 := new(big.Int).Mul(gx1, t2)                       // 15.   gx2 = gx1 * t2
+	e2 := isSquare(gx1, params.isSqExp, p)                 // 16.    e2 = is_square(gx1)
+	x := cmov(x2, x1, e2)                                  // 17.     x = CMOV(x2, x1, e2)
+	y2 := cmov(gx2, gx1, e2)                               // 18.    y2 = CMOV(gx2, gx1, e2)
+	y := sqrt(y2, params.sqrtExp, p)                       // 19.     y = sqrt(y2)
+	e3 := sgnCmp(u, y, params.sgn0)                        // 20.    e3 = sgn0(u) == sgn0(y)
+	y = cmov(new(big.Int).Mul(y, minusOne), y, e3)         // 21.     y = CMOV(-y, y, e3)
 
 	// construct point and assert that it is correct
 	P := Point{}.New(params.gc).(Point)
@@ -204,20 +204,7 @@ func (params h2cParams) sswu(uArr []*big.Int) (Point, oerr.Error) {
 	if !P.IsValid() {
 		return Point{}, oerr.ErrInvalidGroupElement
 	}
-	return P, oerr.Error{}
-}
-
-// cmpToBigInt converts the return value from a comparison operation into a
-// *big.Int
-func cmpToBigInt(a, b *big.Int) *big.Int {
-	return big.NewInt(int64(a.Cmp(b)))
-}
-
-// equalsToBigInt returns big.Int(1) if a == b and big.Int(0) otherwise
-func equalsToBigInt(a, b *big.Int) *big.Int {
-	cmp := cmpToBigInt(a, b)
-	equalsRev := new(big.Int).Abs(cmp)
-	return revCmpBit(equalsRev)
+	return P, oerr.Nil()
 }
 
 // sqrt computes the sqrt of x mod p (pass in exp explicitly so that we don't
@@ -260,7 +247,7 @@ func i2osp(x, xLen int) ([]byte, oerr.Error) {
 		ret[i] = byte(val & 0xff)
 		val = val >> 8
 	}
-	return ret, oerr.Error{}
+	return ret, oerr.Nil()
 }
 
 // os2ip converts an octet-string to an integer
