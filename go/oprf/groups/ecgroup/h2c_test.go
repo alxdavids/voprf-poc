@@ -16,7 +16,7 @@ func TestHashToBaseP384(t *testing.T) {
 	curve := CreateNistCurve(p384.P384(), sha512.New(), oc.HKDFExtExp{})
 	err := performHashToBase(curve)
 	if err.Err() != nil {
-		t.Fatal(err)
+		t.Fatal(err.Err())
 	}
 }
 
@@ -24,7 +24,7 @@ func TestSswuP384(t *testing.T) {
 	curve := CreateNistCurve(p384.P384(), sha512.New(), oc.HKDFExtExp{})
 	err := performSswu(curve)
 	if err.Err() != nil {
-		t.Fatal(err)
+		t.Fatal(err.Err())
 	}
 }
 
@@ -32,7 +32,7 @@ func TestHashToCurveP384(t *testing.T) {
 	curve := CreateNistCurve(p384.P384(), sha512.New(), oc.HKDFExtExp{})
 	err := performHashToCurve(curve)
 	if err.Err() != nil {
-		t.Fatal(err)
+		t.Fatal(err.Err())
 	}
 }
 
@@ -40,7 +40,7 @@ func TestHashToBaseP521(t *testing.T) {
 	curve := CreateNistCurve(elliptic.P521(), sha512.New(), oc.HKDFExtExp{})
 	err := performHashToBase(curve)
 	if err.Err() != nil {
-		t.Fatal(err)
+		t.Fatal(err.Err())
 	}
 }
 
@@ -48,7 +48,7 @@ func TestSswuP521(t *testing.T) {
 	curve := CreateNistCurve(elliptic.P521(), sha512.New(), oc.HKDFExtExp{})
 	err := performSswu(curve)
 	if err.Err() != nil {
-		t.Fatal(err)
+		t.Fatal(err.Err())
 	}
 }
 
@@ -56,7 +56,7 @@ func TestHashToCurveP521(t *testing.T) {
 	curve := CreateNistCurve(elliptic.P521(), sha512.New(), oc.HKDFExtExp{})
 	err := performHashToCurve(curve)
 	if err.Err() != nil {
-		t.Fatal(err)
+		t.Fatal(err.Err())
 	}
 }
 
@@ -111,10 +111,8 @@ func performSswu(curve GroupCurve) oerr.Error {
 		}
 
 		// check test vectors
-		chkQ := Point{X: vectors["x"], Y: vectors["y"], pog: curve, compress: false}
-		if !Q.Equal(chkQ) {
-			fmt.Println(chkQ)
-			fmt.Println(Q)
+		chkQ := Point{X: vectors["x"], Y: vectors["y"], pog: curve, compress: true}
+		if !Q.equalWN(chkQ) {
 			return oerr.New("Points are not equal", -1)
 		}
 	}
@@ -142,7 +140,7 @@ func performHashToCurve(curve GroupCurve) oerr.Error {
 		// check test vectors
 		expected := expectedCurveEncodingResponses[curve.Name()]["full"][alpha]
 		chkR := Point{X: expected["x"], Y: expected["y"], pog: curve, compress: false}
-		if !R.Equal(chkR) {
+		if !R.equalWN(chkR) {
 			return oerr.New("Points are not equal", -1)
 		}
 	}
