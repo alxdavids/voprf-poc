@@ -7,33 +7,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/alxdavids/oprf-poc/go/jsonrpc"
 	"github.com/alxdavids/oprf-poc/go/oerr"
 	"github.com/alxdavids/oprf-poc/go/oprf"
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
 )
-
-// JSONRPCRequest describes the structure of a JSONRPC request
-type JSONRPCRequest struct {
-	Version string   `json:"jsonrpc"`
-	Method  string   `json:"method"`
-	Params  []string `json:"params"`
-	ID      int      `json:"id"`
-}
-
-// JSONRPCResponseSuccess constructs a successful JSONRPC response back to a
-// client
-type JSONRPCResponseSuccess struct {
-	Version string   `json:"jsonrpc"`
-	Result  []string `json:"result"`
-	ID      int      `json:"id"`
-}
-
-// JSONRPCResponseError constructs a failed JSONRPC response back to a client
-type JSONRPCResponseError struct {
-	Version string         `json:"jsonrpc"`
-	Error   oerr.ErrorJSON `json:"error"`
-	ID      int            `json:"id"`
-}
 
 // Config corresponds to the actual HTTP instantiation of the server in the OPRF
 // protocol, it contains an oprf.Server object for processing OPRF operations
@@ -104,7 +82,7 @@ func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
 
 // processJSONRPCRequest parses the JSONRPC request and attempts to run the OPRF
 // functionality specified in the request
-func (cfg *Config) processJSONRPCRequest(jsonReq *JSONRPCRequest) ([]byte, oerr.Error) {
+func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) ([]byte, oerr.Error) {
 	var ret []byte
 	var err oerr.Error
 	if jsonReq.Version != "2.0" {
@@ -156,8 +134,8 @@ func (cfg *Config) processEval(param string) ([]byte, oerr.Error) {
 }
 
 // readRequestBody tries to read a JSONRPCRequest object from the HTTP Request
-func readRequestBody(r *http.Request) (*JSONRPCRequest, error) {
-	req := &JSONRPCRequest{}
+func readRequestBody(r *http.Request) (*jsonrpc.Request, error) {
+	req := &jsonrpc.Request{}
 	e := json.NewDecoder(r.Body).Decode(req)
 	if e != nil {
 		return nil, e
@@ -167,7 +145,7 @@ func readRequestBody(r *http.Request) (*JSONRPCRequest, error) {
 
 // respSuccess constructs a JSONRPC success response to send back to the client
 func respSuccess(w http.ResponseWriter, result []string, id int) {
-	resp, _ := json.Marshal(JSONRPCResponseSuccess{Version: "2.0", Result: result, ID: id})
+	resp, _ := json.Marshal(jsonrpc.ResponseSuccess{Version: "2.0", Result: result, ID: id})
 	w.Write(resp)
 }
 
@@ -175,7 +153,7 @@ func respSuccess(w http.ResponseWriter, result []string, id int) {
 func respError(w http.ResponseWriter, e oerr.Error, status int) {
 	// if an error occurs here then we have no hope so I'm going to
 	// ignore it
-	resp, _ := json.Marshal(JSONRPCResponseError{Version: "2.0", Error: e.JSON(), ID: 1})
+	resp, _ := json.Marshal(jsonrpc.ResponseError{Version: "2.0", Error: e.JSON(), ID: 1})
 	w.WriteHeader(status)
 	w.Write(resp)
 	fmt.Printf("Error occurred processing client request (%v)\n", e.Err())

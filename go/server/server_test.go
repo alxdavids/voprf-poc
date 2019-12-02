@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/alxdavids/oprf-poc/go/jsonrpc"
 	"github.com/alxdavids/oprf-poc/go/oerr"
 	"github.com/alxdavids/oprf-poc/go/oprf/groups/ecgroup"
 	"github.com/stretchr/testify/assert"
@@ -60,7 +61,7 @@ func TestProcessValidJSONRPCRequest(t *testing.T) {
 	if err.Err() != nil {
 		t.Fatal(err.Err())
 	}
-	jsonrpcReq := &JSONRPCRequest{
+	jsonrpcReq := &jsonrpc.Request{
 		Version: "2.0",
 		Method:  "eval",
 		Params:  []string{hex.EncodeToString(buf)},
@@ -88,7 +89,7 @@ func TestInvalidJSONRPCRequestMethod(t *testing.T) {
 	if err.Err() != nil {
 		t.Fatal(err.Err())
 	}
-	jsonrpcReq := &JSONRPCRequest{
+	jsonrpcReq := &jsonrpc.Request{
 		Version: "2.0",
 		Method:  "bad_method",
 		Params:  []string{hex.EncodeToString(buf)},
@@ -114,7 +115,7 @@ func TestInvalidJSONRPCRequestVersion(t *testing.T) {
 	if err.Err() != nil {
 		t.Fatal(err.Err())
 	}
-	jsonrpcReq := &JSONRPCRequest{
+	jsonrpcReq := &jsonrpc.Request{
 		Version: "1.0",
 		Method:  "eval",
 		Params:  []string{hex.EncodeToString(buf)},
@@ -132,7 +133,7 @@ func TestInvalidJSONRPCRequestEmptyParams(t *testing.T) {
 	if err.Err() != nil {
 		t.Fatal(err)
 	}
-	jsonrpcReq := &JSONRPCRequest{
+	jsonrpcReq := &jsonrpc.Request{
 		Version: "2.0",
 		Method:  "eval",
 		ID:      1,
@@ -150,7 +151,7 @@ func TestInvalidJSONRPCRequestBadlyEncodedParam(t *testing.T) {
 	if err.Err() != nil {
 		t.Fatal(err)
 	}
-	jsonrpcReq := &JSONRPCRequest{
+	jsonrpcReq := &jsonrpc.Request{
 		Version: "2.0",
 		Method:  "eval",
 		Params:  []string{"badly_encoded_string"},
@@ -169,7 +170,7 @@ func TestInvalidJSONRPCRequestBadParams(t *testing.T) {
 	if err.Err() != nil {
 		t.Fatal(err)
 	}
-	jsonrpcReq := &JSONRPCRequest{
+	jsonrpcReq := &jsonrpc.Request{
 		Version: "2.0",
 		Method:  "eval",
 		Params:  []string{hex.EncodeToString([]byte("bad_byte_string"))},
