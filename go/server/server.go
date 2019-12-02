@@ -99,7 +99,7 @@ func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return success response
-	respSuccess(w, []string{hex.EncodeToString(ret)})
+	respSuccess(w, []string{hex.EncodeToString(ret)}, jsonReq.ID)
 }
 
 // processJSONRPCRequest parses the JSONRPC request and attempts to run the OPRF
@@ -107,6 +107,10 @@ func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
 func (cfg *Config) processJSONRPCRequest(jsonReq *JSONRPCRequest) ([]byte, oerr.Error) {
 	var ret []byte
 	var err oerr.Error
+	if jsonReq.Version != "2.0" {
+		return nil, oerr.ErrJSONRPCInvalidRequest
+	}
+
 	params := jsonReq.Params
 	switch jsonReq.Method {
 	case "eval":
@@ -162,8 +166,8 @@ func readRequestBody(r *http.Request) (*JSONRPCRequest, error) {
 }
 
 // respSuccess constructs a JSONRPC success response to send back to the client
-func respSuccess(w http.ResponseWriter, result []string) {
-	resp, _ := json.Marshal(JSONRPCResponseSuccess{Version: "2.0", Result: result, ID: 1})
+func respSuccess(w http.ResponseWriter, result []string, id int) {
+	resp, _ := json.Marshal(JSONRPCResponseSuccess{Version: "2.0", Result: result, ID: id})
 	w.Write(resp)
 }
 
