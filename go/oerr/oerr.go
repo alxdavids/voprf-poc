@@ -23,11 +23,20 @@ var (
 	// ErrServerUnsupportedFunctionality indicates that unsupported
 	// functionality was requested when initialising the Server object.
 	ErrServerUnsupportedFunctionality = Error{message: errors.New("Unsupported server functionality requested"), code: -32000}
-	// ErrServerInternal indicates that an internal error occurred
-	ErrServerInternal = Error{message: errors.New("Unsupported server functionality requested"), code: -32001}
+	// ErrServerInternal indicates that an unexpected internal error occurred
+	ErrServerInternal = Error{message: errors.New("Internal error occurred server-side"), code: -32001}
 	// ErrClientMalformedRequest indicates that the request sent by the client
 	// cannot be processed due to malformation
 	ErrClientMalformedRequest = Error{message: errors.New("Client request is malformed"), code: -32011}
+	// ErrClientInternal indicates that an unexpected internal error occurred on
+	// the client-side
+	ErrClientInternal = Error{message: errors.New("Internal error occurred on the client-side"), code: -32012}
+	// ErrServerResponse indicates that an error occurred when trying to read
+	// the Server HTTP response
+	ErrServerResponse = Error{message: errors.New("Error reading the response from the server"), code: -32013}
+	// ErrClientUnblinding indicates that an error occurred when trying to
+	// unblind the server response parameters on the client-side
+	ErrClientUnblinding = Error{message: errors.New("Error unblinding the server OPRF response"), code: -32014}
 
 	// ErrOPRFCiphersuiteUnsupportedFunction indicates that the given OPRF
 	// function is not supported for the configuration specified by the

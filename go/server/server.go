@@ -135,6 +135,7 @@ func (cfg *Config) processEval(param string) ([]byte, oerr.Error) {
 
 // readRequestBody tries to read a JSONRPCRequest object from the HTTP Request
 func readRequestBody(r *http.Request) (*jsonrpc.Request, error) {
+	defer r.Body.Close()
 	req := &jsonrpc.Request{}
 	e := json.NewDecoder(r.Body).Decode(req)
 	if e != nil {
