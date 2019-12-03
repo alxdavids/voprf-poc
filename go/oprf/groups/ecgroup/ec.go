@@ -113,7 +113,7 @@ func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, oerr.Error) {
 	if err.Err() != nil {
 		return nil, err
 	}
-	return p.normalize()
+	return p, oerr.Nil()
 }
 
 // UniformFieldElement samples a random element from the underling field for the
@@ -212,7 +212,20 @@ func (p Point) Equal(ge gg.GroupElement) bool {
 	if err.Err() != nil {
 		return false
 	}
-	return p.equalWN(pEq)
+	// check that both points are valid
+	if !p.IsValid() || !pEq.IsValid() {
+		return false
+	}
+	// check that the supplied Point is valid with respect to the group for p
+	pChkGroup := Point{}.New(p.pog).(Point)
+	pChkGroup.X = pEq.X
+	pChkGroup.Y = pEq.Y
+	if !pChkGroup.IsValid() {
+		return false
+	}
+
+	// check that the point coordinates are the same
+	return (p.X.Cmp(pEq.X) == 0) && (p.Y.Cmp(pEq.Y) == 0)
 }
 
 // IsValid checks that the given point is a valid curve point for the input
@@ -236,12 +249,11 @@ func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, oerr.Error) {
 		return nil, err
 	}
 	// normalize point and perform multiplication
-	p, err = p.normalize()
 	if err.Err() != nil {
 		return nil, err
 	}
 	p.X, p.Y = curve.ops.ScalarMult(p.X, p.Y, k.Bytes())
-	return p.normalize()
+	return p, oerr.Nil()
 }
 
 // Add adds pAdd to p and returns p or an oerr.Error, normalizes by default
@@ -258,16 +270,8 @@ func (p Point) Add(ge gg.GroupElement) (gg.GroupElement, oerr.Error) {
 	if err.Err() != nil {
 		return nil, err
 	}
-	p, err = p.normalize()
-	if err.Err() != nil {
-		return nil, err
-	}
-	pAdd, err = pAdd.normalize()
-	if err.Err() != nil {
-		return nil, err
-	}
 	p.X, p.Y = curve.ops.Add(p.X, p.Y, pAdd.X, pAdd.Y)
-	return p.normalize()
+	return p, oerr.Nil()
 }
 
 // Serialize marshals the point object into an octet-string, returns nil if
@@ -280,10 +284,6 @@ func (p Point) Serialize() ([]byte, oerr.Error) {
 
 	// attempt to deserialize
 	if curve.nist {
-		p, err := p.normalize()
-		if err.Err() != nil {
-			return nil, err
-		}
 		return p.nistSerialize(curve), oerr.Nil()
 	}
 	return nil, oerr.ErrUnsupportedGroup
@@ -300,66 +300,9 @@ func (p Point) Deserialize(buf []byte) (gg.GroupElement, oerr.Error) {
 		if err.Err() != nil {
 			return nil, err
 		}
-		return p.normalize()
+		return p, oerr.Nil()
 	}
 	return nil, oerr.ErrUnsupportedGroup
-}
-
-// normalize returns the Point object with normalized coordinates
-func (p Point) normalize() (Point, oerr.Error) {
-	curve, err := castToCurve(p.pog)
-	if err.Err() != nil {
-		return Point{}, err
-	}
-	p.X = new(big.Int).Mod(p.X, curve.P())
-	p.Y = cmov(p.Y, new(big.Int).Mul(p.Y, minusOne), equalsToBigInt(sgn0LE(p.Y), minusOne))
-	p.Y = p.Y.Mod(p.Y, curve.P())
-	return p, oerr.Nil()
-}
-
-// equalWN performs Point equality test without nomalization
-func (p Point) equalWN(pEq Point) bool {
-	// check that both points are valid
-	if !p.IsValid() || !pEq.IsValid() {
-		return false
-	}
-	// check that the supplied Point is valid with respect to the group for p
-	pChkGroup := Point{}.New(p.pog).(Point)
-	pChkGroup.X = pEq.X
-	pChkGroup.Y = pEq.Y
-	if !pChkGroup.IsValid() {
-		return false
-	}
-
-	// check that the point coordinates are the same
-	return (p.X.Cmp(pEq.X) == 0) && (p.Y.Cmp(pEq.Y) == 0)
-}
-
-// addWN adds two points together without performing normalization (used by H2C)
-func (p Point) addWN(pAdd Point) (Point, oerr.Error) {
-	if !p.IsValid() {
-		return Point{}, oerr.ErrInvalidGroupElement
-	}
-	curve, err := castToCurve(p.pog)
-	if err.Err() != nil {
-		return Point{}, err
-	}
-	p.X, p.Y = curve.ops.Add(p.X, p.Y, pAdd.X, pAdd.Y)
-	return p, oerr.Nil()
-}
-
-// scalarMultWN performs multiplication of P by scalar k without
-// normalizing the resulting point
-func (p Point) scalarMultWN(k *big.Int) (gg.GroupElement, oerr.Error) {
-	if !p.IsValid() {
-		return nil, oerr.ErrInvalidGroupElement
-	}
-	curve, err := castToCurve(p.pog)
-	if err.Err() != nil {
-		return nil, err
-	}
-	p.X, p.Y = curve.ops.ScalarMult(p.X, p.Y, k.Bytes())
-	return p, oerr.Nil()
 }
 
 // nistSerialize marshals the point object into an octet-string of either
@@ -449,14 +392,14 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, oerr.Error) 
 // clearCofactor clears the cofactor (hEff) of p by performing a scalar
 // multiplication and returning p or an oerr.Error
 func (p Point) clearCofactor(hEff *big.Int) (Point, oerr.Error) {
-	ret, err := p.scalarMultWN(hEff)
+	ret, err := p.ScalarMult(hEff)
 	if err.Err() != nil {
 		return Point{}, err
 	}
 	// type assertion withour normalization
-	point, ok := ret.(Point)
-	if !ok {
-		return Point{}, oerr.ErrTypeAssertion
+	point, err := castToPoint(ret)
+	if err.Err() != nil {
+		return Point{}, err
 	}
 	return point, oerr.Nil()
 }
@@ -483,10 +426,6 @@ func castToPoint(ge gg.GroupElement) (Point, oerr.Error) {
 	}
 	if !point.IsValid() {
 		return Point{}, oerr.ErrInvalidGroupElement
-	}
-	point, err := point.normalize()
-	if err.Err() != nil {
-		return Point{}, err
 	}
 	return point, oerr.Nil()
 }

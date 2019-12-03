@@ -112,7 +112,7 @@ func performSswu(curve GroupCurve) oerr.Error {
 
 		// check test vectors
 		chkQ := Point{X: vectors["x"], Y: vectors["y"], pog: curve, compress: true}
-		if !Q.equalWN(chkQ) {
+		if !Q.Equal(chkQ) {
 			return oerr.New("Points are not equal", -1)
 		}
 	}
@@ -140,7 +140,7 @@ func performHashToCurve(curve GroupCurve) oerr.Error {
 		// check test vectors
 		expected := expectedCurveEncodingResponses[curve.Name()]["full"][alpha]
 		chkR := Point{X: expected["x"], Y: expected["y"], pog: curve, compress: false}
-		if !R.equalWN(chkR) {
+		if !R.Equal(chkR) {
 			return oerr.New("Points are not equal", -1)
 		}
 	}

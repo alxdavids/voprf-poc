@@ -149,7 +149,11 @@ func (params h2cParams) hashToCurve(alpha []byte) (Point, oerr.Error) {
 	}
 
 	// construct the output point R
-	R, err := Q0.addWN(Q1)
+	geR, err := Q0.Add(Q1)
+	if err.Err() != nil {
+		return Point{}, err
+	}
+	R, err := castToPoint(geR)
 	if err.Err() != nil {
 		return Point{}, err
 	}

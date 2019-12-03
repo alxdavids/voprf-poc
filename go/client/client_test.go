@@ -72,7 +72,6 @@ func TestCreateOPRFRequest(t *testing.T) {
 	assert.True(t, ge.IsValid())
 	assert.Equal(t, len(storedBlinds), 1)
 	assert.Equal(t, len(storedInputs), 1)
-	fmt.Println(ge)
 
 	// check that the point is correctly formed
 	geChk, err := pog.EncodeToGroup(storedInputs[0])
