@@ -83,18 +83,16 @@ func New(e error, code int) ErrorJSON {
 // GetJSONRPCError Parses the error that has occurred and creates a JSONRPC
 // error response for the server to respond with
 func GetJSONRPCError(e error) ErrorJSON {
-	var respError ErrorJSON
 	switch e {
 	case ErrJSONRPCParse:
-		respError = New(ErrJSONRPCParse, -32700)
+		return New(ErrJSONRPCParse, -32700)
 	case ErrJSONRPCInvalidRequest:
-		respError = New(ErrJSONRPCInvalidRequest, -32600)
+		return New(ErrJSONRPCInvalidRequest, -32600)
 	case ErrJSONRPCMethodNotFound:
-		respError = New(ErrJSONRPCMethodNotFound, -32601)
+		return New(ErrJSONRPCMethodNotFound, -32601)
 	case ErrJSONRPCInternal:
-		respError = New(ErrJSONRPCInternal, -32603)
+		return New(ErrJSONRPCInternal, -32603)
 	default:
-		respError = New(ErrJSONRPCInvalidMethodParams, -32602)
+		return New(ErrJSONRPCInvalidMethodParams, -32602)
 	}
-	return respError
 }
