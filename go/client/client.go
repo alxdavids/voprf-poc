@@ -59,19 +59,16 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputP
 func (cfg *Config) SendOPRFRequest() oerr.Error {
 	oprfReq, err := cfg.createOPRFRequest()
 	if err.Err() != nil {
-		fmt.Println("ahhh")
 		return err
 	}
 	buf, e := json.Marshal(oprfReq)
 	if e != nil {
-		fmt.Println("2")
 		return oerr.ErrClientInternal
 	}
 
 	// make HTTP request and parse Response
 	resp, e := http.Post(cfg.addr, "application/json", bytes.NewBuffer(buf))
 	if e != nil {
-		fmt.Println(e)
 		return oerr.ErrClientInternal
 	}
 
@@ -79,21 +76,18 @@ func (cfg *Config) SendOPRFRequest() oerr.Error {
 	defer resp.Body.Close()
 	body, e := ioutil.ReadAll(resp.Body)
 	if e != nil {
-		fmt.Println("4")
 		return oerr.ErrServerResponse
 	}
 
 	// attempt to parse Server JSONRPC response
 	jsonrpcResp, err := cfg.parseJSONRPCResponse(body)
 	if err.Err() != nil {
-		fmt.Println("5")
 		return err
 	}
 
 	// Process and finalize the server response, and then store
 	storedFinalOutputs, err = cfg.processServerResponse(jsonrpcResp)
 	if err.Err() != nil {
-		fmt.Println("6")
 		return err
 	}
 	return oerr.Nil()
@@ -235,9 +229,9 @@ func (cfg *Config) PrintStorage() oerr.Error {
 
 	// output to file if one is defined, otherwise to stdout
 	if cfg.outputPath != "" {
-		fileNames := []string{"/stored_inputs.txt", "/stored_blinds.txt", "stored_final_outputs.txt"}
+		fileNames := []string{"/stored_inputs.txt", "/stored_blinds.txt", "/stored_final_outputs.txt"}
 		for i, f := range fileNames {
-			e := ioutil.WriteFile(cfg.outputPath+f, []byte(outputStrings[i]), 644)
+			e := ioutil.WriteFile(cfg.outputPath+f, []byte(outputStrings[i]), 0755)
 			if e != nil {
 				return oerr.ErrClientInternal
 			}
