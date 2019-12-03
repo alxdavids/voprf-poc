@@ -92,14 +92,20 @@ func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) ([][]byte, er
 	}
 
 	params := jsonReq.Params
-	fmt.Println(jsonReq)
+	// if the ciphersuite is empty then just attempt to evaluate
+	ciph := params.Ciphersuite
+	if ciph != "" && ciph != cfg.osrv.Ciphersuite().Name() {
+		return nil, oerr.ErrJSONRPCInvalidMethodParams
+	}
+
+	// check that the method is correct
 	switch jsonReq.Method {
 	case "eval":
-		if len(params) < 1 {
+		if len(params.Data) < 1 {
 			return nil, oerr.ErrJSONRPCInvalidMethodParams
 		}
 		// evaluate OPRF
-		ret, err = cfg.processEval(params)
+		ret, err = cfg.processEval(params.Data)
 		break
 	default:
 		return nil, oerr.ErrJSONRPCMethodNotFound
@@ -168,7 +174,7 @@ func respSuccess(w http.ResponseWriter, result [][]byte, id int) {
 	for i, s := range result {
 		resultStrings[i] = hex.EncodeToString(s)
 	}
-	resp, _ := json.Marshal(jsonrpc.ResponseSuccess{Version: "2.0", Result: resultStrings, ID: id})
+	resp, _ := json.Marshal(jsonrpc.ResponseSuccess{Version: "2.0", Result: jsonrpc.ResponseResult{Data: resultStrings}, ID: id})
 	w.Write(resp)
 }
 

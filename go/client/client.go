@@ -138,7 +138,7 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 
 func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) ([][]byte, error) {
 	// parse returned group element and unblind
-	params := jsonrpcResp.Result
+	params := jsonrpcResp.Result.Data
 	pog := cfg.ocli.Ciphersuite().POG()
 	var finalOutputs [][]byte
 	for i := 0; i < cfg.n; i++ {
@@ -174,8 +174,10 @@ func (cfg *Config) createJSONRPCRequest(eles [][]byte, id int) *jsonrpc.Request 
 	return &jsonrpc.Request{
 		Version: "2.0",
 		Method:  "eval",
-		Params:  hexParams,
-		ID:      id,
+		Params: jsonrpc.RequestParams{
+			Data: hexParams,
+		},
+		ID: id,
 	}
 }
 
@@ -191,7 +193,7 @@ func (cfg *Config) parseJSONRPCResponse(body []byte) (*jsonrpc.ResponseSuccess, 
 	}
 
 	// if this occurs then it's likely that an error occurred
-	if len(jsonrpcSuccess.Result) == 0 {
+	if len(jsonrpcSuccess.Result.Data) == 0 {
 		// try and decode error response
 		e2 := json.Unmarshal(body, jsonrpcError)
 		if e2 != nil || jsonrpcError.Error.Message == "" {

@@ -91,7 +91,7 @@ func TestProcessValidJSONRPCRequest(t *testing.T) {
 	jsonrpcReq := &jsonrpc.Request{
 		Version: "2.0",
 		Method:  "eval",
-		Params:  []string{hex.EncodeToString(buf)},
+		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}},
 		ID:      1,
 	}
 	// actual value checks are done in other tests
@@ -120,7 +120,7 @@ func TestInvalidJSONRPCRequestMethod(t *testing.T) {
 	jsonrpcReq := &jsonrpc.Request{
 		Version: "2.0",
 		Method:  "bad_method",
-		Params:  []string{hex.EncodeToString(buf)},
+		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}},
 		ID:      1,
 	}
 	// actual value checks are done in other tests
@@ -146,7 +146,7 @@ func TestInvalidJSONRPCRequestVersion(t *testing.T) {
 	jsonrpcReq := &jsonrpc.Request{
 		Version: "1.0",
 		Method:  "eval",
-		Params:  []string{hex.EncodeToString(buf)},
+		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}},
 		ID:      1,
 	}
 	// actual value checks are done in other tests
@@ -182,7 +182,7 @@ func TestInvalidJSONRPCRequestBadlyEncodedParam(t *testing.T) {
 	jsonrpcReq := &jsonrpc.Request{
 		Version: "2.0",
 		Method:  "eval",
-		Params:  []string{"badly_encoded_string"},
+		Params:  jsonrpc.RequestParams{Data: []string{"badly_encoded_string"}},
 		ID:      1,
 	}
 	// actual value checks are done in other tests
@@ -201,7 +201,7 @@ func TestInvalidJSONRPCRequestBadParams(t *testing.T) {
 	jsonrpcReq := &jsonrpc.Request{
 		Version: "2.0",
 		Method:  "eval",
-		Params:  []string{hex.EncodeToString([]byte("bad_byte_string"))},
+		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString([]byte("bad_byte_string"))}},
 		ID:      1,
 	}
 	// actual value checks are done in other tests
