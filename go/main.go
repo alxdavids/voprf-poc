@@ -70,7 +70,11 @@ func runClient(ciphersuite, clientOutFolder string, n int, pk string) error {
 
 	// Set the input public key on the client
 	if pk != "" {
-		cfgClient.SetPublicKey(pk)
+		fmt.Println("Setting public key: ", pk)
+		err = cfgClient.SetPublicKey(pk)
+		if err != nil {
+			return err
+		}
 	}
 
 	// send request to server, and process response
