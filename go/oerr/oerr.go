@@ -20,11 +20,14 @@ var (
 	// (https://www.jsonrpc.org/specification#error_object)
 	ErrJSONRPCInternal = Error{message: errors.New("Internal JSON-RPC Error"), code: -32603}
 
-	// ErrServerUnsupportedFunctionality indicates that unsupported
+	// ErrServerUnsupported indicates that unsupported
 	// functionality was requested when initialising the Server object.
-	ErrServerUnsupportedFunctionality = Error{message: errors.New("Unsupported server functionality requested"), code: -32000}
+	ErrServerUnsupported = Error{message: errors.New("Unsupported server functionality requested"), code: -32000}
 	// ErrServerInternal indicates that an unexpected internal error occurred
 	ErrServerInternal = Error{message: errors.New("Internal error occurred server-side"), code: -32001}
+	// ErrClientUnsupported indicates that unsupported functionality was
+	// requested when initialising the Client object.
+	ErrClientUnsupported = Error{message: errors.New("Unsupported client functionality requested"), code: -32010}
 	// ErrClientMalformedRequest indicates that the request sent by the client
 	// cannot be processed due to malformation
 	ErrClientMalformedRequest = Error{message: errors.New("Client request is malformed"), code: -32011}

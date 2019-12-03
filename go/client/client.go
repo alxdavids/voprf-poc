@@ -94,7 +94,7 @@ func (cfg *Config) sendOPRFRequest() ([][]byte, oerr.Error) {
 func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, oerr.Error) {
 	n := cfg.n
 	if n > 1 || n < 0 {
-		return nil, oerr.ErrClientInternal
+		return nil, oerr.ErrClientUnsupported
 	}
 	var inputs [][]byte
 	var blinds []*big.Int
@@ -180,12 +180,20 @@ func (cfg *Config) parseJSONRPCResponse(body []byte) (*jsonrpc.ResponseSuccess, 
 	jsonrpcError := &jsonrpc.ResponseError{}
 	e := json.Unmarshal(body, jsonrpcSuccess)
 	if e != nil {
-		// decode error response
+		return nil, oerr.ErrServerResponse
+	}
+
+	// if this occurs then it's likely that an error occurred
+	if len(jsonrpcSuccess.Result) == 0 {
+		// try and decode error response
 		e2 := json.Unmarshal(body, jsonrpcError)
-		if e2 != nil {
+		if e2 != nil || jsonrpcError.Error.Message == "" {
+			// either error or unable to parse error
 			return nil, oerr.ErrServerResponse
 		}
 		return nil, oerr.New(jsonrpcError.Error.Message, jsonrpcError.Error.Code)
 	}
+
+	// otherwise return success
 	return jsonrpcSuccess, oerr.Nil()
 }
