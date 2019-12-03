@@ -16,13 +16,14 @@ import (
 // Config corresponds to the actual HTTP instantiation of the server in the OPRF
 // protocol, it contains an oprf.Server object for processing OPRF operations
 type Config struct {
-	osrv oprf.Server
-	hsrv http.Server
-	tls  bool
+	osrv oprf.Server // Server object for performing OPRF operations
+	hsrv http.Server // HTTP Server
+	max  int         // Max number of OPRF evaluations to be permitted in one go
+	tls  bool        // TODO: whether TLS is supported by the server
 }
 
 // CreateConfig returns a HTTP Server object
-func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, tls bool) (*Config, error) {
+func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, max int, tls bool) (*Config, error) {
 	ptpnt, err := oprf.Server{}.Setup(ciphersuite, pogInit)
 	if err != nil {
 		return nil, err
@@ -41,6 +42,7 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, tls bool) (*Co
 			WriteTimeout:   10 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
+		max: max,
 		tls: tls,
 	}
 	cfg.hsrv.Handler = http.HandlerFunc(cfg.handleOPRF)
@@ -77,13 +79,13 @@ func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return success response
-	respSuccess(w, []string{hex.EncodeToString(ret)}, jsonReq.ID)
+	respSuccess(w, ret, jsonReq.ID)
 }
 
 // processJSONRPCRequest parses the JSONRPC request and attempts to run the OPRF
 // functionality specified in the request
-func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) ([]byte, error) {
-	var ret []byte
+func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) ([][]byte, error) {
+	var ret [][]byte
 	var err error
 	if jsonReq.Version != "2.0" {
 		return nil, oerr.ErrJSONRPCInvalidRequest
@@ -96,7 +98,7 @@ func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) ([]byte, erro
 			return nil, oerr.ErrJSONRPCInvalidMethodParams
 		}
 		// evaluate OPRF
-		ret, err = cfg.processEval(params[0])
+		ret, err = cfg.processEval(params)
 		break
 	default:
 		return nil, oerr.ErrJSONRPCMethodNotFound
@@ -108,29 +110,44 @@ func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) ([]byte, erro
 	return ret, nil
 }
 
-// processEval processes an evaluation request from the client
-func (cfg *Config) processEval(param string) ([]byte, error) {
-	buf, e := hex.DecodeString(param)
-	if e != nil {
+// processEval processes an evaluation request from the client over the blinded
+// group elements that they provide
+func (cfg *Config) processEval(params []string) ([][]byte, error) {
+	lenParams := len(params)
+	if lenParams > cfg.max {
 		return nil, oerr.ErrJSONRPCInvalidMethodParams
 	}
+	evalsOut := make([][]byte, len(params))
+	for i, s := range params {
+		buf, e := hex.DecodeString(s)
+		if e != nil {
+			return nil, oerr.ErrJSONRPCInvalidMethodParams
+		}
 
-	// create GroupElement
-	osrv := cfg.osrv
-	pog := osrv.Ciphersuite().POG()
-	ge, err := gg.CreateGroupElement(pog).Deserialize(buf)
-	if err != nil {
-		return nil, err
-	}
+		// create GroupElement
+		osrv := cfg.osrv
+		pog := osrv.Ciphersuite().POG()
+		ge, err := gg.CreateGroupElement(pog).Deserialize(buf)
+		if err != nil {
+			return nil, err
+		}
 
-	// compute OPRF evaluation
-	geEval, err := cfg.osrv.Eval(osrv.SecretKey(), ge)
-	if err != nil {
-		return nil, err
+		// compute OPRF evaluation
+		geEval, err := cfg.osrv.Eval(osrv.SecretKey(), ge)
+		if err != nil {
+			return nil, err
+		}
+
+		// serialize output
+		out, err := geEval.Serialize()
+		if err != nil {
+			return nil, err
+		}
+		evalsOut[i] = out
 	}
 
 	// serialize output point and return
-	return geEval.Serialize()
+	return evalsOut, nil
 }
 
 // readRequestBody tries to read a JSONRPCRequest object from the HTTP Request
@@ -145,8 +162,12 @@ func readRequestBody(r *http.Request) (*jsonrpc.Request, error) {
 }
 
 // respSuccess constructs a JSONRPC success response to send back to the client
-func respSuccess(w http.ResponseWriter, result []string, id int) {
-	resp, _ := json.Marshal(jsonrpc.ResponseSuccess{Version: "2.0", Result: result, ID: id})
+func respSuccess(w http.ResponseWriter, result [][]byte, id int) {
+	resultStrings := make([]string, len(result))
+	for i, s := range result {
+		resultStrings[i] = hex.EncodeToString(s)
+	}
+	resp, _ := json.Marshal(jsonrpc.ResponseSuccess{Version: "2.0", Result: resultStrings, ID: id})
 	w.Write(resp)
 }
 

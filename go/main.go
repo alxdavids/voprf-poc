@@ -17,22 +17,25 @@ var (
 
 func main() {
 	var mode, ciphersuite, clientOutFolder string
+	var max, n int
 	flag.StringVar(&mode, "mode", "", "Specifies which mode to run in, options: (client|server).")
 	flag.StringVar(&ciphersuite, "ciph", validP384Ciphersuite, "Specifies the VOPRF ciphersuite to use.")
 	flag.StringVar(&clientOutFolder, "out_folder", "", "Specifies an output folder to write files containing the client's stored variables after invocation. If left empty, output is written to console.")
+	flag.IntVar(&max, "max_evals", 1, "Specifies the maximum number of OPRF evaluations that are permitted by the server")
+	flag.IntVar(&max, "n", 1, "Specifies the number of OPRF evaluations to be attempted by the client")
 	flag.Parse()
 
 	switch mode {
 	case "client":
 		fmt.Println("Starting client...")
-		if err := runClient(ciphersuite, clientOutFolder); err != nil {
+		if err := runClient(ciphersuite, clientOutFolder, n); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 		break
 	case "server":
 		fmt.Println("Starting server...")
-		if err := runServer(ciphersuite); err != nil {
+		if err := runServer(ciphersuite, max); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
@@ -43,8 +46,8 @@ func main() {
 	}
 }
 
-func runServer(ciphersuite string) error {
-	cfgServer, err := server.CreateConfig(ciphersuite, ecgroup.GroupCurve{}, false)
+func runServer(ciphersuite string, max int) error {
+	cfgServer, err := server.CreateConfig(ciphersuite, ecgroup.GroupCurve{}, max, false)
 	if err != nil {
 		return err
 	}
@@ -58,8 +61,8 @@ func runServer(ciphersuite string) error {
 	return nil
 }
 
-func runClient(ciphersuite, clientOutFolder string) error {
-	cfgClient, err := client.CreateConfig(ciphersuite, ecgroup.GroupCurve{}, 1, clientOutFolder)
+func runClient(ciphersuite, clientOutFolder string, n int) error {
+	cfgClient, err := client.CreateConfig(ciphersuite, ecgroup.GroupCurve{}, n, clientOutFolder)
 	if err != nil {
 		return err
 	}
