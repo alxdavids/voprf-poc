@@ -61,22 +61,22 @@ func (cfg *Config) SendOPRFRequest() error {
 	if err != nil {
 		return err
 	}
-	buf, e := json.Marshal(oprfReq)
-	if e != nil {
-		return e
+	buf, err := json.Marshal(oprfReq)
+	if err != nil {
+		return err
 	}
 
 	// make HTTP request and parse Response
-	resp, e := http.Post(cfg.addr, "application/json", bytes.NewBuffer(buf))
-	if e != nil {
-		return e
+	resp, err := http.Post(cfg.addr, "application/json", bytes.NewBuffer(buf))
+	if err != nil {
+		return err
 	}
 
 	// read response body
 	defer resp.Body.Close()
-	body, e := ioutil.ReadAll(resp.Body)
-	if e != nil {
-		return e
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
 	}
 
 	// attempt to parse Server JSONRPC response
@@ -100,8 +100,8 @@ func (cfg *Config) SendOPRFRequest() error {
 // TODO: allow n to be greater than 1
 func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 	n := cfg.n
-	if n > 1 || n < 0 {
-		return nil, errors.New("Only n == 1 is supportex")
+	if n < 1 {
+		return nil, errors.New("The value of n must be greater than 0")
 	}
 	var inputs [][]byte
 	var blinds []*big.Int
@@ -221,7 +221,7 @@ func (cfg *Config) PrintStorage() error {
 		for i, byt := range s {
 			outString = outString + hex.EncodeToString(byt)
 			if i != len(storedInputs)-1 {
-				outString = "\n"
+				outString = outString + "\n"
 			}
 		}
 		outputStrings[j] = outString

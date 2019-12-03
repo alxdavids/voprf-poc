@@ -89,19 +89,11 @@ func TestCreateOPRFRequest(t *testing.T) {
 }
 
 func TestCreateOPRFRequestBadN(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 2, "")
+	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, -1, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, err = cfg.createOPRFRequest()
-	if err == nil {
-		t.Fatal("n > 1 should be unsupported")
-	}
-	cfg2, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, -1, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = cfg2.createOPRFRequest()
 	if err == nil {
 		t.Fatal("n < 0 should be unsupported")
 	}

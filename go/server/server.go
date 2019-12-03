@@ -92,9 +92,10 @@ func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) ([][]byte, er
 	}
 
 	params := jsonReq.Params
+	fmt.Println(jsonReq)
 	switch jsonReq.Method {
 	case "eval":
-		if len(params) == 0 {
+		if len(params) < 1 {
 			return nil, oerr.ErrJSONRPCInvalidMethodParams
 		}
 		// evaluate OPRF
