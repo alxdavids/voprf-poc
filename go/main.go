@@ -20,7 +20,7 @@ func main() {
 	var mode, ciphersuite, clientOutFolder string
 	flag.StringVar(&mode, "mode", "", "Specifies which mode to run in, options: (client|server).")
 	flag.StringVar(&ciphersuite, "ciph", validP384Ciphersuite, "Specifies the VOPRF ciphersuite to use.")
-	flag.StringVar(&clientOutFolder, "clientOutFolder", "", "Specifies an output folder to write files containing the client's stored variables after invocation. If left empty, output is written to console.")
+	flag.StringVar(&clientOutFolder, "out_folder", "", "Specifies an output folder to write files containing the client's stored variables after invocation. If left empty, output is written to console.")
 	flag.Parse()
 
 	switch mode {
