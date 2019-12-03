@@ -152,9 +152,12 @@ func respSuccess(w http.ResponseWriter, result []string, id int) {
 
 // constructs a JSONRPC parse error to return
 func respError(w http.ResponseWriter, e error, status int) {
+	// Parse error type for returning JSONRPC error response
+	jsonrpcError := oerr.GetJSONRPCError(e)
+
 	// if an error occurs here then we have no hope so I'm going to
 	// ignore it
-	resp, _ := json.Marshal(jsonrpc.ResponseError{Version: "2.0", Error: oerr.New(e, -32000), ID: 1})
+	resp, _ := json.Marshal(jsonrpc.ResponseError{Version: "2.0", Error: jsonrpcError, ID: 1})
 	w.WriteHeader(status)
 	w.Write(resp)
 	fmt.Printf("Error occurred processing client request (message: %v)\n", e)

@@ -25,12 +25,6 @@ var (
 	ErrServerUnsupported = errors.New("Unsupported server functionality requested")
 	// ErrServerInternal indicates that an unexpected internal error occurred
 	ErrServerInternal = errors.New("Internal error occurred server-side")
-	// ErrClientConfiguration indicates that an error occurred on the
-	// client-side that was due to possible misconfiguration
-	ErrClientConfiguration = errors.New("")
-	// ErrClientServerResponse indicates that an error occurred on the
-	// client-side that was due to a bad response sent from the server
-	ErrClientServerResponse = errors.New("")
 
 	// ErrOPRFCiphersuiteUnsupportedFunction indicates that the given OPRF
 	// function is not supported for the configuration specified by the
@@ -84,4 +78,23 @@ type ErrorJSON struct {
 // New creates a new ErrorJSON Object
 func New(e error, code int) ErrorJSON {
 	return ErrorJSON{Message: e.Error(), Code: code}
+}
+
+// GetJSONRPCError Parses the error that has occurred and creates a JSONRPC
+// error response for the server to respond with
+func GetJSONRPCError(e error) ErrorJSON {
+	var respError ErrorJSON
+	switch e {
+	case ErrJSONRPCParse:
+		respError = New(ErrJSONRPCParse, -32700)
+	case ErrJSONRPCInvalidRequest:
+		respError = New(ErrJSONRPCInvalidRequest, -32600)
+	case ErrJSONRPCMethodNotFound:
+		respError = New(ErrJSONRPCMethodNotFound, -32601)
+	case ErrJSONRPCInternal:
+		respError = New(ErrJSONRPCInternal, -32603)
+	default:
+		respError = New(ErrJSONRPCInvalidMethodParams, -32602)
+	}
+	return respError
 }
