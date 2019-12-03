@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"crypto/subtle"
-	"fmt"
 	"hash"
 	"io"
 	"math/big"
@@ -286,7 +285,6 @@ func (p Point) Serialize() ([]byte, oerr.Error) {
 	// attempt to deserialize
 	if curve.nist {
 		buf := p.nistSerialize(curve)
-		fmt.Printf("ser: %v\nP: %v\n", buf, p)
 		return buf, oerr.Nil()
 	}
 	return nil, oerr.ErrUnsupportedGroup
@@ -300,7 +298,6 @@ func (p Point) Deserialize(buf []byte) (gg.GroupElement, oerr.Error) {
 	}
 	if curve.nist {
 		p, err = p.nistDeserialize(curve, buf)
-		fmt.Printf("des: %v\nP: %v\n", buf, p)
 		if err.Err() != nil {
 			return nil, err
 		}

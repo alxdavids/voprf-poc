@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -24,14 +25,15 @@ var (
 // Config holds all the relevant information for a client-side OPRF
 // implementation
 type Config struct {
-	ocli oprf.Client
-	n    int
-	addr string
+	ocli       oprf.Client
+	n          int
+	addr       string
+	outputPath string
 }
 
 // CreateConfig instantiates the client that will communicate with the HTTP
 // server that runs the OPRF server-side instance
-func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int) (*Config, oerr.Error) {
+func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputPath string) (*Config, oerr.Error) {
 	ptpnt, err := oprf.Client{}.Setup(ciphersuite, pogInit)
 	if err.Err() != nil {
 		return nil, err
@@ -43,47 +45,58 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int) (*Confi
 
 	// create server config
 	cfg := &Config{
-		ocli: ocli,
-		n:    n,
-		addr: "localhost:3001",
+		ocli:       ocli,
+		n:          n,
+		addr:       "http://localhost:3001",
+		outputPath: outputPath,
 	}
 	return cfg, oerr.Nil()
 }
 
-// sendOPRFRequest constructs and sends an OPRF request to the OPRF server
+// SendOPRFRequest constructs and sends an OPRF request to the OPRF server
 // instance. The response is processed by running hte Unblind() and Finalize()
 // functionalities.
-func (cfg *Config) sendOPRFRequest() ([][]byte, oerr.Error) {
+func (cfg *Config) SendOPRFRequest() oerr.Error {
 	oprfReq, err := cfg.createOPRFRequest()
 	if err.Err() != nil {
-		return nil, err
+		fmt.Println("ahhh")
+		return err
 	}
 	buf, e := json.Marshal(oprfReq)
 	if e != nil {
-		return nil, oerr.ErrClientInternal
+		fmt.Println("2")
+		return oerr.ErrClientInternal
 	}
 
 	// make HTTP request and parse Response
 	resp, e := http.Post(cfg.addr, "application/json", bytes.NewBuffer(buf))
 	if e != nil {
-		return nil, oerr.ErrClientInternal
+		fmt.Println(e)
+		return oerr.ErrClientInternal
 	}
 
 	// read response body
 	defer resp.Body.Close()
 	body, e := ioutil.ReadAll(resp.Body)
 	if e != nil {
-		return nil, oerr.ErrServerResponse
+		fmt.Println("4")
+		return oerr.ErrServerResponse
 	}
 
 	// attempt to parse Server JSONRPC response
 	jsonrpcResp, err := cfg.parseJSONRPCResponse(body)
 	if err.Err() != nil {
-		return nil, err
+		fmt.Println("5")
+		return err
 	}
 
-	// Process and finalize the server response
-	return cfg.processServerResponse(jsonrpcResp)
+	// Process and finalize the server response, and then store
+	storedFinalOutputs, err = cfg.processServerResponse(jsonrpcResp)
+	if err.Err() != nil {
+		fmt.Println("6")
+		return err
+	}
+	return oerr.Nil()
 }
 
 // createOPRFRequest creates the first message in the OPRF protocol to send to
@@ -196,4 +209,48 @@ func (cfg *Config) parseJSONRPCResponse(body []byte) (*jsonrpc.ResponseSuccess, 
 
 	// otherwise return success
 	return jsonrpcSuccess, oerr.Nil()
+}
+
+// PrintStorage outputs all the current stored variables to either stdout or file
+// (if a filepath is specified)
+func (cfg *Config) PrintStorage() oerr.Error {
+	var bufBlinds [][]byte
+	for _, v := range storedBlinds {
+		bufBlinds = append(bufBlinds, v.Bytes())
+	}
+
+	// construct output strings
+	arrays := [][][]byte{storedInputs, bufBlinds, storedFinalOutputs}
+	outputStrings := make([]string, 3)
+	for j, s := range arrays {
+		outString := ""
+		for i, byt := range s {
+			outString = outString + hex.EncodeToString(byt)
+			if i != len(storedInputs)-1 {
+				outString = "\n"
+			}
+		}
+		outputStrings[j] = outString
+	}
+
+	// output to file if one is defined, otherwise to stdout
+	if cfg.outputPath != "" {
+		fileNames := []string{"/stored_inputs.txt", "/stored_blinds.txt", "stored_final_outputs.txt"}
+		for i, f := range fileNames {
+			e := ioutil.WriteFile(cfg.outputPath+f, []byte(outputStrings[i]), 644)
+			if e != nil {
+				return oerr.ErrClientInternal
+			}
+		}
+	} else {
+		headers := []string{"Inputs", "Blinds", "Outputs"}
+		for i, h := range headers {
+			fmt.Println("***********")
+			fmt.Println(h)
+			fmt.Println("===========")
+			fmt.Println(outputStrings[i])
+			fmt.Println("***********")
+		}
+	}
+	return oerr.Nil()
 }
