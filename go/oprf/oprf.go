@@ -82,15 +82,16 @@ func (s Server) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participa
 // TODO: support VOPRF
 func (s Server) Eval(sk SecretKey, M gg.GroupElement) (gg.GroupElement, error) {
 	ciph := s.ciph
-	var Z gg.GroupElement
-	var err error
-	if !ciph.Verifiable() {
-		Z, err = M.ScalarMult(sk.K)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		return nil, oerr.ErrOPRFCiphersuiteUnsupportedFunction
+
+	// perform standard OPRF operation
+	Z, err := M.ScalarMult(sk.K)
+	if err != nil {
+		return nil, err
+	}
+
+	if ciph.Verifiable() {
+		// Generate DLEQ proof object for VOPRF
+
 	}
 	return Z, nil
 }
@@ -122,6 +123,10 @@ func (c Client) Ciphersuite() gg.Ciphersuite { return c.ciph }
 
 // PublicKey returns the PublicKey object associated with the Client
 func (c Client) PublicKey() PublicKey { return c.pk }
+
+// SetPublicKey sets a server public key for the client. All VOPRF messages will
+// be verified with respect to this PublicKey
+func (c Client) SetPublicKey(pk PublicKey) Client { c.pk = pk; return c }
 
 // Setup associates the client with a ciphersuite object
 func (c Client) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participant, error) {

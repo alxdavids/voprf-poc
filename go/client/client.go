@@ -207,6 +207,21 @@ func (cfg *Config) parseJSONRPCResponse(body []byte) (*jsonrpc.ResponseSuccess, 
 	return jsonrpcSuccess, nil
 }
 
+// SetPublicKey sets a hex-encoded public key for the underlying OPRF client for
+// use when verifying VOPRF evaluations from the server
+func (cfg *Config) SetPublicKey(pk string) error {
+	buf, err := hex.DecodeString(pk)
+	if err != nil {
+		return err
+	}
+	Y, err := gg.CreateGroupElement(cfg.ocli.Ciphersuite().POG()).Deserialize(buf)
+	if err != nil {
+		return err
+	}
+	cfg.ocli.SetPublicKey(Y)
+	return nil
+}
+
 // PrintStorage outputs all the current stored variables to either stdout or file
 // (if a filepath is specified)
 func (cfg *Config) PrintStorage() error {

@@ -53,6 +53,11 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, max int, tls b
 // functionality
 func (cfg *Config) ListenAndServe() error {
 	fmt.Println("Server listening on port 3001")
+	ser, err := cfg.osrv.SecretKey().PubKey.Serialize()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Public key: %s\n", hex.EncodeToString(ser))
 	for true {
 		e := cfg.hsrv.ListenAndServe()
 		if e != nil {
