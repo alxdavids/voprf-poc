@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/alxdavids/oprf-poc/go/client"
-	"github.com/alxdavids/oprf-poc/go/oerr"
 	"github.com/alxdavids/oprf-poc/go/oprf/groups/ecgroup"
 	"github.com/alxdavids/oprf-poc/go/server"
 )
@@ -26,15 +25,15 @@ func main() {
 	switch mode {
 	case "client":
 		fmt.Println("Starting client...")
-		if err := runClient(ciphersuite, clientOutFolder); err.Err() != nil {
-			fmt.Println(err.Err())
+		if err := runClient(ciphersuite, clientOutFolder); err != nil {
+			fmt.Println(err)
 			os.Exit(1)
 		}
 		break
 	case "server":
 		fmt.Println("Starting server...")
-		if err := runServer(ciphersuite); err.Err() != nil {
-			fmt.Println(err.Err())
+		if err := runServer(ciphersuite); err != nil {
+			fmt.Println(err)
 			os.Exit(1)
 		}
 	default:
@@ -44,36 +43,36 @@ func main() {
 	}
 }
 
-func runServer(ciphersuite string) oerr.Error {
+func runServer(ciphersuite string) error {
 	cfgServer, err := server.CreateConfig(ciphersuite, ecgroup.GroupCurve{}, false)
-	if err.Err() != nil {
+	if err != nil {
 		return err
 	}
 
 	// listen
 	err = cfgServer.ListenAndServe()
-	if err.Err() != nil {
+	if err != nil {
 		return err
 	}
 
-	return oerr.Nil()
+	return nil
 }
 
-func runClient(ciphersuite, clientOutFolder string) oerr.Error {
+func runClient(ciphersuite, clientOutFolder string) error {
 	cfgClient, err := client.CreateConfig(ciphersuite, ecgroup.GroupCurve{}, 1, clientOutFolder)
-	if err.Err() != nil {
+	if err != nil {
 		return err
 	}
 
 	// send request to server, and process response
 	err = cfgClient.SendOPRFRequest()
-	if err.Err() != nil {
+	if err != nil {
 		return err
 	}
 	err = cfgClient.PrintStorage()
-	if err.Err() != nil {
+	if err != nil {
 		return err
 	}
 
-	return oerr.Nil()
+	return nil
 }

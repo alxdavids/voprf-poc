@@ -34,7 +34,7 @@ type GroupCurve struct {
 
 // New constructs a new GroupCurve object implementing the PrimeOrderGroup
 // interface
-func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, oerr.Error) {
+func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 	var curve elliptic.Curve
 	var h hash.Hash
 	var ee oc.ExtractorExpander
@@ -68,7 +68,7 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, oerr.Error) {
 			sqrtExp: sqrtExp,
 			isSqExp: isSqExp,
 		},
-	}, oerr.Nil()
+	}, nil
 }
 
 // Order returns the order of the base point for the base curve object
@@ -91,7 +91,7 @@ func (c GroupCurve) Generator() gg.GroupElement {
 }
 
 // GeneratorMult returns k*G, where G is the generator of the curve
-func (c GroupCurve) GeneratorMult(k *big.Int) (gg.GroupElement, oerr.Error) {
+func (c GroupCurve) GeneratorMult(k *big.Int) (gg.GroupElement, error) {
 	G := c.Generator()
 	return G.ScalarMult(k)
 }
@@ -104,21 +104,21 @@ func (c GroupCurve) ByteLength() int {
 
 // EncodeToGroup invokes the hash_to_curve method for encoding bytes as curve
 // points
-func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, oerr.Error) {
+func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, error) {
 	params, err := getH2CParams(c)
-	if err.Err() != nil {
+	if err != nil {
 		return nil, err
 	}
 	p, err := params.hashToCurve(buf)
-	if err.Err() != nil {
+	if err != nil {
 		return nil, err
 	}
-	return p, oerr.Nil()
+	return p, nil
 }
 
 // UniformFieldElement samples a random element from the underling field for the
 // choice of curve
-func (c GroupCurve) UniformFieldElement() (*big.Int, oerr.Error) {
+func (c GroupCurve) UniformFieldElement() (*big.Int, error) {
 	// This is just a bitmask with the number of ones starting at 8 then
 	// incrementing by index. To account for fields with bitsizes that are not a whole
 	// number of bytes, we mask off the unnecessary bits. h/t agl
@@ -144,7 +144,7 @@ func (c GroupCurve) UniformFieldElement() (*big.Int, oerr.Error) {
 		break
 	}
 
-	return new(big.Int).SetBytes(buf), oerr.Nil()
+	return new(big.Int).SetBytes(buf), nil
 }
 
 // Name returns the name of the NIST P-384 curve
@@ -209,7 +209,7 @@ func (p Point) New(pog gg.PrimeOrderGroup) gg.GroupElement {
 // coordinates, and false otherwise (normalizes by default)
 func (p Point) Equal(ge gg.GroupElement) bool {
 	pEq, err := castToPoint(ge)
-	if err.Err() != nil {
+	if err != nil {
 		return false
 	}
 	// check that both points are valid
@@ -232,76 +232,76 @@ func (p Point) Equal(ge gg.GroupElement) bool {
 // GroupCurve Object
 func (p Point) IsValid() bool {
 	curve, err := castToCurve(p.pog)
-	if err.Err() != nil {
+	if err != nil {
 		return false
 	}
 	return curve.ops.IsOnCurve(p.X, p.Y)
 }
 
 // ScalarMult multiplies p by the provided Scalar value, and returns p or an
-// oerr.Error, normalizes by default
-func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, oerr.Error) {
+// error, normalizes by default
+func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, error) {
 	if !p.IsValid() {
 		return nil, oerr.ErrInvalidGroupElement
 	}
 	curve, err := castToCurve(p.pog)
-	if err.Err() != nil {
+	if err != nil {
 		return nil, err
 	}
 	// normalize point and perform multiplication
-	if err.Err() != nil {
+	if err != nil {
 		return nil, err
 	}
 	p.X, p.Y = curve.ops.ScalarMult(p.X, p.Y, k.Bytes())
-	return p, oerr.Nil()
+	return p, nil
 }
 
-// Add adds pAdd to p and returns p or an oerr.Error, normalizes by default
-func (p Point) Add(ge gg.GroupElement) (gg.GroupElement, oerr.Error) {
+// Add adds pAdd to p and returns p or an error, normalizes by default
+func (p Point) Add(ge gg.GroupElement) (gg.GroupElement, error) {
 	if !p.IsValid() {
 		return nil, oerr.ErrInvalidGroupElement
 	}
 	curve, err := castToCurve(p.pog)
-	if err.Err() != nil {
+	if err != nil {
 		return nil, err
 	}
 	// retrieve and normalize points
 	pAdd, err := castToPoint(ge)
-	if err.Err() != nil {
+	if err != nil {
 		return nil, err
 	}
 	p.X, p.Y = curve.ops.Add(p.X, p.Y, pAdd.X, pAdd.Y)
-	return p, oerr.Nil()
+	return p, nil
 }
 
 // Serialize marshals the point object into an octet-string, returns nil if
 // serialization is not supported for the given curve
-func (p Point) Serialize() ([]byte, oerr.Error) {
+func (p Point) Serialize() ([]byte, error) {
 	curve, err := castToCurve(p.pog)
-	if err.Err() != nil {
+	if err != nil {
 		return nil, err
 	}
 
 	// attempt to deserialize
 	if curve.nist {
 		buf := p.nistSerialize(curve)
-		return buf, oerr.Nil()
+		return buf, nil
 	}
 	return nil, oerr.ErrUnsupportedGroup
 }
 
 // Deserialize unmarshals an octet-string into a valid point on curve
-func (p Point) Deserialize(buf []byte) (gg.GroupElement, oerr.Error) {
+func (p Point) Deserialize(buf []byte) (gg.GroupElement, error) {
 	curve, err := castToCurve(p.pog)
-	if err.Err() != nil {
+	if err != nil {
 		return nil, err
 	}
 	if curve.nist {
 		p, err = p.nistDeserialize(curve, buf)
-		if err.Err() != nil {
+		if err != nil {
 			return nil, err
 		}
-		return p, oerr.Nil()
+		return p, nil
 	}
 	return nil, oerr.ErrUnsupportedGroup
 }
@@ -335,7 +335,7 @@ func (p Point) nistSerialize(curve GroupCurve) []byte {
 
 // nistDeserialize creates a point object from an octet-string according to the
 // SEC1 specification (https://www.secg.org/sec1-v2.pdf#subsubsection.2.3.4)
-func (p Point) nistDeserialize(curve GroupCurve, buf []byte) (Point, oerr.Error) {
+func (p Point) nistDeserialize(curve GroupCurve, buf []byte) (Point, error) {
 	tag := buf[0]
 	compressed := false
 	byteLength := curve.ByteLength()
@@ -359,7 +359,7 @@ func (p Point) nistDeserialize(curve GroupCurve, buf []byte) (Point, oerr.Error)
 	if !compressed {
 		p.X = new(big.Int).SetBytes(buf[1 : byteLength+1])
 		p.Y = new(big.Int).SetBytes(buf[byteLength+1:])
-		return p, oerr.Nil()
+		return p, nil
 	}
 	return p.nistDecompress(curve, buf)
 }
@@ -367,7 +367,7 @@ func (p Point) nistDeserialize(curve GroupCurve, buf []byte) (Point, oerr.Error)
 // nistDecompress takes a buffer for an x coordinate as input and attempts to
 // construct a valid curve point by re-evaluating the curve equation to
 // construct the y coordinate
-func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, oerr.Error) {
+func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, error) {
 	// recompute curve equation y^2 = x^3 + ax + b
 	order := curve.P()
 	x := new(big.Int).SetBytes(buf[1:])
@@ -388,22 +388,22 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, oerr.Error) 
 	if !p.IsValid() {
 		return Point{}, oerr.ErrInvalidGroupElement
 	}
-	return p, oerr.Nil()
+	return p, nil
 }
 
 // clearCofactor clears the cofactor (hEff) of p by performing a scalar
-// multiplication and returning p or an oerr.Error
-func (p Point) clearCofactor(hEff *big.Int) (Point, oerr.Error) {
+// multiplication and returning p or an error
+func (p Point) clearCofactor(hEff *big.Int) (Point, error) {
 	ret, err := p.ScalarMult(hEff)
-	if err.Err() != nil {
+	if err != nil {
 		return Point{}, err
 	}
 	// type assertion withour normalization
 	point, err := castToPoint(ret)
-	if err.Err() != nil {
+	if err != nil {
 		return Point{}, err
 	}
-	return point, oerr.Nil()
+	return point, nil
 }
 
 /**
@@ -411,17 +411,17 @@ func (p Point) clearCofactor(hEff *big.Int) (Point, oerr.Error) {
  */
 
 // castToCurve attempts to cast the input PrimeOrderGroup to a GroupCurve object
-func castToCurve(group gg.PrimeOrderGroup) (GroupCurve, oerr.Error) {
+func castToCurve(group gg.PrimeOrderGroup) (GroupCurve, error) {
 	curve, ok := group.(GroupCurve)
 	if !ok {
 		return GroupCurve{}, oerr.ErrTypeAssertion
 	}
-	return curve, oerr.Nil()
+	return curve, nil
 }
 
 // castToPoint attempts to cast the input GroupElement to a normalize Point
 // object
-func castToPoint(ge gg.GroupElement) (Point, oerr.Error) {
+func castToPoint(ge gg.GroupElement) (Point, error) {
 	point, ok := ge.(Point)
 	if !ok {
 		return Point{}, oerr.ErrTypeAssertion
@@ -429,7 +429,7 @@ func castToPoint(ge gg.GroupElement) (Point, oerr.Error) {
 	if !point.IsValid() {
 		return Point{}, oerr.ErrInvalidGroupElement
 	}
-	return point, oerr.Nil()
+	return point, nil
 }
 
 // cmpToBigInt converts the return value from a comparison operation into a

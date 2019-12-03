@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -20,8 +21,8 @@ var (
 
 func TestCreateConfigP384(t *testing.T) {
 	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "some_file")
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	assert.Equal(t, cfg.ocli.Ciphersuite().POG().Name(), "P-384")
 	assert.Equal(t, cfg.n, 1)
@@ -31,8 +32,8 @@ func TestCreateConfigP384(t *testing.T) {
 
 func TestCreateConfigP521(t *testing.T) {
 	cfg, err := CreateConfig(validOPRFP521Ciphersuite, ecgroup.GroupCurve{}, 1, "some_file")
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	assert.Equal(t, cfg.ocli.Ciphersuite().POG().Name(), "P-521")
 	assert.Equal(t, cfg.n, 1)
@@ -49,27 +50,27 @@ func TestInvalidCiphersuite(t *testing.T) {
 
 func TestCreateOPRFRequest(t *testing.T) {
 	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "")
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	jsonrpcReq, err := cfg.createOPRFRequest()
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	assert.Equal(t, jsonrpcReq.Version, "2.0")
 	assert.Equal(t, jsonrpcReq.Method, "eval")
 	assert.Equal(t, jsonrpcReq.ID, 1)
 	assert.Equal(t, 1, len(jsonrpcReq.Params))
-	buf, e := hex.DecodeString(jsonrpcReq.Params[0])
-	if e != nil {
-		t.Fatal(e)
+	buf, err := hex.DecodeString(jsonrpcReq.Params[0])
+	if err != nil {
+		t.Fatal(err)
 	}
-	// compressed encoding
+	// compressedrr encoding
 	pog := cfg.ocli.Ciphersuite().POG()
 	assert.Equal(t, len(buf), pog.ByteLength()+1)
 	ge, err := gg.CreateGroupElement(pog).Deserialize(buf)
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	assert.True(t, ge.IsValid())
 	assert.Equal(t, len(storedBlinds), 1)
@@ -77,39 +78,39 @@ func TestCreateOPRFRequest(t *testing.T) {
 
 	// check that the point is correctly formed
 	geChk, err := pog.EncodeToGroup(storedInputs[0])
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	blindChk, err := geChk.ScalarMult(storedBlinds[0])
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	assert.True(t, ge.Equal(blindChk))
 }
 
 func TestCreateOPRFRequestBadN(t *testing.T) {
 	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 2, "")
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	_, err = cfg.createOPRFRequest()
-	if err.Code() != oerr.ErrClientConfiguration.Code() {
+	if err == nil {
 		t.Fatal("n > 1 should be unsupported")
 	}
 	cfg2, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, -1, "")
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	_, err = cfg2.createOPRFRequest()
-	if err.Code() != oerr.ErrClientConfiguration.Code() {
+	if err == nil {
 		t.Fatal("n < 0 should be unsupported")
 	}
 }
 
 func TestCreateJSONRPCRequest(t *testing.T) {
 	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "")
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	buf0 := []byte{1, 2, 3, 4}
 	buf1 := []byte{3, 4, 5, 6}
@@ -123,8 +124,8 @@ func TestCreateJSONRPCRequest(t *testing.T) {
 
 func TestParseJSONRPCResponseSuccess(t *testing.T) {
 	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "")
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	jsonrpcResp := &jsonrpc.ResponseSuccess{
 		Version: "2.0",
@@ -136,8 +137,8 @@ func TestParseJSONRPCResponseSuccess(t *testing.T) {
 		t.Fatal(e)
 	}
 	jsonrpcSuccess, err := cfg.parseJSONRPCResponse(buf)
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	assert.Equal(t, jsonrpcSuccess.Version, jsonrpcResp.Version)
 	assert.Equal(t, jsonrpcSuccess.ID, jsonrpcResp.ID)
@@ -148,8 +149,8 @@ func TestParseJSONRPCResponseSuccess(t *testing.T) {
 
 func TestParseJSONRPCResponseError(t *testing.T) {
 	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "")
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	errorMessage := "error_message"
 	errorCode := -33001
@@ -166,18 +167,17 @@ func TestParseJSONRPCResponseError(t *testing.T) {
 		t.Fatal(e)
 	}
 	ret, err := cfg.parseJSONRPCResponse(buf)
-	if err.Err() == nil {
+	if err == nil {
 		fmt.Println(ret)
 		t.Fatal("Error should have occurred")
 	}
-	assert.Equal(t, err.Err().Error(), errorMessage)
-	assert.Equal(t, err.Code(), errorCode)
+	assert.Equal(t, err, errors.New(errorMessage))
 }
 
 func TestParseJSONRPCResponseInvalidResult(t *testing.T) {
 	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "")
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	jsonrpcResp := make(map[string]interface{})
 	jsonrpcResp["Version"] = "2.0"
@@ -188,15 +188,15 @@ func TestParseJSONRPCResponseInvalidResult(t *testing.T) {
 		t.Fatal(e)
 	}
 	_, err = cfg.parseJSONRPCResponse(buf)
-	if err.Code() != oerr.ErrClientServerResponse.Code() {
+	if err == nil {
 		t.Fatal("Server response error should have occurred")
 	}
 }
 
 func TestParseJSONRPCResponseInvalidField(t *testing.T) {
 	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "")
-	if err.Err() != nil {
-		t.Fatal(err.Err())
+	if err != nil {
+		t.Fatal(err)
 	}
 	jsonrpcResp := make(map[string]interface{})
 	jsonrpcResp["Version"] = "2.0"
@@ -207,7 +207,7 @@ func TestParseJSONRPCResponseInvalidField(t *testing.T) {
 		t.Fatal(e)
 	}
 	_, err = cfg.parseJSONRPCResponse(buf)
-	if err.Code() != oerr.ErrClientServerResponse.Code() {
+	if err == nil {
 		t.Fatal("Server response error should have occurred")
 	}
 }
