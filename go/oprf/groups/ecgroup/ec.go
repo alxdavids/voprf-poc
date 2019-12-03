@@ -285,7 +285,9 @@ func (p Point) Serialize() ([]byte, oerr.Error) {
 
 	// attempt to deserialize
 	if curve.nist {
-		return p.nistSerialize(curve), oerr.Nil()
+		buf := p.nistSerialize(curve)
+		fmt.Printf("ser: %v\nP: %v\n", buf, p)
+		return buf, oerr.Nil()
 	}
 	return nil, oerr.ErrUnsupportedGroup
 }
@@ -298,6 +300,7 @@ func (p Point) Deserialize(buf []byte) (gg.GroupElement, oerr.Error) {
 	}
 	if curve.nist {
 		p, err = p.nistDeserialize(curve, buf)
+		fmt.Printf("des: %v\nP: %v\n", buf, p)
 		if err.Err() != nil {
 			return nil, err
 		}
@@ -324,7 +327,11 @@ func (p Point) nistSerialize(curve GroupCurve) []byte {
 		tag = 4
 	} else {
 		bytes = xBytes
-		tag = subtle.ConstantTimeSelect(int(yBytes[0])&1, 3, 2)
+		sign := sgn0LE(p.Y)
+		// perform sign-check and cast to int
+		e := int(equalsToBigInt(sign, one).Int64())
+		// select correct tag
+		tag = subtle.ConstantTimeSelect(e, 2, 3)
 	}
 	return append([]byte{byte(tag)}, bytes...)
 }
@@ -372,15 +379,15 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, oerr.Error) 
 	rhs = rhs.Add(rhs, curve.ops.Params().B)
 	rhs = rhs.Mod(rhs, order)
 
-	// construct y coordinate
+	// construct y coordinate with correct sign
 	y := rhs.Exp(rhs, curve.consts.sqrtExp, order)
-	e := sgnCmp(y, new(big.Int).SetBytes(buf), sgn0LE)
-	fmt.Println(e)
-	y = cmov(new(big.Int).Mul(y, minusOne), y, e)
+	bufParity := equalsToBigInt(big.NewInt(int64(buf[0])), two)
+	yParity := equalsToBigInt(sgn0LE(y), one)
+	y = cmov(new(big.Int).Mul(y, minusOne), y, equalsToBigInt(bufParity, yParity))
 
 	// construct point and check validity
-	p.X = x
-	p.Y = y
+	p.X = new(big.Int).Mod(x, curve.P())
+	p.Y = new(big.Int).Mod(y, curve.P())
 	if !p.IsValid() {
 		return Point{}, oerr.ErrInvalidGroupElement
 	}
