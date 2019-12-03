@@ -32,7 +32,7 @@ func Generate(pog gg.PrimeOrderGroup, h hash.Hash, k *big.Int, Y, M, Z gg.GroupE
 	}
 
 	// compute hash output c
-	c, err := computeDLEQHash(h, pog.Generator(), Y, M, Z, A, B)
+	c, err := computeHash(h, pog.Generator(), Y, M, Z, A, B)
 	if err != nil {
 		return Proof{}, err
 	}
@@ -73,7 +73,7 @@ func (proof Proof) Validate(pog gg.PrimeOrderGroup, h hash.Hash, Y, M, Z gg.Grou
 	}
 
 	// recompute hash output
-	c, err := computeDLEQHash(h, pog.Generator(), Y, M, Z, A, B)
+	c, err := computeHash(h, pog.Generator(), Y, M, Z, A, B)
 	if err != nil {
 		return false
 	}
@@ -85,9 +85,9 @@ func (proof Proof) Validate(pog gg.PrimeOrderGroup, h hash.Hash, Y, M, Z gg.Grou
 	return false
 }
 
-// computeDLEQHash serializes the group elements and computes the hash output c
+// computeHash serializes the group elements and computes the hash output c
 // as a big int
-func computeDLEQHash(h hash.Hash, eles ...gg.GroupElement) (*big.Int, error) {
+func computeHash(h hash.Hash, eles ...gg.GroupElement) (*big.Int, error) {
 	serialized, err := getSerializedElements(eles...)
 	if err != nil {
 		return nil, err
