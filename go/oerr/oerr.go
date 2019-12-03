@@ -25,21 +25,12 @@ var (
 	ErrServerUnsupported = Error{message: errors.New("Unsupported server functionality requested"), code: -32000}
 	// ErrServerInternal indicates that an unexpected internal error occurred
 	ErrServerInternal = Error{message: errors.New("Internal error occurred server-side"), code: -32001}
-	// ErrClientUnsupported indicates that unsupported functionality was
-	// requested when initialising the Client object.
-	ErrClientUnsupported = Error{message: errors.New("Unsupported client functionality requested"), code: -32010}
-	// ErrClientMalformedRequest indicates that the request sent by the client
-	// cannot be processed due to malformation
-	ErrClientMalformedRequest = Error{message: errors.New("Client request is malformed"), code: -32011}
-	// ErrClientInternal indicates that an unexpected internal error occurred on
-	// the client-side
-	ErrClientInternal = Error{message: errors.New("Internal error occurred on the client-side"), code: -32012}
-	// ErrServerResponse indicates that an error occurred when trying to read
-	// the Server HTTP response
-	ErrServerResponse = Error{message: errors.New("Error reading the response from the server"), code: -32013}
-	// ErrClientUnblinding indicates that an error occurred when trying to
-	// unblind the server response parameters on the client-side
-	ErrClientUnblinding = Error{message: errors.New("Error unblinding the server OPRF response"), code: -32014}
+	// ErrClientConfiguration indicates that an error occurred on the
+	// client-side that was due to possible misconfiguration
+	ErrClientConfiguration = Error{message: errors.New(""), code: -32002}
+	// ErrClientServerResponse indicates that an error occurred on the
+	// client-side that was due to a bad response sent from the server
+	ErrClientServerResponse = Error{message: errors.New(""), code: -32003}
 
 	// ErrOPRFCiphersuiteUnsupportedFunction indicates that the given OPRF
 	// function is not supported for the configuration specified by the
@@ -96,6 +87,12 @@ func (e Error) Err() error { return e.message }
 
 // Code returns the int error code associated with the Error object
 func (e Error) Code() int { return e.code }
+
+// Set allows overriding of the error message for this Error object
+func (e Error) Set(errMsg error) Error {
+	e.message = errMsg
+	return e
+}
 
 // JSON returns an object that can be used as a JSON output
 func (e Error) JSON() ErrorJSON { return ErrorJSON{Message: e.Err().Error(), Code: e.Code()} }

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -63,20 +64,20 @@ func (cfg *Config) SendOPRFRequest() oerr.Error {
 	}
 	buf, e := json.Marshal(oprfReq)
 	if e != nil {
-		return oerr.ErrClientInternal
+		return oerr.ErrClientConfiguration.Set(e)
 	}
 
 	// make HTTP request and parse Response
 	resp, e := http.Post(cfg.addr, "application/json", bytes.NewBuffer(buf))
 	if e != nil {
-		return oerr.ErrClientInternal
+		return oerr.ErrClientServerResponse.Set(e)
 	}
 
 	// read response body
 	defer resp.Body.Close()
 	body, e := ioutil.ReadAll(resp.Body)
 	if e != nil {
-		return oerr.ErrServerResponse
+		return oerr.ErrClientServerResponse.Set(e)
 	}
 
 	// attempt to parse Server JSONRPC response
@@ -101,7 +102,7 @@ func (cfg *Config) SendOPRFRequest() oerr.Error {
 func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, oerr.Error) {
 	n := cfg.n
 	if n > 1 || n < 0 {
-		return nil, oerr.ErrClientUnsupported
+		return nil, oerr.ErrClientConfiguration.Set(errors.New("Only n == 1 is supportex"))
 	}
 	var inputs [][]byte
 	var blinds []*big.Int
@@ -111,7 +112,7 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, oerr.Error) {
 		buf := make([]byte, 32)
 		_, e := rand.Read(buf)
 		if e != nil {
-			return nil, oerr.ErrClientInternal
+			return nil, oerr.ErrClientConfiguration.Set(e)
 		}
 		inputs = append(inputs, buf)
 
@@ -144,7 +145,7 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 	for i := 0; i < cfg.n; i++ {
 		buf, e := hex.DecodeString(params[i])
 		if e != nil {
-			return nil, oerr.ErrServerResponse
+			return nil, oerr.ErrClientServerResponse.Set(e)
 		}
 		Z, err := gg.CreateGroupElement(pog).Deserialize(buf)
 		if err.Err() != nil {
@@ -187,7 +188,7 @@ func (cfg *Config) parseJSONRPCResponse(body []byte) (*jsonrpc.ResponseSuccess, 
 	jsonrpcError := &jsonrpc.ResponseError{}
 	e := json.Unmarshal(body, jsonrpcSuccess)
 	if e != nil {
-		return nil, oerr.ErrServerResponse
+		return nil, oerr.ErrClientServerResponse.Set(e)
 	}
 
 	// if this occurs then it's likely that an error occurred
@@ -196,7 +197,7 @@ func (cfg *Config) parseJSONRPCResponse(body []byte) (*jsonrpc.ResponseSuccess, 
 		e2 := json.Unmarshal(body, jsonrpcError)
 		if e2 != nil || jsonrpcError.Error.Message == "" {
 			// either error or unable to parse error
-			return nil, oerr.ErrServerResponse
+			return nil, oerr.ErrClientServerResponse.Set(e)
 		}
 		return nil, oerr.New(jsonrpcError.Error.Message, jsonrpcError.Error.Code)
 	}
@@ -233,7 +234,7 @@ func (cfg *Config) PrintStorage() oerr.Error {
 		for i, f := range fileNames {
 			e := ioutil.WriteFile(cfg.outputPath+f, []byte(outputStrings[i]), 0755)
 			if e != nil {
-				return oerr.ErrClientInternal
+				return oerr.ErrClientConfiguration.Set(e)
 			}
 		}
 	} else {
