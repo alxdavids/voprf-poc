@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"crypto/subtle"
+	"fmt"
 	"hash"
 	"io"
 	"math/big"
@@ -363,9 +364,6 @@ func (p Point) nistDeserialize(curve GroupCurve, buf []byte) (Point, oerr.Error)
 // construct a valid curve point by re-evaluating the curve equation to
 // construct the y coordinate
 func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, oerr.Error) {
-	// recompute sign
-	sign := buf[0] & 1
-
 	// recompute curve equation y^2 = x^3 + ax + b
 	order := curve.P()
 	x := new(big.Int).SetBytes(buf[1:])
@@ -376,8 +374,8 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, oerr.Error) 
 
 	// construct y coordinate
 	y := rhs.Exp(rhs, curve.consts.sqrtExp, order)
-	parity := sgn0LE(y)
-	e := sgnCmp(parity, big.NewInt(int64(sign)), sgn0LE)
+	e := sgnCmp(y, new(big.Int).SetBytes(buf), sgn0LE)
+	fmt.Println(e)
 	y = cmov(new(big.Int).Mul(y, minusOne), y, e)
 
 	// construct point and check validity

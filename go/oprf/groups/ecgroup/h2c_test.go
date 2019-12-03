@@ -139,7 +139,7 @@ func performHashToCurve(curve GroupCurve) oerr.Error {
 
 		// check test vectors
 		expected := expectedCurveEncodingResponses[curve.Name()]["full"][alpha]
-		chkR := Point{X: expected["x"], Y: expected["y"], pog: curve, compress: false}
+		chkR := Point{X: expected["x"], Y: expected["y"], pog: curve, compress: true}
 		if !R.Equal(chkR) {
 			return oerr.New("Points are not equal", -1)
 		}
