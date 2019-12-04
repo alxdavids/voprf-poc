@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/alxdavids/oprf-poc/go/oerr"
-	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
+	"github.com/alxdavids/oprf-poc/go/oprf/utils"
 )
 
 // Ciphersuite corresponds to the OPRF ciphersuite that is chosen
@@ -19,7 +19,7 @@ type Ciphersuite struct {
 	hash1       func([]byte) (GroupElement, error)
 	hash2       func(func() hash.Hash, []byte) hash.Hash
 	hashGeneric hash.Hash
-	hash5       oc.ExtractorExpander
+	hash5       utils.ExtractorExpander
 	verifiable  bool
 }
 
@@ -81,7 +81,7 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 	h1 := pogNew.EncodeToGroup
 	h2 := hmac.New
 	hashGeneric := pogNew.Hash()
-	var h5 oc.ExtractorExpander
+	var h5 utils.ExtractorExpander
 	verifiable := false
 	if split[0] == "VOPRF" {
 		verifiable = true
@@ -120,7 +120,7 @@ func (c Ciphersuite) H4() hash.Hash {
 }
 
 // H5 returns the hash5 function specified in Ciphersuite
-func (c Ciphersuite) H5() oc.ExtractorExpander { return c.hash5 }
+func (c Ciphersuite) H5() utils.ExtractorExpander { return c.hash5 }
 
 // POG returns the PrimeOrderGroup for the current Ciphersuite
 func (c Ciphersuite) POG() PrimeOrderGroup { return c.pog }
@@ -139,7 +139,7 @@ type PrimeOrderGroup interface {
 	ByteLength() int
 	EncodeToGroup([]byte) (GroupElement, error)
 	Hash() hash.Hash
-	EE() oc.ExtractorExpander
+	EE() utils.ExtractorExpander
 	UniformFieldElement() (*big.Int, error)
 }
 

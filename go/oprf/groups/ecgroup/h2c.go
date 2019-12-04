@@ -6,7 +6,7 @@ import (
 	"math/big"
 
 	"github.com/alxdavids/oprf-poc/go/oerr"
-	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
+	"github.com/alxdavids/oprf-poc/go/oprf/utils"
 )
 
 // h2cParams contains all of the parameters required for computing the
@@ -24,7 +24,7 @@ type h2cParams struct {
 	p       *big.Int
 	m       int
 	hash    hash.Hash
-	ee      oc.ExtractorExpander
+	ee      utils.ExtractorExpander
 	l       int
 	hEff    *big.Int
 	isSqExp *big.Int
@@ -81,7 +81,7 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 // hashToBase hashes a buffer into a vector of underlying base field elements,
 // where the base field is chosen depending on the associated elliptic curve
 func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error) {
-	os, err := i2osp(0, 1)
+	os, err := utils.I2osp(0, 1)
 	if err != nil {
 		return nil, oerr.ErrInternalInstantiation
 	}
@@ -92,7 +92,7 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error)
 	}
 	extractor := params.ee.Extractor()
 	msgPrime := extractor(hashFunc, append(buf, os...), params.dst)
-	osCtr, err := i2osp(ctr, 1)
+	osCtr, err := utils.I2osp(ctr, 1)
 	if err != nil {
 		return nil, oerr.ErrInternalInstantiation
 	}
@@ -101,7 +101,7 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error)
 	res := make([]*big.Int, params.m)
 	expander := params.ee.Expander()
 	for i <= params.m {
-		osi, err := i2osp(i, 1)
+		osi, err := utils.I2osp(i, 1)
 		if err != nil {
 			return nil, oerr.ErrInternalInstantiation
 		}
@@ -109,7 +109,7 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error)
 		reader := expander(hashFunc, msgPrime, info)
 		t := make([]byte, params.l)
 		reader.Read(t)
-		ei := os2ip(t)
+		ei := utils.Os2ip(t)
 		res[i-1] = new(big.Int).Mod(ei, params.p)
 		i++
 	}
@@ -237,25 +237,4 @@ func revCmpBit(cmp *big.Int) *big.Int {
 // inv0 returns the inverse of x in FF_p, also returning 0^{-1} => 0
 func inv0(x, p *big.Int) *big.Int {
 	return x.Exp(x, new(big.Int).Sub(p, two), p)
-}
-
-// i2osp converts an integer to an octet-string
-// (https://tools.ietf.org/html/rfc8017#section-4.1)
-func i2osp(x, xLen int) ([]byte, error) {
-	if x < 0 || x >= (1<<(8*xLen)) {
-		return nil, oerr.ErrInternalInstantiation
-	}
-	ret := make([]byte, xLen)
-	val := x
-	for i := xLen - 1; i >= 0; i-- {
-		ret[i] = byte(val & 0xff)
-		val = val >> 8
-	}
-	return ret, nil
-}
-
-// os2ip converts an octet-string to an integer
-// (https://tools.ietf.org/html/rfc8017#section-4.1)
-func os2ip(x []byte) *big.Int {
-	return new(big.Int).SetBytes(x)
 }

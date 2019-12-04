@@ -11,7 +11,7 @@ import (
 
 	"github.com/alxdavids/oprf-poc/go/oerr"
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
-	oc "github.com/alxdavids/oprf-poc/go/oprf/oprfCrypto"
+	"github.com/alxdavids/oprf-poc/go/oprf/utils"
 	"github.com/cloudflare/circl/ecc/p384"
 )
 
@@ -25,7 +25,7 @@ type GroupCurve struct {
 	ops        elliptic.Curve
 	name       string
 	hash       hash.Hash
-	ee         oc.ExtractorExpander
+	ee         utils.ExtractorExpander
 	byteLength int
 	nist       bool
 	sgn0       func(*big.Int) *big.Int
@@ -37,17 +37,17 @@ type GroupCurve struct {
 func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 	var curve elliptic.Curve
 	var h hash.Hash
-	var ee oc.ExtractorExpander
+	var ee utils.ExtractorExpander
 	switch name {
 	case "P-384":
 		curve = p384.P384()
 		h = sha512.New()
-		ee = oc.HKDFExtExp{}
+		ee = utils.HKDFExtExp{}
 		break
 	case "P-521":
 		curve = elliptic.P521()
 		h = sha512.New()
-		ee = oc.HKDFExtExp{}
+		ee = utils.HKDFExtExp{}
 		break
 	default:
 		return nil, oerr.ErrUnsupportedGroup
@@ -123,7 +123,7 @@ func (c GroupCurve) UniformFieldElement() (*big.Int, error) {
 	// incrementing by index. To account for fields with bitsizes that are not a whole
 	// number of bytes, we mask off the unnecessary bits. h/t agl
 	var mask = []byte{0xff, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f}
-	N := c.ops.Params().N // base point subgroup order
+	N := c.Order() // base point subgroup order
 	bitLen := N.BitLen()
 	byteLen := (bitLen + 7) >> 3
 	buf := make([]byte, byteLen)
@@ -155,7 +155,7 @@ func (c GroupCurve) Name() string { return c.name }
 func (c GroupCurve) Hash() hash.Hash { return c.hash }
 
 // EE returns the ExtractorExpander function associated with the GroupCurve
-func (c GroupCurve) EE() oc.ExtractorExpander { return c.ee }
+func (c GroupCurve) EE() utils.ExtractorExpander { return c.ee }
 
 // CurveConstants keeps track of a number of constants that are useful for
 // performing elliptic curve operations
@@ -165,7 +165,7 @@ type CurveConstants struct {
 
 // CreateNistCurve creates an instance of a GroupCurve corresponding to a NIST
 // elliptic curve
-func CreateNistCurve(curve elliptic.Curve, h hash.Hash, ee oc.ExtractorExpander) GroupCurve {
+func CreateNistCurve(curve elliptic.Curve, h hash.Hash, ee utils.ExtractorExpander) GroupCurve {
 	name := ""
 	switch curve {
 	case p384.P384():

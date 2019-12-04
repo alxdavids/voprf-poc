@@ -145,7 +145,7 @@ func (cfg *Config) processEval(params []string) ([][]byte, error) {
 		}
 
 		// compute OPRF evaluation
-		geEval, err := cfg.osrv.Eval(osrv.SecretKey(), ge)
+		geEval, err := cfg.osrv.Eval(ge)
 		if err != nil {
 			return nil, err
 		}

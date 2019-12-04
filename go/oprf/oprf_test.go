@@ -41,17 +41,17 @@ func TestServerEvalP521(t *testing.T) {
 	checkServerEval(t, validOPRFP521Ciphersuite)
 }
 
-func TestServerEvalVerifiable(t *testing.T) {
-	s, err := serverSetup(validVOPRFP384Ciphersuite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pog := s.Ciphersuite().POG()
-	_, err = s.Eval(s.SecretKey(), ecgroup.Point{}.New(pog).(ecgroup.Point))
-	if err != oerr.ErrOPRFCiphersuiteUnsupportedFunction {
-		t.Fatal("Verfiable Unblind should not be supported yet")
-	}
-}
+// func TestServerEvalVerifiable(t *testing.T) {
+// 	s, err := serverSetup(validVOPRFP384Ciphersuite)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	pog := s.Ciphersuite().POG()
+// 	_, err = s.Eval(ecgroup.Point{}.New(pog).(ecgroup.Point))
+// 	if err != oerr.ErrOPRFCiphersuiteUnsupportedFunction {
+// 		t.Fatal("Verfiable Unblind should not be supported yet")
+// 	}
+// }
 
 func TestServerBlind(t *testing.T) {
 	s, err := serverSetup(validOPRFP384Ciphersuite)
@@ -115,7 +115,7 @@ func TestClientEval(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.Eval(SecretKey{}, ecgroup.Point{})
+	_, err = c.Eval(ecgroup.Point{})
 	if err != oerr.ErrOPRFUnimplementedFunctionClient {
 		t.Fatal("Function should be unimplemented")
 	}
@@ -185,7 +185,7 @@ func checkServerEval(t *testing.T, validCiphersuite string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Q, err := s.Eval(s.SecretKey(), P)
+	Q, err := s.Eval(P)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +289,7 @@ func checkFullOPRF(t *testing.T, validCiphersuite string) {
 	}
 
 	// compute server evaluation
-	Q, err := s.Eval(s.SecretKey(), P)
+	Q, err := s.Eval(P)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +311,7 @@ func checkFullOPRF(t *testing.T, validCiphersuite string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Z, err := s.Eval(s.SecretKey(), T)
+	Z, err := s.Eval(T)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-package oprfCrypto
+package utils
 
 import (
 	"hash"

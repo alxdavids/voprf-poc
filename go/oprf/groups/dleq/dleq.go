@@ -4,7 +4,10 @@ import (
 	"hash"
 	"math/big"
 
+	"github.com/alxdavids/oprf-poc/go/oerr"
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
+	"github.com/alxdavids/oprf-poc/go/oprf/groups/ecgroup"
+	"github.com/alxdavids/oprf-poc/go/oprf/utils"
 )
 
 // Proof corresponds to the DLEQ proof object that is used to prove that the
@@ -32,19 +35,52 @@ func Generate(pog gg.PrimeOrderGroup, h hash.Hash, k *big.Int, Y, M, Z gg.GroupE
 	}
 
 	// compute hash output c
-	c, err := computeHash(h, pog.Generator(), Y, M, Z, A, B)
+	c, err := computeHashAsBigInt(h, pog.Generator(), Y, M, Z, A, B)
 	if err != nil {
 		return Proof{}, err
 	}
-	// r = t-ck
-	s := new(big.Int).Sub(t, new(big.Int).Mul(c, k))
+	// s = t-ck
+	ck := new(big.Int).Mul(c, k)
+	n := pog.(ecgroup.GroupCurve).Order()
+	s := new(big.Int).Sub(t, ck)
 
-	return Proof{C: c, S: s}, nil
+	return Proof{C: c.Mod(c, n), S: s.Mod(s, n)}, nil
 }
 
-// Validate runs the DLEQ proof validation algorithm and returns a bool
+// BatchGenerate generates a batched DLEQ proof evaluated over multiple values
+// of the form Z[i] = kM[i], wrt to the public key Y = kG
+func BatchGenerate(pog gg.PrimeOrderGroup, h4 hash.Hash, h5 utils.ExtractorExpander, k *big.Int, Y gg.GroupElement, batchM, batchZ []gg.GroupElement) (Proof, error) {
+	m := len(batchM)
+	if m != len(batchZ) {
+		return Proof{}, oerr.ErrInternalInstantiation
+	}
+
+	// compute seed
+	inputs := append(batchM, batchZ...)
+	inputs = append([]gg.GroupElement{pog.Generator(), Y}, inputs...)
+	seed, err := computeHash(h4, inputs...)
+	if err != nil {
+		return Proof{}, err
+	}
+
+	// compute coefficients
+	coeffs := make([]*big.Int, m)
+	for i := 0; i < m; i++ {
+		extract := h5.Extractor()
+		iBuf, err := utils.I2osp(i, 4)
+		if err != nil {
+			return Proof{}, nil
+		}
+		hkdfInp := append(iBuf, []byte("voprf_batch_dleq")...)
+		di := extract(func() hash.Hash { h4.Reset(); return h4 }, seed, hkdfInp)
+		coeffs[i] = new(big.Int).SetBytes(di)
+	}
+	return Proof{}, nil
+}
+
+// Verify runs the DLEQ proof validation algorithm and returns a bool
 // indicating success or failure
-func (proof Proof) Validate(pog gg.PrimeOrderGroup, h hash.Hash, Y, M, Z gg.GroupElement) bool {
+func (proof Proof) Verify(pog gg.PrimeOrderGroup, h hash.Hash, Y, M, Z gg.GroupElement) bool {
 	// A = sG + cY
 	sG, err := pog.GeneratorMult(proof.S)
 	if err != nil {
@@ -73,21 +109,19 @@ func (proof Proof) Validate(pog gg.PrimeOrderGroup, h hash.Hash, Y, M, Z gg.Grou
 	}
 
 	// recompute hash output
-	c, err := computeHash(h, pog.Generator(), Y, M, Z, A, B)
+	c, err := computeHashAsBigInt(h, pog.Generator(), Y, M, Z, A, B)
 	if err != nil {
 		return false
 	}
 
 	// check hash outputs
-	if c.Cmp(proof.C) == 0 {
+	if c.Mod(c, pog.Order()).Cmp(proof.C) == 0 {
 		return true
 	}
 	return false
 }
 
-// computeHash serializes the group elements and computes the hash output c
-// as a big int
-func computeHash(h hash.Hash, eles ...gg.GroupElement) (*big.Int, error) {
+func computeHash(h hash.Hash, eles ...gg.GroupElement) ([]byte, error) {
 	serialized, err := getSerializedElements(eles...)
 	if err != nil {
 		return nil, err
@@ -96,7 +130,16 @@ func computeHash(h hash.Hash, eles ...gg.GroupElement) (*big.Int, error) {
 	for _, buf := range serialized {
 		h.Write(buf)
 	}
-	cBuf := h.Sum(nil)
+	return h.Sum(nil), nil
+}
+
+// computeHashAsBigInt serializes the group elements and computes the hash output c
+// as a big int
+func computeHashAsBigInt(h hash.Hash, eles ...gg.GroupElement) (*big.Int, error) {
+	cBuf, err := computeHash(h, eles...)
+	if err != nil {
+		return nil, err
+	}
 	return new(big.Int).SetBytes(cBuf), nil
 }
 

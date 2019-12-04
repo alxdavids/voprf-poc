@@ -41,7 +41,7 @@ type Participant interface {
 	Setup(string, gg.PrimeOrderGroup) (Participant, error)
 	Blind([]byte) (gg.GroupElement, *big.Int, error)
 	Unblind(gg.GroupElement, *big.Int) (gg.GroupElement, error)
-	Eval(SecretKey, gg.GroupElement) (gg.GroupElement, error)
+	Eval(gg.GroupElement) (gg.GroupElement, error)
 	Finalize(gg.GroupElement, []byte, []byte) ([]byte, error)
 }
 
@@ -57,6 +57,9 @@ func (s Server) Ciphersuite() gg.Ciphersuite { return s.ciph }
 
 // SecretKey returns the SecretKey object associated with the Server
 func (s Server) SecretKey() SecretKey { return s.sk }
+
+// SetSecretKey returns the SecretKey object associated with the Server
+func (s Server) SetSecretKey(sk SecretKey) Server { s.sk = sk; return s }
 
 // Setup is run by the server, it generates a SecretKey object based on the
 // choice of ciphersuite that is made
@@ -80,11 +83,11 @@ func (s Server) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participa
 // and a provided group element
 //
 // TODO: support VOPRF
-func (s Server) Eval(sk SecretKey, M gg.GroupElement) (gg.GroupElement, error) {
+func (s Server) Eval(M gg.GroupElement) (gg.GroupElement, error) {
 	ciph := s.ciph
 
 	// perform standard OPRF operation
-	Z, err := M.ScalarMult(sk.K)
+	Z, err := M.ScalarMult(s.sk.K)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +218,7 @@ func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
 }
 
 // Eval is not implemented for the OPRF client
-func (c Client) Eval(sk SecretKey, M gg.GroupElement) (gg.GroupElement, error) {
+func (c Client) Eval(M gg.GroupElement) (gg.GroupElement, error) {
 	return nil, oerr.ErrOPRFUnimplementedFunctionClient
 }
 
