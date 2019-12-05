@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/alxdavids/oprf-poc/go/oerr"
+	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
 	"github.com/alxdavids/oprf-poc/go/oprf/groups/ecgroup"
 	"github.com/stretchr/testify/assert"
 )
@@ -115,7 +116,7 @@ func TestClientEval(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.Eval(ecgroup.Point{})
+	_, err = c.Eval([]gg.GroupElement{ecgroup.Point{}})
 	if err != oerr.ErrOPRFUnimplementedFunctionClient {
 		t.Fatal("Function should be unimplemented")
 	}
@@ -185,10 +186,12 @@ func checkServerEval(t *testing.T, validCiphersuite string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Q, err := s.Eval(P)
+	eval, err := s.Eval([]gg.GroupElement{P})
 	if err != nil {
 		t.Fatal(err)
 	}
+	// only one evaluation
+	Q := eval.Elements[0]
 	chkQ, err := P.ScalarMult(s.SecretKey().K)
 	if err != nil {
 		t.Fatal(err)
@@ -197,6 +200,10 @@ func checkServerEval(t *testing.T, validCiphersuite string) {
 		t.Fatal("Server evaluation returned inconsistent result")
 	}
 }
+
+// TODO
+// - tests for multiple evaluations
+// - tests for verifiability
 
 func checkClientBlindUnblind(t *testing.T, validCiphersuite string) {
 	c, err := clientSetup(validCiphersuite)
@@ -289,10 +296,11 @@ func checkFullOPRF(t *testing.T, validCiphersuite string) {
 	}
 
 	// compute server evaluation
-	Q, err := s.Eval(P)
+	eval, err := s.Eval([]gg.GroupElement{P})
 	if err != nil {
 		t.Fatal(err)
 	}
+	Q := eval.Elements[0]
 
 	// compute client unblinding
 	N, err := c.Unblind(Q, r)
@@ -311,10 +319,11 @@ func checkFullOPRF(t *testing.T, validCiphersuite string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Z, err := s.Eval(T)
+	out, err := s.Eval([]gg.GroupElement{T})
 	if err != nil {
 		t.Fatal(err)
 	}
+	Z := out.Elements[0]
 	yServer, err := c.Finalize(Z, clientInput, auxFinal)
 	if err != nil {
 		t.Fatal(err)

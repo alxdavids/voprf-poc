@@ -127,6 +127,17 @@ func (proof Proof) BatchVerify(pog gg.PrimeOrderGroup, h3, h4 hash.Hash, h5 util
 	return proof.Verify(pog, h3, Y, M, Z)
 }
 
+// Serialize takes the values of the proof object and converts them into bytes
+func (proof Proof) Serialize() [][]byte {
+	return [][]byte{proof.C.Bytes(), proof.S.Bytes()}
+}
+
+// Deserialize takes the provided bytes and converts them into a valid Proof
+// object
+func (proof Proof) Deserialize(proofBytes [][]byte) Proof {
+	return Proof{C: new(big.Int).SetBytes(proofBytes[0]), S: new(big.Int).SetBytes(proofBytes[1])}
+}
+
 // computeSeed constructs the initial seed that is used for constructing and
 // verifying batched DLEQ proofs
 func computeSeed(pog gg.PrimeOrderGroup, h4 hash.Hash, Y gg.GroupElement, batchM, batchZ []gg.GroupElement) ([]byte, error) {

@@ -89,9 +89,7 @@ func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
 
 // processJSONRPCRequest parses the JSONRPC request and attempts to run the OPRF
 // functionality specified in the request
-func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) ([][]byte, error) {
-	var ret [][]byte
-	var err error
+func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) (map[string][][]byte, error) {
 	if jsonReq.Version != "2.0" {
 		return nil, oerr.ErrJSONRPCInvalidRequest
 	}
@@ -103,7 +101,9 @@ func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) ([][]byte, er
 		return nil, oerr.ErrJSONRPCInvalidMethodParams
 	}
 
-	// check that the method is correct
+	// check that the method is correct and if so evaluate the (V)OPRF
+	var ret map[string][][]byte
+	var err error
 	switch jsonReq.Method {
 	case "eval":
 		if len(params.Data) < 1 {
@@ -124,42 +124,53 @@ func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) ([][]byte, er
 
 // processEval processes an evaluation request from the client over the blinded
 // group elements that they provide
-func (cfg *Config) processEval(params []string) ([][]byte, error) {
+func (cfg *Config) processEval(params []string) (map[string][][]byte, error) {
 	lenParams := len(params)
 	if lenParams > cfg.max {
 		return nil, oerr.ErrJSONRPCInvalidMethodParams
 	}
-	evalsOut := make([][]byte, len(params))
+
+	l := len(params)
+	inputs := make([]gg.GroupElement, l)
+	osrv := cfg.osrv
+	pog := osrv.Ciphersuite().POG()
 	for i, s := range params {
 		buf, e := hex.DecodeString(s)
 		if e != nil {
 			return nil, oerr.ErrJSONRPCInvalidMethodParams
 		}
 
-		// create GroupElement
-		osrv := cfg.osrv
-		pog := osrv.Ciphersuite().POG()
+		// deserialize input to GroupElement object
 		ge, err := gg.CreateGroupElement(pog).Deserialize(buf)
 		if err != nil {
 			return nil, err
 		}
+		inputs[i] = ge
+	}
 
-		// compute OPRF evaluation
-		geEval, err := cfg.osrv.Eval(ge)
-		if err != nil {
-			return nil, err
-		}
+	// compute (V)OPRF evaluation over provided inputs
+	eval, err := cfg.osrv.Eval(inputs)
+	if err != nil {
+		return nil, err
+	}
 
-		// serialize output
-		out, err := geEval.Serialize()
+	// serialize output group elements
+	evalsOut := make([][]byte, l)
+	for i, Z := range eval.Elements {
+		out, err := Z.Serialize()
 		if err != nil {
 			return nil, err
 		}
 		evalsOut[i] = out
 	}
 
-	// serialize output point and return
-	return evalsOut, nil
+	// serialize proof object if the ciphersuite indicates verifiability
+	serializedProof := make([][]byte, 2)
+	if cfg.osrv.Ciphersuite().Verifiable() {
+		serializedProof = eval.Proof.Serialize()
+	}
+
+	return map[string][][]byte{"data": evalsOut, "proof": serializedProof}, nil
 }
 
 // readRequestBody tries to read a JSONRPCRequest object from the HTTP Request
@@ -174,12 +185,28 @@ func readRequestBody(r *http.Request) (*jsonrpc.Request, error) {
 }
 
 // respSuccess constructs a JSONRPC success response to send back to the client
-func respSuccess(w http.ResponseWriter, result [][]byte, id int) {
-	resultStrings := make([]string, len(result))
-	for i, s := range result {
-		resultStrings[i] = hex.EncodeToString(s)
+func respSuccess(w http.ResponseWriter, result map[string][][]byte, id int) {
+	data := result["data"]
+	proof := result["proof"]
+	// encode the provided data to hex
+	evalStrings := make([]string, len(data))
+	for i, s := range data {
+		evalStrings[i] = hex.EncodeToString(s)
 	}
-	resp, _ := json.Marshal(jsonrpc.ResponseSuccess{Version: "2.0", Result: jsonrpc.ResponseResult{Data: resultStrings}, ID: id})
+	r := jsonrpc.ResponseResult{Data: evalStrings}
+
+	// hex-encode the proof if it exists
+	proofLen := len(proof)
+	if proofLen > 0 {
+		proofStrings := make([]string, proofLen)
+		for i, s := range proof {
+			proofStrings[i] = hex.EncodeToString(s)
+		}
+		r.Proof = proofStrings
+	}
+
+	// marshal success response
+	resp, _ := json.Marshal(jsonrpc.ResponseSuccess{Version: "2.0", Result: r, ID: id})
 	w.Write(resp)
 }
 

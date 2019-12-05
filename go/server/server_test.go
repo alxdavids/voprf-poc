@@ -100,8 +100,9 @@ func TestProcessValidJSONRPCRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	// expecting compressed points
-	assert.Equal(t, 1, len(ret))
-	assert.Equal(t, pog.ByteLength()+1, len(ret[0]))
+	data := ret["data"]
+	assert.Equal(t, 1, len(data))
+	assert.Equal(t, pog.ByteLength()+1, len(data[0]))
 }
 
 func TestInvalidJSONRPCRequestMethod(t *testing.T) {
@@ -236,7 +237,7 @@ func processOPRFEval(t *testing.T, validCiphersuite string, n int) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, v := range ret {
+	for i, v := range ret["data"] {
 		Q, err := ecgroup.Point{}.New(pog).Deserialize(v)
 		if err != nil {
 			t.Fatal(err)

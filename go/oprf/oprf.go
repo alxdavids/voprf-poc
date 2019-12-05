@@ -5,6 +5,7 @@ import (
 
 	"github.com/alxdavids/oprf-poc/go/oerr"
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
+	"github.com/alxdavids/oprf-poc/go/oprf/groups/dleq"
 )
 
 // PublicKey represents a commitment to a given secret key that is made public
@@ -34,6 +35,14 @@ func (sk SecretKey) New(pog gg.PrimeOrderGroup) (SecretKey, error) {
 	return SecretKey{K: randInt, PubKey: Y}, nil
 }
 
+// Evaluation corresponds to the output object of a (V)OPRF evaluation. In the
+// case of an OPRF, the object only consists of the output group elements. For a
+// VOPRF, it also consists of a proof object
+type Evaluation struct {
+	Elements []gg.GroupElement
+	Proof    dleq.Proof
+}
+
 // The Participant interface defines the functions necessary for implenting an OPRF
 // protocol
 type Participant interface {
@@ -41,7 +50,7 @@ type Participant interface {
 	Setup(string, gg.PrimeOrderGroup) (Participant, error)
 	Blind([]byte) (gg.GroupElement, *big.Int, error)
 	Unblind(gg.GroupElement, *big.Int) (gg.GroupElement, error)
-	Eval(gg.GroupElement) (gg.GroupElement, error)
+	Eval([]gg.GroupElement) (Evaluation, error)
 	Finalize(gg.GroupElement, []byte, []byte) ([]byte, error)
 }
 
@@ -83,20 +92,47 @@ func (s Server) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participa
 // and a provided group element
 //
 // TODO: support VOPRF
-func (s Server) Eval(M gg.GroupElement) (gg.GroupElement, error) {
-	ciph := s.ciph
+func (s Server) Eval(batchM []gg.GroupElement) (Evaluation, error) {
+	if !s.Ciphersuite().Verifiable() {
+		return s.oprfEval(batchM)
+	}
+	return s.voprfEval(batchM)
+}
 
-	// perform standard OPRF operation
-	Z, err := M.ScalarMult(s.sk.K)
+// oprfEval evaluates OPRF_Eval as specified in draft-irtf-cfrg-voprf-02
+func (s Server) oprfEval(batchM []gg.GroupElement) (Evaluation, error) {
+	batchZ := make([]gg.GroupElement, len(batchM))
+	for i, M := range batchM {
+		Z, err := M.ScalarMult(s.sk.K)
+		if err != nil {
+			return Evaluation{}, err
+		}
+		batchZ[i] = Z
+	}
+	return Evaluation{Elements: batchZ}, nil
+}
+
+// voprfEval evaluates VOPRF_Eval as specified in draft-irtf-cfrg-voprf-02
+func (s Server) voprfEval(batchM []gg.GroupElement) (Evaluation, error) {
+	eval, err := s.oprfEval(batchM)
 	if err != nil {
-		return nil, err
+		return Evaluation{}, err
+	}
+	batchZ := eval.Elements
+
+	ciph := s.Ciphersuite()
+	sk := s.SecretKey()
+	var proof dleq.Proof
+	if len(batchM) == 1 {
+		proof, err = dleq.Generate(ciph.POG(), ciph.H3(), sk.K, sk.PubKey, batchM[0], batchZ[0])
+	} else {
+		proof, err = dleq.BatchGenerate(ciph.POG(), ciph.H3(), ciph.H4(), ciph.H5(), sk.K, sk.PubKey, batchM, batchZ)
+	}
+	if err != nil {
+		return Evaluation{}, err
 	}
 
-	if ciph.Verifiable() {
-		// Generate DLEQ proof object for VOPRF
-
-	}
-	return Z, nil
+	return Evaluation{Elements: batchZ, Proof: proof}, nil
 }
 
 // Blind is unimplemented for the server
@@ -218,8 +254,8 @@ func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
 }
 
 // Eval is not implemented for the OPRF client
-func (c Client) Eval(M gg.GroupElement) (gg.GroupElement, error) {
-	return nil, oerr.ErrOPRFUnimplementedFunctionClient
+func (c Client) Eval(M []gg.GroupElement) (Evaluation, error) {
+	return Evaluation{}, oerr.ErrOPRFUnimplementedFunctionClient
 }
 
 /**

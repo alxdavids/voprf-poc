@@ -2,12 +2,14 @@ package dleq
 
 import (
 	"fmt"
+	"hash"
+	"math/big"
 	"testing"
 
 	"github.com/alxdavids/oprf-poc/go/oerr"
-	"github.com/alxdavids/oprf-poc/go/oprf"
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
 	"github.com/alxdavids/oprf-poc/go/oprf/groups/ecgroup"
+	"github.com/alxdavids/oprf-poc/go/oprf/utils"
 )
 
 func TestValidDLEQP384(t *testing.T) {
@@ -27,25 +29,14 @@ func TestValidBatchedDLEQP521(t *testing.T) {
 }
 
 func TestBatchedDLEQInvalidLengths(t *testing.T) {
-	ciphName := fmt.Sprintf("VOPRF-%s-HKDF-SHA512-SSWU-RO", "P384")
-	ptpnt, err := oprf.Server{}.Setup(ciphName, ecgroup.GroupCurve{})
+	pog, h3, h4, h5, sk, pk, err := setup("P384")
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv, err := oprf.CastServer(ptpnt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ciph := srv.Ciphersuite()
-	pog := ciph.POG()
-	h3 := ciph.H3()
-	h4 := ciph.H4()
-	h5 := ciph.H5()
-	sk := srv.SecretKey()
 	batchM := make([]gg.GroupElement, 5)
 	batchZ := make([]gg.GroupElement, 5)
 	for i := 0; i < len(batchM); i++ {
-		batchM[i], batchZ[i], err = generateAndEval(srv, pog, fmt.Sprintf("random_input_%v", i))
+		batchM[i], batchZ[i], err = generateAndEval(pog, sk, fmt.Sprintf("random_input_%v", i))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -56,40 +47,29 @@ func TestBatchedDLEQInvalidLengths(t *testing.T) {
 	}
 	badBatchZ := append(batchZ, extraZ)
 
-	_, err = BatchGenerate(pog, h3, h4, h5, sk.K, sk.PubKey, batchM, badBatchZ)
+	_, err = BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, badBatchZ)
 	if err != oerr.ErrDLEQInvalidInput {
 		t.Fatal(err)
 	}
 
-	proof, err := BatchGenerate(pog, h3, h4, h5, sk.K, sk.PubKey, batchM, batchZ)
+	proof, err := BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, batchZ)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proof.BatchVerify(pog, h3, h4, h5, sk.PubKey, batchM, badBatchZ) {
+	if proof.BatchVerify(pog, h3, h4, h5, pk, batchM, badBatchZ) {
 		t.Fatal("verification should have failed for bad lengths")
 	}
 }
 
 func TestBatchedDLEQBadElement(t *testing.T) {
-	ciphName := fmt.Sprintf("VOPRF-%s-HKDF-SHA512-SSWU-RO", "P384")
-	ptpnt, err := oprf.Server{}.Setup(ciphName, ecgroup.GroupCurve{})
+	pog, h3, h4, h5, sk, pk, err := setup("P384")
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv, err := oprf.CastServer(ptpnt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ciph := srv.Ciphersuite()
-	pog := ciph.POG()
-	h3 := ciph.H3()
-	h4 := ciph.H4()
-	h5 := ciph.H5()
-	sk := srv.SecretKey()
 	batchM := make([]gg.GroupElement, 5)
 	batchZ := make([]gg.GroupElement, 5)
 	for i := 0; i < len(batchM); i++ {
-		batchM[i], batchZ[i], err = generateAndEval(srv, pog, fmt.Sprintf("random_input_%v", i))
+		batchM[i], batchZ[i], err = generateAndEval(pog, sk, fmt.Sprintf("random_input_%v", i))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -104,94 +84,95 @@ func TestBatchedDLEQBadElement(t *testing.T) {
 	badBatchZ[2] = badZ
 
 	// fail verify for bad proof
-	badProof, err := BatchGenerate(pog, h3, h4, h5, sk.K, sk.PubKey, batchM, badBatchZ)
+	badProof, err := BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, badBatchZ)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if badProof.BatchVerify(pog, h3, h4, h5, sk.PubKey, batchM, badBatchZ) {
+	if badProof.BatchVerify(pog, h3, h4, h5, pk, batchM, badBatchZ) {
 		t.Fatal("verification should have failed due to bad element")
 	}
 
 	// fail verify for good proof but bad verify input
-	proof, err := BatchGenerate(pog, h3, h4, h5, sk.K, sk.PubKey, batchM, batchZ)
+	proof, err := BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, batchZ)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proof.BatchVerify(pog, h3, h4, h5, sk.PubKey, batchM, badBatchZ) {
+	if proof.BatchVerify(pog, h3, h4, h5, pk, batchM, badBatchZ) {
 		t.Fatal("verification should have failed for bad input element")
 	}
 }
 
 func validateDLEQ(t *testing.T, groupName string) {
-	ciphName := fmt.Sprintf("VOPRF-%s-HKDF-SHA512-SSWU-RO", groupName)
-	ptpnt, err := oprf.Server{}.Setup(ciphName, ecgroup.GroupCurve{})
+	pog, h3, _, _, sk, pk, err := setup(groupName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv, err := oprf.CastServer(ptpnt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ciph := srv.Ciphersuite()
-	pog := ciph.POG()
-	h := ciph.H3()
-	sk := srv.SecretKey()
-	M, Z, err := generateAndEval(srv, pog, "random_input")
+	M, Z, err := generateAndEval(pog, sk, "random_input")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	proof, err := Generate(pog, h, sk.K, sk.PubKey, M, Z)
+	proof, err := Generate(pog, h3, sk, pk, M, Z)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !proof.Verify(pog, h, sk.PubKey, M, Z) {
+	if !proof.Verify(pog, h3, pk, M, Z) {
 		t.Fatal("Proof failed to validate")
 	}
 }
 
 func validateBatchedDLEQ(t *testing.T, groupName string) {
-	ciphName := fmt.Sprintf("VOPRF-%s-HKDF-SHA512-SSWU-RO", groupName)
-	ptpnt, err := oprf.Server{}.Setup(ciphName, ecgroup.GroupCurve{})
+	pog, h3, h4, h5, sk, pk, err := setup(groupName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv, err := oprf.CastServer(ptpnt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ciph := srv.Ciphersuite()
-	pog := ciph.POG()
-	h3 := ciph.H3()
-	h4 := ciph.H4()
-	h5 := ciph.H5()
-	sk := srv.SecretKey()
 	batchM := make([]gg.GroupElement, 5)
 	batchZ := make([]gg.GroupElement, 5)
 	for i := 0; i < len(batchM); i++ {
-		batchM[i], batchZ[i], err = generateAndEval(srv, pog, fmt.Sprintf("random_input_%v", i))
+		batchM[i], batchZ[i], err = generateAndEval(pog, sk, fmt.Sprintf("random_input_%v", i))
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	proof, err := BatchGenerate(pog, h3, h4, h5, sk.K, sk.PubKey, batchM, batchZ)
+	proof, err := BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, batchZ)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !proof.BatchVerify(pog, h3, h4, h5, sk.PubKey, batchM, batchZ) {
+	if !proof.BatchVerify(pog, h3, h4, h5, pk, batchM, batchZ) {
 		t.Fatal("Batch proof failed to verify")
 	}
 }
 
-func generateAndEval(srv oprf.Server, pog gg.PrimeOrderGroup, lbl string) (gg.GroupElement, gg.GroupElement, error) {
+func generateAndEval(pog gg.PrimeOrderGroup, sk *big.Int, lbl string) (gg.GroupElement, gg.GroupElement, error) {
 	M, err := pog.EncodeToGroup([]byte(lbl))
 	if err != nil {
 		return nil, nil, err
 	}
-	Z, err := srv.Eval(M)
+	Z, err := M.ScalarMult(sk)
 	if err != nil {
 		return nil, nil, err
 	}
 	return M, Z, nil
+}
+
+func setup(groupName string) (gg.PrimeOrderGroup, hash.Hash, hash.Hash, utils.ExtractorExpander, *big.Int, gg.GroupElement, error) {
+	ciphName := fmt.Sprintf("VOPRF-%s-HKDF-SHA512-SSWU-RO", groupName)
+	ciph, err := gg.Ciphersuite{}.FromString(ciphName, ecgroup.GroupCurve{})
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, err
+	}
+	pog := ciph.POG()
+	h3 := ciph.H3()
+	h4 := ciph.H4()
+	h5 := ciph.H5()
+	sk, err := pog.UniformFieldElement()
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, err
+	}
+	pk, err := pog.GeneratorMult(sk)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, err
+	}
+	return pog, h3, h4, h5, sk, pk, nil
 }
