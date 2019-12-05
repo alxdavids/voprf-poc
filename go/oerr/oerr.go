@@ -67,6 +67,9 @@ var (
 	// ErrTypeAssertion indicates that type assertion has failed when attempting
 	// to instantiate the OPRF interface
 	ErrTypeAssertion = errors.New("Error attempting OPRF interface type assertion")
+	// ErrDLEQInvalidInput indicates that the inputs provided to the DLEQ
+	// generation/verification functions are invalid
+	ErrDLEQInvalidInput = errors.New("Error attempting OPRF interface type assertion")
 )
 
 // ErrorJSON is a converted Error object for encoding errors into JSON
