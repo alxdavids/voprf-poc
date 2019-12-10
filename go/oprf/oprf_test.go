@@ -2,6 +2,7 @@ package oprf
 
 import (
 	"crypto/hmac"
+	"crypto/rand"
 	"math/big"
 	"testing"
 
@@ -19,11 +20,35 @@ var (
 )
 
 func TestFullOPRFP384(t *testing.T) {
-	checkFullOPRF(t, validOPRFP384Ciphersuite)
+	checkFull(t, validOPRFP384Ciphersuite, 1)
+}
+
+func TestFullOPRFP384Multiple(t *testing.T) {
+	checkFull(t, validOPRFP384Ciphersuite, 5)
+}
+
+func TestFullVOPRFP384(t *testing.T) {
+	checkFull(t, validOPRFP384Ciphersuite, 1)
+}
+
+func TestFullVOPRFP384Multiple(t *testing.T) {
+	checkFull(t, validOPRFP384Ciphersuite, 5)
 }
 
 func TestFullOPRFP521(t *testing.T) {
-	checkFullOPRF(t, validOPRFP521Ciphersuite)
+	checkFull(t, validOPRFP521Ciphersuite, 1)
+}
+
+func TestFullOPRFP521Multiple(t *testing.T) {
+	checkFull(t, validOPRFP521Ciphersuite, 5)
+}
+
+func TestFullVOPRFP521(t *testing.T) {
+	checkFull(t, validOPRFP521Ciphersuite, 1)
+}
+
+func TestFullVOPRFP521Multiple(t *testing.T) {
+	checkFull(t, validOPRFP521Ciphersuite, 5)
 }
 
 func TestServerSetupP384(t *testing.T) {
@@ -35,24 +60,36 @@ func TestServerSetupP521(t *testing.T) {
 }
 
 func TestServerEvalP384(t *testing.T) {
-	checkServerEval(t, validOPRFP384Ciphersuite)
+	checkServerEval(t, validOPRFP384Ciphersuite, 1)
+}
+
+func TestServerEvalP384Multiple(t *testing.T) {
+	checkServerEval(t, validOPRFP384Ciphersuite, 5)
+}
+
+func TestServerEvalP384Verifiable(t *testing.T) {
+	checkServerEval(t, validVOPRFP384Ciphersuite, 1)
+}
+
+func TestServerEvalP384VerifiableMultiple(t *testing.T) {
+	checkServerEval(t, validVOPRFP384Ciphersuite, 5)
 }
 
 func TestServerEvalP521(t *testing.T) {
-	checkServerEval(t, validOPRFP521Ciphersuite)
+	checkServerEval(t, validOPRFP521Ciphersuite, 1)
 }
 
-// func TestServerEvalVerifiable(t *testing.T) {
-// 	s, err := serverSetup(validVOPRFP384Ciphersuite)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	pog := s.Ciphersuite().POG()
-// 	_, err = s.Eval(ecgroup.Point{}.New(pog).(ecgroup.Point))
-// 	if err != oerr.ErrOPRFCiphersuiteUnsupportedFunction {
-// 		t.Fatal("Verfiable Unblind should not be supported yet")
-// 	}
-// }
+func TestServerEvalP521Multiple(t *testing.T) {
+	checkServerEval(t, validOPRFP521Ciphersuite, 5)
+}
+
+func TestServerEvalP521Verifiable(t *testing.T) {
+	checkServerEval(t, validVOPRFP521Ciphersuite, 1)
+}
+
+func TestServerEvalP521VerifiableMultiple(t *testing.T) {
+	checkServerEval(t, validVOPRFP521Ciphersuite, 5)
+}
 
 func TestServerBlind(t *testing.T) {
 	s, err := serverSetup(validOPRFP384Ciphersuite)
@@ -96,11 +133,35 @@ func TestClientSetupP521(t *testing.T) {
 }
 
 func TestClientBlindUnblindP384(t *testing.T) {
-	checkClientBlindUnblind(t, validOPRFP384Ciphersuite)
+	checkClientBlindUnblind(t, validOPRFP384Ciphersuite, 1)
+}
+
+func TestClientBlindUnblindP384Multiple(t *testing.T) {
+	checkClientBlindUnblind(t, validOPRFP384Ciphersuite, 5)
+}
+
+func TestClientBlindUnblindP384Verifiable(t *testing.T) {
+	checkClientBlindUnblind(t, validVOPRFP384Ciphersuite, 1)
+}
+
+func TestClientBlindUnblindP384VerifiableMultiple(t *testing.T) {
+	checkClientBlindUnblind(t, validVOPRFP384Ciphersuite, 5)
 }
 
 func TestClientBlindUnblindP521(t *testing.T) {
-	checkClientBlindUnblind(t, validOPRFP521Ciphersuite)
+	checkClientBlindUnblind(t, validOPRFP521Ciphersuite, 1)
+}
+
+func TestClientBlindUnblindP521Multiple(t *testing.T) {
+	checkClientBlindUnblind(t, validOPRFP521Ciphersuite, 5)
+}
+
+func TestClientBlindUnblindP521Verifiable(t *testing.T) {
+	checkClientBlindUnblind(t, validVOPRFP521Ciphersuite, 1)
+}
+
+func TestClientBlindUnblindP521VerifiableMultiple(t *testing.T) {
+	checkClientBlindUnblind(t, validVOPRFP521Ciphersuite, 5)
 }
 
 func TestClientFinalizeP384(t *testing.T) {
@@ -170,30 +231,51 @@ func clientSetup(ciph string) (Client, error) {
 	return s.(Client), nil
 }
 
-func checkServerEval(t *testing.T, validCiphersuite string) {
-	s, err := serverSetup(validOPRFP384Ciphersuite)
+func checkServerEval(t *testing.T, validCiphersuite string, n int) {
+	s, err := serverSetup(validCiphersuite)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ciph := s.Ciphersuite()
 	pog := ciph.POG()
-	x := []byte{1, 2, 3, 4, 6, 7}
-	P, err := pog.EncodeToGroup(x)
+	inputs := make([][]byte, n)
+	eles := make([]gg.GroupElement, n)
+	for i := 0; i < n; i++ {
+		x := make([]byte, pog.ByteLength())
+		rand.Read(x)
+		P, err := pog.EncodeToGroup(x)
+		if err != nil {
+			t.Fatal(err)
+		}
+		inputs[i] = x
+		eles[i] = P
+	}
+
+	// evaluate the OPRF
+	ev, err := s.Eval(eles)
 	if err != nil {
 		t.Fatal(err)
 	}
-	eval, err := s.Eval([]gg.GroupElement{P})
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	// only one evaluation
-	Q := eval.Elements[0]
-	chkQ, err := P.ScalarMult(s.SecretKey().K)
-	if err != nil {
-		t.Fatal(err)
+	for i, Q := range ev.Elements {
+		chkQ, err := eles[i].ScalarMult(s.SecretKey().K)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !Q.Equal(chkQ) {
+			t.Fatal("Server evaluation returned inconsistent result")
+		}
 	}
-	if !Q.Equal(chkQ) {
-		t.Fatal("Server evaluation returned inconsistent result")
+
+	// verify proof if necessary
+	if ciph.Verifiable() {
+		proof := ev.Proof
+		if n == 1 {
+			assert.True(t, proof.Verify(pog, ciph.H3(), s.SecretKey().PubKey, eles[0], ev.Elements[0]))
+		} else {
+			assert.True(t, proof.BatchVerify(pog, ciph.H3(), ciph.H4(), ciph.H5(), s.SecretKey().PubKey, eles, ev.Elements))
+		}
 	}
 }
 
@@ -201,30 +283,61 @@ func checkServerEval(t *testing.T, validCiphersuite string) {
 // - tests for multiple evaluations
 // - tests for verifiability
 
-func checkClientBlindUnblind(t *testing.T, validCiphersuite string) {
+func checkClientBlindUnblind(t *testing.T, validCiphersuite string, n int) {
 	c, err := clientSetup(validCiphersuite)
 	if err != nil {
 		t.Fatal(err)
 	}
-	x := []byte{1, 2, 3, 4, 5}
-	P, blind, err := c.Blind(x)
-	if err != nil {
-		t.Fatal(err)
-	}
 	pog := c.Ciphersuite().POG()
-	if !P.IsValid() {
-		t.Fatal("Blinded point is not valid")
+
+	// create blinded points
+	inputs := make([][]byte, n)
+	eles := make([]gg.GroupElement, n)
+	blinds := make([]*big.Int, n)
+	for i := 0; i < n; i++ {
+		x := make([]byte, pog.ByteLength())
+		rand.Read(x)
+		P, r, err := c.Blind(x)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.True(t, P.IsValid())
+		inputs[i] = x
+		eles[i] = P
+		blinds[i] = r
 	}
-	ret, err := c.Unblind(Evaluation{Elements: []gg.GroupElement{P}}, []gg.GroupElement{}, []*big.Int{blind})
+
+	// dummy server for generating keys and evaluating OPRF
+	// we need to do this as Unblind also checks the DLEQ proof in the
+	// verifiable mode
+	s, err := serverSetup(validCiphersuite)
 	if err != nil {
 		t.Fatal(err)
 	}
-	N := ret[0]
-	chkN, err := pog.EncodeToGroup(x)
+	eval, err := s.Eval(eles)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.True(t, N.Equal(chkN))
+	c.pk = s.sk.PubKey
+
+	// attempt unblind
+	ret, err := c.Unblind(eval, eles, blinds)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check that the unblinded elements correspond
+	for i, N := range ret {
+		T, err := pog.EncodeToGroup(inputs[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		chkN, err := T.ScalarMult(s.SecretKey().K)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.True(t, N.Equal(chkN))
+	}
 }
 
 func checkClientFinalize(t *testing.T, validCiphersuite string) {
@@ -268,7 +381,7 @@ func checkClientFinalize(t *testing.T, validCiphersuite string) {
 	}
 }
 
-func checkFullOPRF(t *testing.T, validCiphersuite string) {
+func checkFull(t *testing.T, validCiphersuite string, n int) {
 	s, err := serverSetup(validCiphersuite)
 	if err != nil {
 		t.Fatal(err)
@@ -282,50 +395,62 @@ func checkFullOPRF(t *testing.T, validCiphersuite string) {
 		t.Fatal("Ciphersuites are inconsistent")
 	}
 
-	clientInput := []byte{1, 2, 3, 4, 5}
 	auxFinal := []byte{6, 7, 8, 9, 10}
 	c.pk = s.SecretKey().PubKey
 
-	// compute blinded point
-	P, r, err := c.Blind(clientInput)
+	// create blinded points
+	inputs := make([][]byte, n)
+	eles := make([]gg.GroupElement, n)
+	blinds := make([]*big.Int, n)
+	for i := 0; i < n; i++ {
+		x := make([]byte, c.Ciphersuite().POG().ByteLength())
+		rand.Read(x)
+		P, r, err := c.Blind(x)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.True(t, P.IsValid())
+		inputs[i] = x
+		eles[i] = P
+		blinds[i] = r
+	}
+
+	// do server evaluation
+	eval, err := s.Eval(eles)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// compute server evaluation
-	eval, err := s.Eval([]gg.GroupElement{P})
+	// do client unblinding
+	ret, err := c.Unblind(eval, eles, blinds)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// compute client unblinding
-	ret, err := c.Unblind(eval, []gg.GroupElement{}, []*big.Int{r})
-	if err != nil {
-		t.Fatal(err)
-	}
-	N := ret[0]
+	// compute finalizations and check that they can also be recomputed by the
+	// server
+	for i, N := range ret {
+		y, err := c.Finalize(N, inputs[i], auxFinal)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	// compute client finalization
-	y, err := c.Finalize(N, clientInput, auxFinal)
-	if err != nil {
-		t.Fatal(err)
-	}
+		// compute server finalization
+		T, err := s.Ciphersuite().POG().EncodeToGroup(inputs[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		out, err := s.Eval([]gg.GroupElement{T})
+		if err != nil {
+			t.Fatal(err)
+		}
+		Z := out.Elements[0]
+		yServer, err := c.Finalize(Z, inputs[i], auxFinal)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	// compute server finalization
-	T, err := s.Ciphersuite().POG().EncodeToGroup(clientInput)
-	if err != nil {
-		t.Fatal(err)
+		// check that client & server agree
+		assert.True(t, hmac.Equal(y, yServer))
 	}
-	out, err := s.Eval([]gg.GroupElement{T})
-	if err != nil {
-		t.Fatal(err)
-	}
-	Z := out.Elements[0]
-	yServer, err := c.Finalize(Z, clientInput, auxFinal)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// check that client & server agree
-	assert.True(t, hmac.Equal(y, yServer))
 }
