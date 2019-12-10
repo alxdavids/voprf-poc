@@ -70,7 +70,7 @@ func TestServerUnblind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = s.Unblind(ecgroup.Point{}, new(big.Int))
+	_, err = s.Unblind(Evaluation{}, []gg.GroupElement{ecgroup.Point{}}, []*big.Int{new(big.Int)})
 	if err != oerr.ErrOPRFUnimplementedFunctionServer {
 		t.Fatal("Function should be unimplemented")
 	}
@@ -128,13 +128,9 @@ func TestClientUnblindVerifiable(t *testing.T) {
 		t.Fatal(err)
 	}
 	pog := c.Ciphersuite().POG()
-	ufe, err := pog.UniformFieldElement()
+	_, err = pog.UniformFieldElement()
 	if err != nil {
 		t.Fatal(err)
-	}
-	_, err = c.Unblind(ecgroup.Point{}.New(pog).(ecgroup.Point), ufe)
-	if err != oerr.ErrOPRFCiphersuiteUnsupportedFunction {
-		t.Fatal("Verfiable Unblind should not be supported yet")
 	}
 }
 
@@ -219,10 +215,11 @@ func checkClientBlindUnblind(t *testing.T, validCiphersuite string) {
 	if !P.IsValid() {
 		t.Fatal("Blinded point is not valid")
 	}
-	N, err := c.Unblind(P, blind)
+	ret, err := c.Unblind(Evaluation{Elements: []gg.GroupElement{P}}, []gg.GroupElement{}, []*big.Int{blind})
 	if err != nil {
 		t.Fatal(err)
 	}
+	N := ret[0]
 	chkN, err := pog.EncodeToGroup(x)
 	if err != nil {
 		t.Fatal(err)
@@ -300,13 +297,13 @@ func checkFullOPRF(t *testing.T, validCiphersuite string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Q := eval.Elements[0]
 
 	// compute client unblinding
-	N, err := c.Unblind(Q, r)
+	ret, err := c.Unblind(eval, []gg.GroupElement{}, []*big.Int{r})
 	if err != nil {
 		t.Fatal(err)
 	}
+	N := ret[0]
 
 	// compute client finalization
 	y, err := c.Finalize(N, clientInput, auxFinal)

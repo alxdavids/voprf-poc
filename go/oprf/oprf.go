@@ -49,7 +49,7 @@ type Participant interface {
 	Ciphersuite() gg.Ciphersuite
 	Setup(string, gg.PrimeOrderGroup) (Participant, error)
 	Blind([]byte) (gg.GroupElement, *big.Int, error)
-	Unblind(gg.GroupElement, *big.Int) (gg.GroupElement, error)
+	Unblind(Evaluation, []gg.GroupElement, []*big.Int) ([]gg.GroupElement, error)
 	Eval([]gg.GroupElement) (Evaluation, error)
 	Finalize(gg.GroupElement, []byte, []byte) ([]byte, error)
 }
@@ -141,7 +141,7 @@ func (s Server) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
 }
 
 // Unblind is unimplemented for the server
-func (s Server) Unblind(Z gg.GroupElement, r *big.Int) (gg.GroupElement, error) {
+func (s Server) Unblind(ev Evaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
 	return nil, oerr.ErrOPRFUnimplementedFunctionServer
 }
 
@@ -202,24 +202,54 @@ func (c Client) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
 	return P, r, nil
 }
 
-// Unblind returns the unblinded group element N = r^{-1}*Z
-//
-// TODO: support VOPRF
-func (c Client) Unblind(Z gg.GroupElement, r *big.Int) (gg.GroupElement, error) {
+// Unblind returns the unblinded group element N = r^{-1}*Z if the DLEQ proof
+// check passes (proof check is committed if the ciphersuite is not verififable)
+func (c Client) Unblind(ev Evaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
+	if !c.ciph.Verifiable() {
+		return c.oprfUnblind(ev, blinds)
+	}
+	return c.voprfUnblind(ev, origs, blinds)
+}
+
+// voprfUnblind runs VOPRF_Unblind as specified in draft-irtf-cfrg-voprf-02
+func (c Client) voprfUnblind(ev Evaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
 	ciph := c.ciph
+	eles := ev.Elements
+	proof := ev.Proof
+	// check that the lengths of the expected evaluations is the same as the
+	// number generated
+	if len(eles) != len(origs) {
+		return nil, oerr.ErrOPRFInvalidInput
+	}
+	// check DLEQ proof
+	b := false
+	if len(eles) == 1 {
+		b = proof.Verify(ciph.POG(), ciph.H3(), c.PublicKey(), origs[0], eles[0])
+	} else {
+		b = proof.BatchVerify(ciph.POG(), ciph.H3(), ciph.H4(), ciph.H5(), c.PublicKey(), origs, eles)
+	}
+	if !b {
+		return nil, oerr.ErrClientVerification
+	}
+	return c.oprfUnblind(ev, blinds)
+}
+
+// oprfUnblind runs OPRF_Unblind as specified in draft-irtf-cfrg-voprf-02
+func (c Client) oprfUnblind(ev Evaluation, blinds []*big.Int) ([]gg.GroupElement, error) {
 	pog := c.ciph.POG()
 	p := pog.Order()
-
-	if ciph.Verifiable() {
-		return nil, oerr.ErrOPRFCiphersuiteUnsupportedFunction
+	eles := ev.Elements
+	res := make([]gg.GroupElement, len(eles))
+	for i, r := range blinds {
+		Z := eles[i]
+		rInv := new(big.Int).ModInverse(r, p)
+		N, err := Z.ScalarMult(rInv)
+		if err != nil {
+			return nil, err
+		}
+		res[i] = N
 	}
-
-	rInv := new(big.Int).ModInverse(r, p)
-	N, err := Z.ScalarMult(rInv)
-	if err != nil {
-		return nil, err
-	}
-	return N, nil
+	return res, nil
 }
 
 // Finalize constructs the final client output from the OPRF protocol

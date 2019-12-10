@@ -39,6 +39,12 @@ var (
 	// ErrOPRFInvalidParticipant indicates that an internal error occurred
 	// processing the participant of the OPRF protocol
 	ErrOPRFInvalidParticipant = errors.New("Invalid protocol participant")
+	// ErrOPRFInvalidInput indicates that the input provided to the function is
+	// invalid
+	ErrOPRFInvalidInput = errors.New("Invalid OPRF function input")
+	// ErrClientVerification indicates that the client failed to verify the
+	// Server response
+	ErrClientVerification = errors.New("Error verifying the server response")
 
 	// ErrUnsupportedGroup indicates that the requested group is not supported
 	// the current implementation

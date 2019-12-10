@@ -14,10 +14,12 @@ import (
 	"github.com/alxdavids/oprf-poc/go/jsonrpc"
 	"github.com/alxdavids/oprf-poc/go/oprf"
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
+	"github.com/alxdavids/oprf-poc/go/oprf/groups/dleq"
 )
 
 var (
 	storedInputs       [][]byte
+	storedElements     []gg.GroupElement
 	storedBlinds       []*big.Int
 	storedFinalOutputs [][]byte
 )
@@ -104,6 +106,7 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 		return nil, errors.New("The value of n must be greater than 0")
 	}
 	var inputs [][]byte
+	var elements []gg.GroupElement
 	var blinds []*big.Int
 	var encodedElements [][]byte
 	for i := 0; i < n; i++ {
@@ -127,10 +130,12 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 		if err != nil {
 			return nil, err
 		}
+		elements = append(elements, ge)
 		encodedElements = append(encodedElements, encoded)
 	}
 	// store in globals
 	storedInputs = inputs
+	storedElements = elements
 	storedBlinds = blinds
 	// return JSONRPC Request object
 	return cfg.createJSONRPCRequest(encodedElements, 1), nil
@@ -138,11 +143,12 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 
 func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) ([][]byte, error) {
 	// parse returned group element and unblind
-	params := jsonrpcResp.Result.Data
+	result := jsonrpcResp.Result
 	pog := cfg.ocli.Ciphersuite().POG()
-	var finalOutputs [][]byte
+	ev := oprf.Evaluation{Elements: make([]gg.GroupElement, cfg.n)}
+	// get evaluation results
 	for i := 0; i < cfg.n; i++ {
-		buf, err := hex.DecodeString(params[i])
+		buf, err := hex.DecodeString(result.Data[i])
 		if err != nil {
 			return nil, err
 		}
@@ -150,10 +156,31 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 		if err != nil {
 			return nil, err
 		}
-		N, err := cfg.ocli.Unblind(Z, storedBlinds[i])
+		ev.Elements[i] = Z
+	}
+
+	// if the ciphersuite is verifiable then construct the proof object
+	if cfg.ocli.Ciphersuite().Verifiable() {
+		cBytes, err := hex.DecodeString(result.Proof[0])
 		if err != nil {
 			return nil, err
 		}
+		sBytes, err := hex.DecodeString(result.Proof[1])
+		if err != nil {
+			return nil, err
+		}
+		ev.Proof = dleq.Proof{C: new(big.Int).SetBytes(cBytes), S: new(big.Int).SetBytes(sBytes)}
+	}
+
+	// run the unblinding steps
+	ret, err := cfg.ocli.Unblind(ev, storedElements, storedBlinds)
+	if err != nil {
+		return nil, err
+	}
+
+	// finalize outputs
+	var finalOutputs [][]byte
+	for i, N := range ret {
 		aux := []byte("oprf_finalization_step")
 		y, err := cfg.ocli.Finalize(N, storedInputs[i], aux)
 		if err != nil {
