@@ -3,6 +3,7 @@ package oprf
 import (
 	"crypto/hmac"
 	"crypto/rand"
+	"errors"
 	"math/big"
 	"testing"
 
@@ -232,24 +233,12 @@ func clientSetup(ciph string) (Client, error) {
 }
 
 func checkServerEval(t *testing.T, validCiphersuite string, n int) {
-	s, err := serverSetup(validCiphersuite)
+	s, _, eles, err := setupServerEval(validCiphersuite, n)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ciph := s.Ciphersuite()
 	pog := ciph.POG()
-	inputs := make([][]byte, n)
-	eles := make([]gg.GroupElement, n)
-	for i := 0; i < n; i++ {
-		x := make([]byte, pog.ByteLength())
-		rand.Read(x)
-		P, err := pog.EncodeToGroup(x)
-		if err != nil {
-			t.Fatal(err)
-		}
-		inputs[i] = x
-		eles[i] = P
-	}
 
 	// evaluate the OPRF
 	ev, err := s.Eval(eles)
@@ -284,41 +273,10 @@ func checkServerEval(t *testing.T, validCiphersuite string, n int) {
 // - tests for verifiability
 
 func checkClientBlindUnblind(t *testing.T, validCiphersuite string, n int) {
-	c, err := clientSetup(validCiphersuite)
+	c, eval, inputs, eles, blinds, sk, err := clientSetupUnblind(validCiphersuite, n)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pog := c.Ciphersuite().POG()
-
-	// create blinded points
-	inputs := make([][]byte, n)
-	eles := make([]gg.GroupElement, n)
-	blinds := make([]*big.Int, n)
-	for i := 0; i < n; i++ {
-		x := make([]byte, pog.ByteLength())
-		rand.Read(x)
-		P, r, err := c.Blind(x)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.True(t, P.IsValid())
-		inputs[i] = x
-		eles[i] = P
-		blinds[i] = r
-	}
-
-	// dummy server for generating keys and evaluating OPRF
-	// we need to do this as Unblind also checks the DLEQ proof in the
-	// verifiable mode
-	s, err := serverSetup(validCiphersuite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	eval, err := s.Eval(eles)
-	if err != nil {
-		t.Fatal(err)
-	}
-	c.pk = s.sk.PubKey
 
 	// attempt unblind
 	ret, err := c.Unblind(eval, eles, blinds)
@@ -328,11 +286,11 @@ func checkClientBlindUnblind(t *testing.T, validCiphersuite string, n int) {
 
 	// check that the unblinded elements correspond
 	for i, N := range ret {
-		T, err := pog.EncodeToGroup(inputs[i])
+		T, err := c.Ciphersuite().POG().EncodeToGroup(inputs[i])
 		if err != nil {
 			t.Fatal(err)
 		}
-		chkN, err := T.ScalarMult(s.SecretKey().K)
+		chkN, err := T.ScalarMult(sk)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -452,5 +410,377 @@ func checkFull(t *testing.T, validCiphersuite string, n int) {
 
 		// check that client & server agree
 		assert.True(t, hmac.Equal(y, yServer))
+	}
+}
+
+func setupServerEval(validCiphersuite string, n int) (Server, [][]byte, []gg.GroupElement, error) {
+	s, err := serverSetup(validCiphersuite)
+	if err != nil {
+		return Server{}, nil, nil, err
+	}
+	ciph := s.Ciphersuite()
+	pog := ciph.POG()
+	inputs := make([][]byte, n)
+	eles := make([]gg.GroupElement, n)
+	for i := 0; i < n; i++ {
+		x := make([]byte, pog.ByteLength())
+		rand.Read(x)
+		P, err := pog.EncodeToGroup(x)
+		if err != nil {
+			return Server{}, nil, nil, err
+		}
+		inputs[i] = x
+		eles[i] = P
+	}
+	return s, inputs, eles, nil
+}
+
+func clientSetupUnblind(validCiphersuite string, n int) (Client, Evaluation, [][]byte, []gg.GroupElement, []*big.Int, *big.Int, error) {
+	c, err := clientSetup(validCiphersuite)
+	if err != nil {
+		return Client{}, Evaluation{}, nil, nil, nil, nil, err
+	}
+	pog := c.Ciphersuite().POG()
+
+	// create blinded points
+	inputs := make([][]byte, n)
+	eles := make([]gg.GroupElement, n)
+	blinds := make([]*big.Int, n)
+	for i := 0; i < n; i++ {
+		x := make([]byte, pog.ByteLength())
+		rand.Read(x)
+		P, r, err := c.Blind(x)
+		if err != nil {
+			return Client{}, Evaluation{}, nil, nil, nil, nil, err
+		}
+		if !P.IsValid() {
+			return Client{}, Evaluation{}, nil, nil, nil, nil, errors.New("Point is not valid")
+		}
+		inputs[i] = x
+		eles[i] = P
+		blinds[i] = r
+	}
+
+	// dummy server for generating keys and evaluating OPRF
+	// we need to do this as Unblind also checks the DLEQ proof in the
+	// verifiable mode
+	s, err := serverSetup(validCiphersuite)
+	if err != nil {
+		return Client{}, Evaluation{}, nil, nil, nil, nil, err
+	}
+	eval, err := s.Eval(eles)
+	if err != nil {
+		return Client{}, Evaluation{}, nil, nil, nil, nil, err
+	}
+	c.pk = s.sk.PubKey
+
+	return c, eval, inputs, eles, blinds, s.SecretKey().K, err
+}
+
+/**
+ * Benchmarks
+ */
+
+func BenchmarkServerOPRFSetupP384(b *testing.B) {
+	benchServerSetup(b, validOPRFP384Ciphersuite)
+}
+
+func BenchmarkServerVOPRFSetupP384(b *testing.B) {
+	benchServerSetup(b, validVOPRFP384Ciphersuite)
+}
+
+func BenchmarkServerOPRFSetupP521(b *testing.B) {
+	benchServerSetup(b, validOPRFP521Ciphersuite)
+}
+
+func BenchmarkServerVOPRFSetupP521(b *testing.B) {
+	benchServerSetup(b, validVOPRFP521Ciphersuite)
+}
+
+func benchServerSetup(b *testing.B, validCiphersuite string) {
+	for i := 0; i < b.N; i++ {
+		_, err := serverSetup(validCiphersuite)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkServerOPRFEvalP384_1(b *testing.B) {
+	benchServerEval(b, validOPRFP384Ciphersuite, 1)
+}
+
+func BenchmarkServerOPRFEvalP384_5(b *testing.B) {
+	benchServerEval(b, validOPRFP384Ciphersuite, 5)
+}
+
+func BenchmarkServerOPRFEvalP384_10(b *testing.B) {
+	benchServerEval(b, validOPRFP384Ciphersuite, 10)
+}
+
+func BenchmarkServerOPRFEvalP384_25(b *testing.B) {
+	benchServerEval(b, validOPRFP384Ciphersuite, 25)
+}
+
+func BenchmarkServerOPRFEvalP384_50(b *testing.B) {
+	benchServerEval(b, validOPRFP384Ciphersuite, 50)
+}
+
+func BenchmarkServerOPRFEvalP384_100(b *testing.B) {
+	benchServerEval(b, validOPRFP384Ciphersuite, 100)
+}
+
+func BenchmarkServerVOPRFEvalP384_1(b *testing.B) {
+	benchServerEval(b, validVOPRFP384Ciphersuite, 1)
+}
+
+func BenchmarkServerVOPRFEvalP384_5(b *testing.B) {
+	benchServerEval(b, validVOPRFP384Ciphersuite, 5)
+}
+
+func BenchmarkServerVOPRFEvalP384_10(b *testing.B) {
+	benchServerEval(b, validVOPRFP384Ciphersuite, 10)
+}
+
+func BenchmarkServerVOPRFEvalP384_25(b *testing.B) {
+	benchServerEval(b, validVOPRFP384Ciphersuite, 25)
+}
+
+func BenchmarkServerVOPRFEvalP384_50(b *testing.B) {
+	benchServerEval(b, validVOPRFP384Ciphersuite, 50)
+}
+
+func BenchmarkServerVOPRFEvalP384_100(b *testing.B) {
+	benchServerEval(b, validVOPRFP384Ciphersuite, 100)
+}
+
+func BenchmarkServerOPRFEvalP521_1(b *testing.B) {
+	benchServerEval(b, validOPRFP521Ciphersuite, 1)
+}
+
+func BenchmarkServerOPRFEvalP521_5(b *testing.B) {
+	benchServerEval(b, validOPRFP521Ciphersuite, 5)
+}
+
+func BenchmarkServerOPRFEvalP521_10(b *testing.B) {
+	benchServerEval(b, validOPRFP521Ciphersuite, 10)
+}
+
+func BenchmarkServerOPRFEvalP521_25(b *testing.B) {
+	benchServerEval(b, validOPRFP521Ciphersuite, 25)
+}
+
+func BenchmarkServerOPRFEvalP521_50(b *testing.B) {
+	benchServerEval(b, validOPRFP521Ciphersuite, 50)
+}
+
+func BenchmarkServerOPRFEvalP521_100(b *testing.B) {
+	benchServerEval(b, validOPRFP521Ciphersuite, 100)
+}
+
+func BenchmarkServerVOPRFEvalP521_1(b *testing.B) {
+	benchServerEval(b, validVOPRFP521Ciphersuite, 1)
+}
+
+func BenchmarkServerVOPRFEvalP521_5(b *testing.B) {
+	benchServerEval(b, validVOPRFP521Ciphersuite, 5)
+}
+
+func BenchmarkServerVOPRFEvalP521_10(b *testing.B) {
+	benchServerEval(b, validVOPRFP521Ciphersuite, 10)
+}
+
+func BenchmarkServerVOPRFEvalP521_25(b *testing.B) {
+	benchServerEval(b, validVOPRFP521Ciphersuite, 25)
+}
+
+func BenchmarkServerVOPRFEvalP521_50(b *testing.B) {
+	benchServerEval(b, validVOPRFP521Ciphersuite, 50)
+}
+
+func BenchmarkServerVOPRFEvalP521_100(b *testing.B) {
+	benchServerEval(b, validVOPRFP521Ciphersuite, 100)
+}
+
+func benchServerEval(b *testing.B, validCiphersuite string, n int) {
+	s, _, eles, err := setupServerEval(validCiphersuite, n)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	// benchmark
+	for i := 0; i < b.N; i++ {
+		_, err := s.Eval(eles)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkClientBlindP384(b *testing.B) {
+	benchClientBlind(b, validOPRFP384Ciphersuite)
+}
+
+func BenchmarkClientBlindP521(b *testing.B) {
+	benchClientBlind(b, validOPRFP521Ciphersuite)
+}
+
+func benchClientBlind(b *testing.B, validCiphersuite string) {
+	c, err := clientSetup(validCiphersuite)
+	if err != nil {
+		b.Fatal(err)
+	}
+	pog := c.Ciphersuite().POG()
+	x := make([]byte, pog.ByteLength())
+	rand.Read(x)
+
+	// benchmark
+	for i := 0; i < b.N; i++ {
+		_, _, err := c.Blind(x)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkClientOPRFUnblindP384_1(b *testing.B) {
+	benchClientUnblind(b, validOPRFP384Ciphersuite, 1)
+}
+
+func BenchmarkClientOPRFUnblindP384_5(b *testing.B) {
+	benchClientUnblind(b, validOPRFP384Ciphersuite, 5)
+}
+
+func BenchmarkClientOPRFUnblindP384_10(b *testing.B) {
+	benchClientUnblind(b, validOPRFP384Ciphersuite, 10)
+}
+
+func BenchmarkClientOPRFUnblindP384_25(b *testing.B) {
+	benchClientUnblind(b, validOPRFP384Ciphersuite, 25)
+}
+
+func BenchmarkClientOPRFUnblindP384_50(b *testing.B) {
+	benchClientUnblind(b, validOPRFP384Ciphersuite, 50)
+}
+
+func BenchmarkClientOPRFUnblindP384_100(b *testing.B) {
+	benchClientUnblind(b, validOPRFP384Ciphersuite, 100)
+}
+
+func BenchmarkClientVOPRFUnblindP384_1(b *testing.B) {
+	benchClientUnblind(b, validVOPRFP384Ciphersuite, 1)
+}
+
+func BenchmarkClientVOPRFUnblindP384_5(b *testing.B) {
+	benchClientUnblind(b, validVOPRFP384Ciphersuite, 5)
+}
+
+func BenchmarkClientVOPRFUnblindP384_10(b *testing.B) {
+	benchClientUnblind(b, validVOPRFP384Ciphersuite, 10)
+}
+
+func BenchmarkClientVOPRFUnblindP384_25(b *testing.B) {
+	benchClientUnblind(b, validVOPRFP384Ciphersuite, 25)
+}
+
+func BenchmarkClientVOPRFUnblindP384_50(b *testing.B) {
+	benchClientUnblind(b, validVOPRFP384Ciphersuite, 50)
+}
+
+func BenchmarkClientVOPRFUnblindP384_100(b *testing.B) {
+	benchClientUnblind(b, validVOPRFP384Ciphersuite, 100)
+}
+
+func BenchmarkClientOPRFUnblindP521_1(b *testing.B) {
+	benchClientUnblind(b, validOPRFP521Ciphersuite, 1)
+}
+
+func BenchmarkClientOPRFUnblindP521_5(b *testing.B) {
+	benchClientUnblind(b, validOPRFP521Ciphersuite, 5)
+}
+
+func BenchmarkClientOPRFUnblindP521_10(b *testing.B) {
+	benchClientUnblind(b, validOPRFP521Ciphersuite, 10)
+}
+
+func BenchmarkClientOPRFUnblindP521_25(b *testing.B) {
+	benchClientUnblind(b, validOPRFP521Ciphersuite, 25)
+}
+
+func BenchmarkClientOPRFUnblindP521_50(b *testing.B) {
+	benchClientUnblind(b, validOPRFP521Ciphersuite, 50)
+}
+
+func BenchmarkClientOPRFUnblindP521_100(b *testing.B) {
+	benchClientUnblind(b, validOPRFP521Ciphersuite, 100)
+}
+
+func BenchmarkClientVOPRFUnblindP521_1(b *testing.B) {
+	benchClientUnblind(b, validVOPRFP521Ciphersuite, 1)
+}
+
+func BenchmarkClientVOPRFUnblindP521_5(b *testing.B) {
+	benchClientUnblind(b, validVOPRFP521Ciphersuite, 5)
+}
+
+func BenchmarkClientVOPRFUnblindP521_10(b *testing.B) {
+	benchClientUnblind(b, validVOPRFP521Ciphersuite, 10)
+}
+
+func BenchmarkClientVOPRFUnblindP521_25(b *testing.B) {
+	benchClientUnblind(b, validVOPRFP521Ciphersuite, 25)
+}
+
+func BenchmarkClientVOPRFUnblindP521_50(b *testing.B) {
+	benchClientUnblind(b, validVOPRFP521Ciphersuite, 50)
+}
+
+func BenchmarkClientVOPRFUnblindP521_100(b *testing.B) {
+	benchClientUnblind(b, validVOPRFP521Ciphersuite, 100)
+}
+
+func benchClientUnblind(b *testing.B, validCiphersuite string, n int) {
+	c, eval, _, eles, blinds, _, err := clientSetupUnblind(validCiphersuite, n)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	// benchmark
+	for i := 0; i < b.N; i++ {
+		_, err := c.Unblind(eval, eles, blinds)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkClientFinalizeP384(b *testing.B) {
+	benchClientFinalize(b, validOPRFP384Ciphersuite)
+}
+
+func BenchmarkClientFinalizeP521(b *testing.B) {
+	benchClientFinalize(b, validOPRFP521Ciphersuite)
+}
+
+func benchClientFinalize(b *testing.B, validCiphersuite string) {
+	c, err := clientSetup(validCiphersuite)
+	if err != nil {
+		b.Fatal(err)
+	}
+	pog := c.Ciphersuite().POG()
+	x := make([]byte, pog.ByteLength())
+	rand.Read(x)
+	aux := []byte{6, 7, 8, 9, 10}
+	P, err := pog.EncodeToGroup(x)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	// benchmark
+	for i := 0; i < b.N; i++ {
+		_, err := c.Finalize(P, x, aux)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
