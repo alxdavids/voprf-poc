@@ -245,7 +245,7 @@ func (cfg *Config) SetPublicKey(pk string) error {
 	if err != nil {
 		return err
 	}
-	cfg.ocli.SetPublicKey(Y)
+	cfg.ocli = cfg.ocli.SetPublicKey(Y)
 	return nil
 }
 
