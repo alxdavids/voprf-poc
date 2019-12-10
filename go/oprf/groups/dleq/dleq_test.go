@@ -29,17 +29,9 @@ func TestValidBatchedDLEQP521(t *testing.T) {
 }
 
 func TestBatchedDLEQInvalidLengths(t *testing.T) {
-	pog, h3, h4, h5, sk, pk, err := setup("P384")
+	pog, h3, h4, h5, sk, pk, batchM, batchZ, proof, err := createBatchedProof("P384", 5)
 	if err != nil {
 		t.Fatal(err)
-	}
-	batchM := make([]gg.GroupElement, 5)
-	batchZ := make([]gg.GroupElement, 5)
-	for i := 0; i < len(batchM); i++ {
-		batchM[i], batchZ[i], err = generateAndEval(pog, sk, fmt.Sprintf("random_input_%v", i))
-		if err != nil {
-			t.Fatal(err)
-		}
 	}
 	extraZ, err := pog.EncodeToGroup([]byte("last_element"))
 	if err != nil {
@@ -51,28 +43,15 @@ func TestBatchedDLEQInvalidLengths(t *testing.T) {
 	if err != oerr.ErrDLEQInvalidInput {
 		t.Fatal(err)
 	}
-
-	proof, err := BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, batchZ)
-	if err != nil {
-		t.Fatal(err)
-	}
 	if proof.BatchVerify(pog, h3, h4, h5, pk, batchM, badBatchZ) {
 		t.Fatal("verification should have failed for bad lengths")
 	}
 }
 
 func TestBatchedDLEQBadElement(t *testing.T) {
-	pog, h3, h4, h5, sk, pk, err := setup("P384")
+	pog, h3, h4, h5, sk, pk, batchM, _, proof, err := createBatchedProof("P384", 5)
 	if err != nil {
 		t.Fatal(err)
-	}
-	batchM := make([]gg.GroupElement, 5)
-	batchZ := make([]gg.GroupElement, 5)
-	for i := 0; i < len(batchM); i++ {
-		batchM[i], batchZ[i], err = generateAndEval(pog, sk, fmt.Sprintf("random_input_%v", i))
-		if err != nil {
-			t.Fatal(err)
-		}
 	}
 
 	// create bad element
@@ -93,26 +72,13 @@ func TestBatchedDLEQBadElement(t *testing.T) {
 	}
 
 	// fail verify for good proof but bad verify input
-	proof, err := BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, batchZ)
-	if err != nil {
-		t.Fatal(err)
-	}
 	if proof.BatchVerify(pog, h3, h4, h5, pk, batchM, badBatchZ) {
 		t.Fatal("verification should have failed for bad input element")
 	}
 }
 
 func validateDLEQ(t *testing.T, groupName string) {
-	pog, h3, _, _, sk, pk, err := setup(groupName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	M, Z, err := generateAndEval(pog, sk, "random_input")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	proof, err := Generate(pog, h3, sk, pk, M, Z)
+	pog, h3, _, pk, M, Z, proof, err := createProof(groupName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,20 +88,7 @@ func validateDLEQ(t *testing.T, groupName string) {
 }
 
 func validateBatchedDLEQ(t *testing.T, groupName string) {
-	pog, h3, h4, h5, sk, pk, err := setup(groupName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	batchM := make([]gg.GroupElement, 5)
-	batchZ := make([]gg.GroupElement, 5)
-	for i := 0; i < len(batchM); i++ {
-		batchM[i], batchZ[i], err = generateAndEval(pog, sk, fmt.Sprintf("random_input_%v", i))
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	proof, err := BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, batchZ)
+	pog, h3, h4, h5, _, pk, batchM, batchZ, proof, err := createBatchedProof(groupName, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,4 +128,211 @@ func setup(groupName string) (gg.PrimeOrderGroup, hash.Hash, hash.Hash, utils.Ex
 		return nil, nil, nil, nil, nil, nil, err
 	}
 	return pog, h3, h4, h5, sk, pk, nil
+}
+
+func createProof(groupName string) (gg.PrimeOrderGroup, hash.Hash, *big.Int, gg.GroupElement, gg.GroupElement, gg.GroupElement, Proof, error) {
+	pog, h3, _, _, sk, pk, err := setup(groupName)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, Proof{}, err
+	}
+	M, Z, err := generateAndEval(pog, sk, "random_input")
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, Proof{}, err
+	}
+
+	proof, err := Generate(pog, h3, sk, pk, M, Z)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, Proof{}, err
+	}
+	return pog, h3, sk, pk, M, Z, proof, nil
+}
+
+func createBatchedProof(groupName string, n int) (gg.PrimeOrderGroup, hash.Hash, hash.Hash, utils.ExtractorExpander, *big.Int, gg.GroupElement, []gg.GroupElement, []gg.GroupElement, Proof, error) {
+	pog, h3, h4, h5, sk, pk, err := setup("P384")
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, nil, Proof{}, err
+	}
+	batchM := make([]gg.GroupElement, n)
+	batchZ := make([]gg.GroupElement, n)
+	for i := 0; i < n; i++ {
+		batchM[i], batchZ[i], err = generateAndEval(pog, sk, fmt.Sprintf("random_input_%v", i))
+		if err != nil {
+			return nil, nil, nil, nil, nil, nil, nil, nil, Proof{}, err
+		}
+	}
+
+	proof, err := BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, batchZ)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, nil, Proof{}, err
+	}
+
+	return pog, h3, h4, h5, sk, pk, batchM, batchZ, proof, nil
+}
+
+/**
+ * Benchmarks
+ */
+
+func BenchmarkGenerateP384(b *testing.B) {
+	benchGenerate(b, "P384")
+}
+
+func BenchmarkGenerateP521(b *testing.B) {
+	benchGenerate(b, "P521")
+}
+
+func benchGenerate(b *testing.B, groupName string) {
+	pog, h3, sk, pk, M, Z, _, err := createProof(groupName)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		_, err := Generate(pog, h3, sk, pk, M, Z)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkVerifyP384(b *testing.B) {
+	benchVerify(b, "P384")
+}
+
+func BenchmarkVerifyP521(b *testing.B) {
+	benchVerify(b, "P521")
+}
+
+func benchVerify(b *testing.B, groupName string) {
+	pog, h3, _, pk, M, Z, proof, err := createProof(groupName)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		if !proof.Verify(pog, h3, pk, M, Z) {
+			b.Fatal("bad verification")
+		}
+	}
+}
+
+func BenchmarkGenerateP384_2(b *testing.B) {
+	benchBatchedGenerate(b, "P384", 2)
+}
+
+func BenchmarkGenerateP384_5(b *testing.B) {
+	benchBatchedGenerate(b, "P384", 5)
+}
+
+func BenchmarkGenerateP384_10(b *testing.B) {
+	benchBatchedGenerate(b, "P384", 10)
+}
+
+func BenchmarkGenerateP384_25(b *testing.B) {
+	benchBatchedGenerate(b, "P384", 25)
+}
+
+func BenchmarkGenerateP384_50(b *testing.B) {
+	benchBatchedGenerate(b, "P384", 50)
+}
+
+func BenchmarkGenerateP384_100(b *testing.B) {
+	benchBatchedGenerate(b, "P384", 100)
+}
+
+func BenchmarkGenerateP521_2(b *testing.B) {
+	benchBatchedGenerate(b, "P521", 2)
+}
+
+func BenchmarkGenerateP521_5(b *testing.B) {
+	benchBatchedGenerate(b, "P521", 5)
+}
+
+func BenchmarkGenerateP521_10(b *testing.B) {
+	benchBatchedGenerate(b, "P521", 10)
+}
+
+func BenchmarkGenerateP521_25(b *testing.B) {
+	benchBatchedGenerate(b, "P521", 25)
+}
+
+func BenchmarkGenerateP521_50(b *testing.B) {
+	benchBatchedGenerate(b, "P521", 50)
+}
+
+func BenchmarkGenerateP521_100(b *testing.B) {
+	benchBatchedGenerate(b, "P521", 100)
+}
+
+func benchBatchedGenerate(b *testing.B, groupName string, n int) {
+	pog, h3, h4, h5, sk, pk, batchM, batchZ, _, err := createBatchedProof(groupName, n)
+	if err != nil {
+		b.Fatal(err)
+	}
+	for i := 0; i < b.N; i++ {
+		_, err = BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, batchZ)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkVerifyP384_2(b *testing.B) {
+	benchBatchedVerify(b, "P384", 2)
+}
+
+func BenchmarkVerifyP384_5(b *testing.B) {
+	benchBatchedVerify(b, "P384", 5)
+}
+
+func BenchmarkVerifyP384_10(b *testing.B) {
+	benchBatchedVerify(b, "P384", 10)
+}
+
+func BenchmarkVerifyP384_25(b *testing.B) {
+	benchBatchedVerify(b, "P384", 25)
+}
+
+func BenchmarkVerifyP384_50(b *testing.B) {
+	benchBatchedVerify(b, "P384", 50)
+}
+
+func BenchmarkVerifyP384_100(b *testing.B) {
+	benchBatchedVerify(b, "P384", 100)
+}
+
+func BenchmarkVerifyP521_2(b *testing.B) {
+	benchBatchedVerify(b, "P521", 2)
+}
+
+func BenchmarkVerifyP521_5(b *testing.B) {
+	benchBatchedVerify(b, "P521", 5)
+}
+
+func BenchmarkVerifyP521_10(b *testing.B) {
+	benchBatchedVerify(b, "P521", 10)
+}
+
+func BenchmarkVerifyP521_25(b *testing.B) {
+	benchBatchedVerify(b, "P521", 25)
+}
+
+func BenchmarkVerifyP521_50(b *testing.B) {
+	benchBatchedVerify(b, "P521", 50)
+}
+
+func BenchmarkVerifyP521_100(b *testing.B) {
+	benchBatchedVerify(b, "P521", 100)
+}
+
+func benchBatchedVerify(b *testing.B, groupName string, n int) {
+	pog, h3, h4, h5, _, pk, batchM, batchZ, proof, err := createBatchedProof(groupName, n)
+	if err != nil {
+		b.Fatal(err)
+	}
+	for i := 0; i < b.N; i++ {
+		if !proof.BatchVerify(pog, h3, h4, h5, pk, batchM, batchZ) {
+			b.Fatal("bad batch verification")
+		}
+	}
 }
