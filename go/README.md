@@ -79,38 +79,38 @@ Starts a client that communicates with a running (V)OPRF server (default port 30
 
   - Expected output (VOPRF):
 
-        ```
-        go run main.go --mode=client --n=3 --ciph=<ciphersuite> --pk=<server_public_key>
-        Starting client...
-        Setting public key:  <server_public_key>
-        ***********
-        Inputs
-        ===========
-        ...
-        ***********
-        ***********
-        Blinds
-        ===========
-        ...
-        ***********
-        ***********
-        Outputs
-        ===========
-        ...
-        ***********
-        ***********
-        Evaluations
-        ===========
-        {
-        "elements": [
-            ...
-        ],
-        "proof": [
-            ...
-        ]
-        }
-        ***********
-        ```
+      ```
+      go run main.go --mode=client --n=3 --ciph=<ciphersuite> --pk=<server_public_key>
+      Starting client...
+      Setting public key:  <server_public_key>
+      ***********
+      Inputs
+      ===========
+      ...
+      ***********
+      ***********
+      Blinds
+      ===========
+      ...
+      ***********
+      ***********
+      Outputs
+      ===========
+      ...
+      ***********
+      ***********
+      Evaluations
+      ===========
+      {
+      "elements": [
+          ...
+      ],
+      "proof": [
+          ...
+      ]
+      }
+      ***********
+      ```
 
 The chosen curve in the ciphersuite can be changed by appending
 `CURVE=<chosen_curve>` to the make command. Only `P384` and `P521` are currently
