@@ -45,7 +45,7 @@ type Config struct {
 }
 
 // CreateConfig instantiates the client that will communicate with the HTTP
-// server that runs the OPRF server-side instance
+// server running the (V)OPRF
 func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputPath string) (*Config, error) {
 	ptpnt, err := oprf.Client{}.Setup(ciphersuite, pogInit)
 	if err != nil {
@@ -67,7 +67,7 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputP
 }
 
 // SendOPRFRequest constructs and sends an OPRF request to the OPRF server
-// instance. The response is processed by running hte Unblind() and Finalize()
+// instance. The response is processed by running the Unblind() and Finalize()
 // functionalities.
 func (cfg *Config) SendOPRFRequest(useTestVectors bool) error {
 	oprfReq, err := cfg.createOPRFRequest(useTestVectors)
@@ -159,6 +159,7 @@ func (cfg *Config) createOPRFRequest(useTestVectors bool) (*jsonrpc.Request, err
 	return cfg.createJSONRPCRequest(encodedElements, 1), nil
 }
 
+// processServerResponse parses the JSONRPC response sent by the server
 func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) ([][]byte, oprf.Evaluation, error) {
 	// parse returned group element and unblind
 	result := jsonrpcResp.Result

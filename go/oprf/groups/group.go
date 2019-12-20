@@ -12,19 +12,48 @@ import (
 	"github.com/alxdavids/oprf-poc/go/oprf/utils"
 )
 
-// Ciphersuite corresponds to the OPRF ciphersuite that is chosen
+// Ciphersuite corresponds to the OPRF ciphersuite that is chosen. The
+// Ciphersuite determines the prime-order group (pog) that is used for
+// performing the (V)OPRF operations, along with the different hash function
+// definitions.
+// Should be created using FromString
 type Ciphersuite struct {
-	name        string
-	pog         PrimeOrderGroup
-	hash1       func([]byte) (GroupElement, error)
-	hash2       func(func() hash.Hash, []byte) hash.Hash
+	// name of the ciphersuite, takes the form:
+	//	  <function>-<curve>-<extractor_expander>-<hash_func>-<h2c-name>
+	// The supported settings are:
+	// - function ∈ ["OPRF", "VOPRF"]
+	// - curve ∈ ["P384", "P521"]
+	// - extractor-expander ∈ ["HKDF"]
+	// - hash_func ∈ ["SHA-512"]
+	// - h2c-name ∈ ["SSWU-RO"]
+	name string
+
+	// PrimeOrderGroup instantiation for performing the OPRF operations.
+	pog PrimeOrderGroup
+
+	// Hash function used for encoding sequences of bytes as elements of the
+	// PrimeOrderGroup pog.
+	hash1 func([]byte) (GroupElement, error)
+
+	// A hash function that is used for generating the final output derived from
+	// the OPRF protocol
+	hash2 func(func() hash.Hash, []byte) hash.Hash
+
+	// A generic hash function that is typically used as the base underlying
+	// hash function when instantiating the other hash functionalities. We
+	// currently only support SHA-512
 	hashGeneric hash.Hash
-	hash5       utils.ExtractorExpander
-	verifiable  bool
+
+	// A hash function that is modelled as a random oracle and expands inputs
+	// into random outputs of sufficient length
+	hash5 utils.ExtractorExpander
+
+	// Indicates whether the ciphersuite supports verifiable functionality
+	verifiable bool
 }
 
-// FromString derives a ciphersuite from the string that was provided,
-// corresponding to a given PrimeOrderGroup implementation
+// FromString creates a Ciphersuite object can be created from a string of the
+// form defined above.
 func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, error) {
 	split := strings.SplitN(s, "-", 5)
 
@@ -125,37 +154,87 @@ func (c Ciphersuite) H5() utils.ExtractorExpander { return c.hash5 }
 // POG returns the PrimeOrderGroup for the current Ciphersuite
 func (c Ciphersuite) POG() PrimeOrderGroup { return c.pog }
 
-// Verifiable returns whether the ciphersuite corresponds to a VOPRF or not
+// Verifiable returns a bool indicating whether the ciphersuite corresponds to a
+// VOPRF or not
 func (c Ciphersuite) Verifiable() bool { return c.verifiable }
 
 // PrimeOrderGroup is an interface that defines operations within additive
-// groups of prime order
+// groups of prime order. This is the setting in which the (V)OPRF operations
+// take place.
+//
+// Any valid OPRF instantiation should extend this interface. Currently, only
+// prime-order-groups derived from the NIST P384 and P521 curves are supported.
 type PrimeOrderGroup interface {
+	// Creates a new PrimeOrderGroup object
 	New(string) (PrimeOrderGroup, error)
+
+	// Returns the identifying name of the group
 	Name() string
+
+	// Returns the canonical (fixed) generator for defined group
 	Generator() GroupElement
+
+	// Returns kG, where G is the canonical generator of the group, and k is
+	// some scalar value provided as input.
 	GeneratorMult(*big.Int) (GroupElement, error)
+
+	// Returns the order of the canonical generator in the group.
 	Order() *big.Int
+
+	// Returns the ByteLength of GroupElement objects associated with the group
 	ByteLength() int
+
+	// Performs a transformation to encode bytes as a GroupElement object in the
+	// group. We expect that EncodeToGroup models a random oracle
 	EncodeToGroup([]byte) (GroupElement, error)
+
+	// Base hash function used in conjunction with the PrimeOrderGroup
 	Hash() hash.Hash
+
+	// Base extractor-expander function used with the PrimeOrderGroup. We
+	// currently only support HKDF using the HKDF_Extract and HKDF_Expand modes.
 	EE() utils.ExtractorExpander
+
+	// Samples a random scalar value from the field of scalars defined by the
+	// group order.
 	UniformFieldElement() (*big.Int, error)
 }
 
-// GroupElement is the interface that represents group elements in a given Group
-// instantiation
+// GroupElement is the interface that represents group elements in a given
+// PrimeOrderGroup instantiation.
+//
+// Any valid group element in the prime-order-group must extend this interface.
+// Currently, only prime-order-groups derived from the NIST P384 and P521 curves
+// are supported. In these settings, we instantiate GroupElement as points along
+// these curves
 type GroupElement interface {
+	// New constructs a GroupElement object for the associated PrimeOrderGroup
+	// instantiation
 	New(PrimeOrderGroup) GroupElement
+
+	// Returns a bool indicating that the GroupElement is valid for the
+	// PrimeOrderGroup
 	IsValid() bool
+
+	// Performs a scalar multiplication of the group element with some scalar
+	// input
 	ScalarMult(*big.Int) (GroupElement, error)
+
+	// Performs the group addition operation on the calling GroupElement object
+	// along with a separate GroupElement provided as input
 	Add(GroupElement) (GroupElement, error)
+
+	// Serializes the GroupElement into a byte slice
 	Serialize() ([]byte, error)
+
+	// Attempts to deserialize a byte slice into a group element
 	Deserialize([]byte) (GroupElement, error)
+
+	// Returns a bool indicating whether two GroupElements are equal
 	Equal(GroupElement) bool
 }
 
-// CreateGroupElement creates a new group element from scratch
+// CreateGroupElement inits a new group element
 func CreateGroupElement(pog PrimeOrderGroup) GroupElement {
 	return pog.Generator().New(pog)
 }
