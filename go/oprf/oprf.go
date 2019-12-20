@@ -1,6 +1,8 @@
 package oprf
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"math/big"
 
 	"github.com/alxdavids/oprf-poc/go/oerr"
@@ -41,6 +43,27 @@ func (sk SecretKey) New(pog gg.PrimeOrderGroup) (SecretKey, error) {
 type Evaluation struct {
 	Elements []gg.GroupElement
 	Proof    dleq.Proof
+}
+
+// ToJSON returns a formatted string containing the contents of the Evaluation
+// object
+func (ev Evaluation) ToJSON() ([]byte, error) {
+	eleSerialized := make([]string, len(ev.Elements))
+	for i, v := range ev.Elements {
+		s, err := v.Serialize()
+		if err != nil {
+			return nil, err
+		}
+		eleSerialized[i] = hex.EncodeToString(s)
+	}
+	proofSerialized := make([]string, 2)
+	for i, val := range ev.Proof.Serialize() {
+		proofSerialized[i] = hex.EncodeToString(val)
+	}
+	serialization := make(map[string][]string)
+	serialization["elements"] = eleSerialized
+	serialization["proof"] = proofSerialized
+	return json.MarshalIndent(serialization, "", "  ")
 }
 
 // The Participant interface defines the functions necessary for implenting an OPRF
@@ -90,8 +113,6 @@ func (s Server) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participa
 
 // Eval computes the Server-side evaluation of the (V)OPRF using a secret key
 // and a provided group element
-//
-// TODO: support VOPRF
 func (s Server) Eval(batchM []gg.GroupElement) (Evaluation, error) {
 	if !s.Ciphersuite().Verifiable() {
 		return s.oprfEval(batchM)

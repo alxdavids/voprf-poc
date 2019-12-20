@@ -21,7 +21,18 @@ var (
 	storedInputs       [][]byte
 	storedElements     []gg.GroupElement
 	storedBlinds       []*big.Int
+	storedEvaluation   oprf.Evaluation
 	storedFinalOutputs [][]byte
+	testVectors        = [][]byte{
+		[]byte{0},
+		[]byte{1},
+		[]byte{1, 0, 1, 0, 1, 0, 1, 0},
+		[]byte{0, 1, 0, 1, 0, 1, 0, 1},
+		[]byte{1, 1, 1, 1, 1, 1, 1, 1},
+		[]byte{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
+		[]byte{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
+		[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	}
 )
 
 // Config holds all the relevant information for a client-side OPRF
@@ -58,8 +69,8 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputP
 // SendOPRFRequest constructs and sends an OPRF request to the OPRF server
 // instance. The response is processed by running hte Unblind() and Finalize()
 // functionalities.
-func (cfg *Config) SendOPRFRequest() error {
-	oprfReq, err := cfg.createOPRFRequest()
+func (cfg *Config) SendOPRFRequest(useTestVectors bool) error {
+	oprfReq, err := cfg.createOPRFRequest(useTestVectors)
 	if err != nil {
 		return err
 	}
@@ -88,7 +99,7 @@ func (cfg *Config) SendOPRFRequest() error {
 	}
 
 	// Process and finalize the server response, and then store
-	storedFinalOutputs, err = cfg.processServerResponse(jsonrpcResp)
+	storedFinalOutputs, storedEvaluation, err = cfg.processServerResponse(jsonrpcResp)
 	if err != nil {
 		return err
 	}
@@ -98,9 +109,10 @@ func (cfg *Config) SendOPRFRequest() error {
 // createOPRFRequest creates the first message in the OPRF protocol to send to
 // the OPRF server. The parameter n indicates the number of tokens that should
 // be sent
-//
-// TODO: allow n to be greater than 1
-func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
+func (cfg *Config) createOPRFRequest(useTestVectors bool) (*jsonrpc.Request, error) {
+	if useTestVectors {
+		cfg.n = len(testVectors)
+	}
 	n := cfg.n
 	if n < 1 {
 		return nil, errors.New("The value of n must be greater than 0")
@@ -110,11 +122,17 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 	var blinds []*big.Int
 	var encodedElements [][]byte
 	for i := 0; i < n; i++ {
-		// sample a random input
-		buf := make([]byte, 32)
-		_, err := rand.Read(buf)
-		if err != nil {
-			return nil, err
+		var buf []byte
+		if useTestVectors {
+			// use test vector
+			buf = testVectors[i]
+		} else {
+			// sample a random input
+			buf = make([]byte, cfg.ocli.Ciphersuite().POG().ByteLength())
+			_, err := rand.Read(buf)
+			if err != nil {
+				return nil, err
+			}
 		}
 		inputs = append(inputs, buf)
 
@@ -141,7 +159,7 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 	return cfg.createJSONRPCRequest(encodedElements, 1), nil
 }
 
-func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) ([][]byte, error) {
+func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) ([][]byte, oprf.Evaluation, error) {
 	// parse returned group element and unblind
 	result := jsonrpcResp.Result
 	pog := cfg.ocli.Ciphersuite().POG()
@@ -150,11 +168,11 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 	for i := 0; i < cfg.n; i++ {
 		buf, err := hex.DecodeString(result.Data[i])
 		if err != nil {
-			return nil, err
+			return nil, oprf.Evaluation{}, err
 		}
 		Z, err := gg.CreateGroupElement(pog).Deserialize(buf)
 		if err != nil {
-			return nil, err
+			return nil, oprf.Evaluation{}, err
 		}
 		ev.Elements[i] = Z
 	}
@@ -163,11 +181,11 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 	if cfg.ocli.Ciphersuite().Verifiable() {
 		cBytes, err := hex.DecodeString(result.Proof[0])
 		if err != nil {
-			return nil, err
+			return nil, oprf.Evaluation{}, err
 		}
 		sBytes, err := hex.DecodeString(result.Proof[1])
 		if err != nil {
-			return nil, err
+			return nil, oprf.Evaluation{}, err
 		}
 		ev.Proof = dleq.Proof{C: new(big.Int).SetBytes(cBytes), S: new(big.Int).SetBytes(sBytes)}
 	}
@@ -175,7 +193,7 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 	// run the unblinding steps
 	ret, err := cfg.ocli.Unblind(ev, storedElements, storedBlinds)
 	if err != nil {
-		return nil, err
+		return nil, oprf.Evaluation{}, err
 	}
 
 	// finalize outputs
@@ -184,11 +202,11 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 		aux := []byte("oprf_finalization_step")
 		y, err := cfg.ocli.Finalize(N, storedInputs[i], aux)
 		if err != nil {
-			return nil, err
+			return nil, oprf.Evaluation{}, err
 		}
 		finalOutputs = append(finalOutputs, y)
 	}
-	return finalOutputs, nil
+	return finalOutputs, ev, nil
 }
 
 // createJSONRPCRequest creates the JSONRPC Request object for sending to the
@@ -259,7 +277,7 @@ func (cfg *Config) PrintStorage() error {
 
 	// construct output strings
 	arrays := [][][]byte{storedInputs, bufBlinds, storedFinalOutputs}
-	outputStrings := make([]string, 3)
+	outputStrings := make([]string, len(arrays))
 	for j, s := range arrays {
 		outString := ""
 		for i, byt := range s {
@@ -271,9 +289,15 @@ func (cfg *Config) PrintStorage() error {
 		outputStrings[j] = outString
 	}
 
+	evJSON, err := storedEvaluation.ToJSON()
+	if err != nil {
+		return err
+	}
+	outputStrings = append(outputStrings, string(evJSON))
+
 	// output to file if one is defined, otherwise to stdout
 	if cfg.outputPath != "" {
-		fileNames := []string{"/stored_inputs.txt", "/stored_blinds.txt", "/stored_final_outputs.txt"}
+		fileNames := []string{"/stored_inputs.txt", "/stored_blinds.txt", "/stored_final_outputs.txt", "/stored_evaluation.txt"}
 		for i, f := range fileNames {
 			e := ioutil.WriteFile(cfg.outputPath+f, []byte(outputStrings[i]), 0755)
 			if e != nil {
@@ -281,7 +305,7 @@ func (cfg *Config) PrintStorage() error {
 			}
 		}
 	} else {
-		headers := []string{"Inputs", "Blinds", "Outputs"}
+		headers := []string{"Inputs", "Blinds", "Outputs", "Evaluations"}
 		for i, h := range headers {
 			fmt.Println("***********")
 			fmt.Println(h)

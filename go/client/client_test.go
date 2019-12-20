@@ -53,7 +53,7 @@ func TestCreateOPRFRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	jsonrpcReq, err := cfg.createOPRFRequest()
+	jsonrpcReq, err := cfg.createOPRFRequest(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestCreateOPRFRequestBadN(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = cfg.createOPRFRequest()
+	_, err = cfg.createOPRFRequest(false)
 	if err == nil {
 		t.Fatal("n < 0 should be unsupported")
 	}

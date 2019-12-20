@@ -19,7 +19,7 @@ type Config struct {
 	osrv oprf.Server // Server object for performing OPRF operations
 	hsrv http.Server // HTTP Server
 	max  int         // Max number of OPRF evaluations to be permitted in one go
-	tls  bool        // TODO: whether TLS is supported by the server
+	tls  bool        // TODO: TLS is still not supported
 }
 
 // CreateConfig returns a HTTP Server object

@@ -268,10 +268,6 @@ func checkServerEval(t *testing.T, validCiphersuite string, n int) {
 	}
 }
 
-// TODO
-// - tests for multiple evaluations
-// - tests for verifiability
-
 func checkClientBlindUnblind(t *testing.T, validCiphersuite string, n int) {
 	c, eval, inputs, eles, blinds, sk, err := clientSetupUnblind(validCiphersuite, n)
 	if err != nil {
