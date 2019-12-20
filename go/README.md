@@ -9,26 +9,26 @@ A [golang](https://golang.org/) implementation of the VOPRF in
 
 Starts a server for running the (V)OPRF protocol.
 
-Run server (OPRF):
+- Run server (OPRF):
 
-```
-make server
-```
+    ```
+    make server
+    ```
 
-Run server (VOPRF):
+- Run server (VOPRF):
 
-```
-make server VERIFIABLE=true
-```
+    ```
+    make server VERIFIABLE=true
+    ```
 
-Expected output:
+    - Expected output:
 
-```
-go run main.go --mode=server --max_evals=10 --ciph=<ciphersuite>
-Starting server...
-Server listening on port 3001
-Public key: <public-key>
-```
+        ```
+        go run main.go --mode=server --max_evals=10 --ciph=<ciphersuite>
+        Starting server...
+        Server listening on port 3001
+        Public key: <public-key>
+        ```
 
 ### Client
 
@@ -74,7 +74,7 @@ Starts a client that communicates with a running (V)OPRF server (default port 30
 - Run client (VOPRF):
 
     ```
-    make server VERIFIABLE=true PUBLIC_KEY=<server_public_key>
+    make client VERIFIABLE=true PUBLIC_KEY=<server_public_key>
     ```
 
   - Expected output (VOPRF):
