@@ -5,6 +5,7 @@ A [golang](https://golang.org/) implementation of the VOPRF in
 
 - [voprf-poc-js](#voprf-poc-js)
   - [Quickstart](#quickstart)
+    - [Documentation](#documentation)
     - [Server](#server)
     - [Client](#client)
     - [Generate test vectors](#generate-test-vectors)
@@ -15,6 +16,16 @@ A [golang](https://golang.org/) implementation of the VOPRF in
     - [Evaluations](#evaluations)
 
 ## Quickstart
+
+### Documentation
+
+Run:
+
+```
+./docs.sh
+```
+
+and navigate to http://localhost:6060/pkg.
 
 ### Server
 

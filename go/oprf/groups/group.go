@@ -18,12 +18,9 @@ import (
 // definitions.
 // Should be created using FromString, using a string of the form:
 //	  <function>-<curve>-<extractor_expander>-<hash_func>-<h2c-name>
-// The supported settings are:
-// - function ∈ ["OPRF", "VOPRF"]
-// - curve ∈ ["P384", "P521"]
-// - extractor-expander ∈ ["HKDF"]
-// - hash_func ∈ ["SHA-512"]
-// - h2c-name ∈ ["SSWU-RO"]
+// The supported settings are: function ∈ ["OPRF", "VOPRF"], curve ∈ ["P384",
+// "P521"], extractor-expander ∈ ["HKDF"], hash_func ∈ ["SHA-512"], h2c-name ∈
+// ["SSWU-RO"].
 type Ciphersuite struct {
 	// name of the ciphersuite
 	name string
