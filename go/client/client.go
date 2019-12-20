@@ -289,7 +289,7 @@ func (cfg *Config) PrintStorage() error {
 		outputStrings[j] = outString
 	}
 
-	evJSON, err := storedEvaluation.ToJSON()
+	evJSON, err := storedEvaluation.ToJSON(cfg.ocli.Ciphersuite().Verifiable())
 	if err != nil {
 		return err
 	}

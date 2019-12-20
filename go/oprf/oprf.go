@@ -47,7 +47,7 @@ type Evaluation struct {
 
 // ToJSON returns a formatted string containing the contents of the Evaluation
 // object
-func (ev Evaluation) ToJSON() ([]byte, error) {
+func (ev Evaluation) ToJSON(verifiable bool) ([]byte, error) {
 	eleSerialized := make([]string, len(ev.Elements))
 	for i, v := range ev.Elements {
 		s, err := v.Serialize()
@@ -56,13 +56,15 @@ func (ev Evaluation) ToJSON() ([]byte, error) {
 		}
 		eleSerialized[i] = hex.EncodeToString(s)
 	}
-	proofSerialized := make([]string, 2)
-	for i, val := range ev.Proof.Serialize() {
-		proofSerialized[i] = hex.EncodeToString(val)
-	}
 	serialization := make(map[string][]string)
 	serialization["elements"] = eleSerialized
-	serialization["proof"] = proofSerialized
+	if verifiable {
+		proofSerialized := make([]string, 2)
+		for i, val := range ev.Proof.Serialize() {
+			proofSerialized[i] = hex.EncodeToString(val)
+		}
+		serialization["proof"] = proofSerialized
+	}
 	return json.MarshalIndent(serialization, "", "  ")
 }
 
