@@ -12,12 +12,8 @@ import (
 	"github.com/alxdavids/oprf-poc/go/oerr"
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
 	"github.com/alxdavids/oprf-poc/go/oprf/utils"
+	"github.com/alxdavids/oprf-poc/go/oprf/utils/constants"
 	"github.com/cloudflare/circl/ecc/p384"
-)
-
-// big.Int constants
-var (
-	zero, one, minusOne, minusThree, two, four *big.Int = big.NewInt(0), big.NewInt(1), big.NewInt(-1), big.NewInt(-3), big.NewInt(2), big.NewInt(4)
 )
 
 // GroupCurve implements the PrimeOrderGroup interface using an elliptic curve
@@ -55,8 +51,8 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 		return nil, oerr.ErrUnsupportedGroup
 	}
 	p := curve.Params().P
-	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, one), new(big.Int).ModInverse(two, p)), p)
-	sqrtExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, one), new(big.Int).ModInverse(four, p)), p)
+	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, constants.One), new(big.Int).ModInverse(constants.Two, p)), p)
+	sqrtExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, constants.One), new(big.Int).ModInverse(constants.Four, p)), p)
 	return GroupCurve{
 		ops:        curve,
 		name:       name,
@@ -64,9 +60,9 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 		ee:         ee,
 		byteLength: (curve.Params().BitSize + 7) / 8,
 		nist:       true,
-		sgn0:       sgn0LE,
+		sgn0:       utils.Sgn0LE,
 		consts: CurveConstants{
-			a:       minusThree,
+			a:       constants.MinusThree,
 			sqrtExp: sqrtExp,
 			isSqExp: isSqExp,
 		},
@@ -181,8 +177,8 @@ func CreateNistCurve(curve elliptic.Curve, h hash.Hash, ee utils.ExtractorExpand
 		name = "P-521"
 	}
 	p := curve.Params().P
-	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, one), new(big.Int).ModInverse(two, p)), p)
-	sqrtExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, one), new(big.Int).ModInverse(four, p)), p)
+	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, constants.One), new(big.Int).ModInverse(constants.Two, p)), p)
+	sqrtExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, constants.One), new(big.Int).ModInverse(constants.Four, p)), p)
 	return GroupCurve{
 		ops:        curve,
 		name:       name,
@@ -190,9 +186,9 @@ func CreateNistCurve(curve elliptic.Curve, h hash.Hash, ee utils.ExtractorExpand
 		ee:         ee,
 		byteLength: (curve.Params().BitSize + 7) / 8,
 		nist:       true,
-		sgn0:       sgn0LE,
+		sgn0:       utils.Sgn0LE,
 		consts: CurveConstants{
-			a:       minusThree,
+			a:       constants.MinusThree,
 			sqrtExp: sqrtExp,
 			isSqExp: isSqExp,
 		},
@@ -209,9 +205,9 @@ type Point struct {
 	compress bool // indicates that the point should be compressed on serialization.
 }
 
-// New returns a new point initialised to zero
+// New returns a new point initialised to constants.Zero
 func (p Point) New(pog gg.PrimeOrderGroup) gg.GroupElement {
-	return Point{X: zero, Y: zero, pog: pog, compress: true}
+	return Point{X: constants.Zero, Y: constants.Zero, pog: pog, compress: true}
 }
 
 // Equal returns true if the two Point objects have the same X and Y
@@ -333,9 +329,9 @@ func (p Point) nistSerialize(curve GroupCurve) []byte {
 		tag = 4
 	} else {
 		bytes = xBytes
-		sign := sgn0LE(p.Y)
+		sign := utils.Sgn0LE(p.Y)
 		// perform sign-check and cast to int
-		e := int(equalsToBigInt(sign, one).Int64())
+		e := int(utils.EqualsToBigInt(sign, constants.One).Int64())
 		// select correct tag
 		tag = subtle.ConstantTimeSelect(e, 2, 3)
 	}
@@ -380,16 +376,16 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, error) {
 	// recompute curve equation y^2 = x^3 + ax + b
 	order := curve.P()
 	x := new(big.Int).SetBytes(buf[1:])
-	rhs := new(big.Int).Add(new(big.Int).Exp(x, two, order), minusThree) // a = -3
+	rhs := new(big.Int).Add(new(big.Int).Exp(x, constants.Two, order), constants.MinusThree) // a = -3
 	rhs = rhs.Mul(rhs, x)
 	rhs = rhs.Add(rhs, curve.ops.Params().B)
 	rhs = rhs.Mod(rhs, order)
 
 	// construct y coordinate with correct sign
 	y := rhs.Exp(rhs, curve.consts.sqrtExp, order)
-	bufParity := equalsToBigInt(big.NewInt(int64(buf[0])), two)
-	yParity := equalsToBigInt(sgn0LE(y), one)
-	y = cmov(new(big.Int).Mul(y, minusOne), y, equalsToBigInt(bufParity, yParity))
+	bufParity := utils.EqualsToBigInt(big.NewInt(int64(buf[0])), constants.Two)
+	yParity := utils.EqualsToBigInt(utils.Sgn0LE(y), constants.One)
+	y = utils.Cmov(new(big.Int).Mul(y, constants.MinusOne), y, utils.EqualsToBigInt(bufParity, yParity))
 
 	// construct point and check validity
 	p.X = new(big.Int).Mod(x, curve.P())
@@ -439,38 +435,4 @@ func castToPoint(ge gg.GroupElement) (Point, error) {
 		return Point{}, oerr.ErrInvalidGroupElement
 	}
 	return point, nil
-}
-
-// cmpToBigInt converts the return value from a comparison operation into a
-// *big.Int
-func cmpToBigInt(a, b *big.Int) *big.Int {
-	return big.NewInt(int64(a.Cmp(b)))
-}
-
-// equalsToBigInt returns big.Int(1) if a == b and big.Int(0) otherwise
-func equalsToBigInt(a, b *big.Int) *big.Int {
-	cmp := cmpToBigInt(a, b)
-	equalsRev := new(big.Int).Abs(cmp)
-	return revCmpBit(equalsRev)
-}
-
-// returns 1 if the signs of s1 and s2 are the same, and 0 otherwise
-func sgnCmp(s1, s2 *big.Int, sgn0 func(*big.Int) *big.Int) *big.Int {
-	return equalsToBigInt(sgn0(s1), sgn0(s2))
-}
-
-// sgn0LE returns -1 if x is negative (in little-endian sense) and 1 if x is positive
-func sgn0LE(x *big.Int) *big.Int {
-	res := equalsToBigInt(new(big.Int).Mod(x, two), one)
-	sign := cmov(one, minusOne, res)
-	zeroCmp := equalsToBigInt(x, zero)
-	sign = cmov(sign, zero, zeroCmp)
-	sZeroCmp := equalsToBigInt(sign, zero)
-	return cmov(sign, one, sZeroCmp)
-}
-
-// cmov is a constant-time big.Int conditional selector, returning b if c is 1,
-// and a if c = 0
-func cmov(a, b, c *big.Int) *big.Int {
-	return new(big.Int).Add(new(big.Int).Mul(c, b), new(big.Int).Mul(new(big.Int).Sub(one, c), a))
 }

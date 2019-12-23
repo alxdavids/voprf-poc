@@ -13,6 +13,7 @@ import (
 	"github.com/alxdavids/oprf-poc/go/oerr"
 	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
 	"github.com/alxdavids/oprf-poc/go/oprf/utils"
+	"github.com/alxdavids/oprf-poc/go/oprf/utils/constants"
 	"github.com/cloudflare/circl/ecc/p384"
 	"github.com/stretchr/testify/assert"
 )
@@ -172,7 +173,7 @@ func TestPointEqualityFailsOnInvalidCallerPoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	P.X = minusOne
+	P.X = constants.MinusOne
 	p521 := CreateNistCurve(elliptic.P521(), sha512.New(), utils.HKDFExtExp{})
 	Q, err := curveEncoding(p521)
 	if err != nil {
@@ -192,7 +193,7 @@ func TestPointEqualityFailsOnInvalidInputPoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Q.X = minusOne
+	Q.X = constants.MinusOne
 	assert.False(t, P.Equal(Q))
 }
 

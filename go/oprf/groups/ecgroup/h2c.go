@@ -7,6 +7,7 @@ import (
 
 	"github.com/alxdavids/oprf-poc/go/oerr"
 	"github.com/alxdavids/oprf-poc/go/oprf/utils"
+	"github.com/alxdavids/oprf-poc/go/oprf/utils/constants"
 )
 
 // h2cParams contains all of the parameters required for computing the
@@ -52,14 +53,14 @@ func getH2CParams(gc GroupCurve) (h2cParams, error) {
 		params.z = -12
 		params.m = 1
 		params.l = 72
-		params.hEff = one
+		params.hEff = constants.One
 		break
 	case "P-521":
 		params.dst = []byte(fmt.Sprintf("VOPRF-P521-SHA512-%s-", h2cName))
 		params.z = -4
 		params.m = 1
 		params.l = 96
-		params.hEff = one
+		params.hEff = constants.One
 		break
 	default:
 		return h2cParams{}, oerr.ErrUnsupportedGroup
@@ -161,31 +162,31 @@ func (params h2cParams) sswu(uArr []*big.Int) (Point, error) {
 
 	// consts
 	// c1 := -B/A, c2 := -1/Z
-	c1 := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Mul(B, minusOne), new(big.Int).ModInverse(A, p)), p)
-	c2 := new(big.Int).Mul(minusOne, new(big.Int).ModInverse(Z, p))
+	c1 := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Mul(B, constants.MinusOne), new(big.Int).ModInverse(A, p)), p)
+	c2 := new(big.Int).Mul(constants.MinusOne, new(big.Int).ModInverse(Z, p))
 
 	// steps
-	t1 := new(big.Int).Mul(Z, new(big.Int).Exp(u, two, p)) // 1.     t1 = Z * u^2
-	t2 := new(big.Int).Exp(t1, two, p)                     // 2.     t2 = t1^2
-	x1 := new(big.Int).Add(t1, t2)                         // 3.     x1 = t1 + t2
-	x1 = inv0(x1, p)                                       // 4.     x1 = inv0(x1)
-	e1 := equalsToBigInt(x1, zero)                         // 5.     e1 = x1 == 0
-	x1 = x1.Add(x1, one)                                   // 6.     x1 = x1 + 1
-	x1 = cmov(x1, c2, e1)                                  // 7.     x1 = CMOV(x1, c2, e1)
-	x1 = x1.Mul(x1, c1)                                    // 8.     x1 = x1 * c1
-	gx1 := new(big.Int).Exp(x1, two, p)                    // 9.    gx1 = x1^2
-	gx1 = gx1.Add(gx1, A)                                  // 10.   gx1 = gx1 + A
-	gx1 = gx1.Mul(gx1, x1)                                 // 11.   gx1 = gx1 * x1
-	gx1 = gx1.Add(gx1, B)                                  // 12.   gx1 = gx1 + B
-	x2 := new(big.Int).Mul(t1, x1)                         // 13.    x2 = t1 * x1
-	t2 = t2.Mul(t1, t2)                                    // 14.    t2 = t1 * t2
-	gx2 := new(big.Int).Mul(gx1, t2)                       // 15.   gx2 = gx1 * t2
-	e2 := isSquare(gx1, params.isSqExp, p)                 // 16.    e2 = is_square(gx1)
-	x := cmov(x2, x1, e2)                                  // 17.     x = CMOV(x2, x1, e2)
-	y2 := cmov(gx2, gx1, e2)                               // 18.    y2 = CMOV(gx2, gx1, e2)
-	y := sqrt(y2, params.sqrtExp, p)                       // 19.     y = sqrt(y2)
-	e3 := sgnCmp(u, y, params.sgn0)                        // 20.    e3 = sgn0(u) == sgn0(y)
-	y = cmov(new(big.Int).Mul(y, minusOne), y, e3)         // 21.     y = CMOV(-y, y, e3)
+	t1 := new(big.Int).Mul(Z, new(big.Int).Exp(u, constants.Two, p)) // 1.     t1 = Z * u^2
+	t2 := new(big.Int).Exp(t1, constants.Two, p)                     // 2.     t2 = t1^2
+	x1 := new(big.Int).Add(t1, t2)                                   // 3.     x1 = t1 + t2
+	x1 = utils.Inv0(x1, p)                                           // 4.     x1 = utils.Inv0(x1)
+	e1 := utils.EqualsToBigInt(x1, constants.Zero)                   // 5.     e1 = x1 == 0
+	x1 = x1.Add(x1, constants.One)                                   // 6.     x1 = x1 + 1
+	x1 = utils.Cmov(x1, c2, e1)                                      // 7.     x1 = CMOV(x1, c2, e1)
+	x1 = x1.Mul(x1, c1)                                              // 8.     x1 = x1 * c1
+	gx1 := new(big.Int).Exp(x1, constants.Two, p)                    // 9.    gx1 = x1^2
+	gx1 = gx1.Add(gx1, A)                                            // 10.   gx1 = gx1 + A
+	gx1 = gx1.Mul(gx1, x1)                                           // 11.   gx1 = gx1 * x1
+	gx1 = gx1.Add(gx1, B)                                            // 12.   gx1 = gx1 + B
+	x2 := new(big.Int).Mul(t1, x1)                                   // 13.    x2 = t1 * x1
+	t2 = t2.Mul(t1, t2)                                              // 14.    t2 = t1 * t2
+	gx2 := new(big.Int).Mul(gx1, t2)                                 // 15.   gx2 = gx1 * t2
+	e2 := isSquare(gx1, params.isSqExp, p)                           // 16.    e2 = is_square(gx1)
+	x := utils.Cmov(x2, x1, e2)                                      // 17.     x = CMOV(x2, x1, e2)
+	y2 := utils.Cmov(gx2, gx1, e2)                                   // 18.    y2 = CMOV(gx2, gx1, e2)
+	y := sqrt(y2, params.sqrtExp, p)                                 // 19.     y = sqrt(y2)
+	e3 := utils.SgnCmp(u, y, params.sgn0)                            // 20.    e3 = sgn0(u) == sgn0(y)
+	y = utils.Cmov(new(big.Int).Mul(y, constants.MinusOne), y, e3)   // 21.     y = CMOV(-y, y, e3)
 
 	// construct point and assert that it is correct
 	P := Point{}.New(params.gc).(Point)
@@ -209,18 +210,8 @@ func sqrt(x, exp, p *big.Int) *big.Int {
 // in the value exp to compute the square root in the exponent
 func isSquare(x, exp, p *big.Int) *big.Int {
 	b := new(big.Int).Exp(x, exp, p)
-	c := b.Cmp(one)
-	d := b.Cmp(zero)
+	c := b.Cmp(constants.One)
+	d := b.Cmp(constants.Zero)
 	e := int64(c * d)
-	return equalsToBigInt(big.NewInt(e), zero) // returns 1 if square, and 0 otherwise
-}
-
-// revCmp reverses the result of a comparison bit indicator
-func revCmpBit(cmp *big.Int) *big.Int {
-	return new(big.Int).Mod(new(big.Int).Add(cmp, one), two)
-}
-
-// inv0 returns the inverse of x in FF_p, also returning 0^{-1} => 0
-func inv0(x, p *big.Int) *big.Int {
-	return x.Exp(x, new(big.Int).Sub(p, two), p)
+	return utils.EqualsToBigInt(big.NewInt(e), constants.Zero) // returns 1 if square, and 0 otherwise
 }
