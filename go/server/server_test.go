@@ -91,7 +91,7 @@ func TestProcessValidJSONRPCRequest(t *testing.T) {
 	jsonrpcReq := &jsonrpc.Request{
 		Version: "2.0",
 		Method:  "eval",
-		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}},
+		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}, Ciphersuite: validOPRFP384Ciphersuite},
 		ID:      1,
 	}
 	// actual value checks are done in other tests
@@ -121,7 +121,7 @@ func TestInvalidJSONRPCRequestMethod(t *testing.T) {
 	jsonrpcReq := &jsonrpc.Request{
 		Version: "2.0",
 		Method:  "bad_method",
-		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}},
+		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}, Ciphersuite: validOPRFP384Ciphersuite},
 		ID:      1,
 	}
 	// actual value checks are done in other tests
@@ -175,6 +175,62 @@ func TestInvalidJSONRPCRequestEmptyParams(t *testing.T) {
 	}
 }
 
+func TestInvalidJSONRPCRequestNoCiphersuite(t *testing.T) {
+	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 5, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pog := cfg.osrv.Ciphersuite().POG()
+	P, err := pog.EncodeToGroup([]byte("random_input"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf, err := P.Serialize()
+	if err != nil {
+		t.Fatal(err)
+	}
+	jsonrpcReq := &jsonrpc.Request{
+		Version: "2.0",
+		Method:  "eval",
+		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}},
+		ID:      1,
+	}
+	// actual value checks are done in other tests
+	_, err = cfg.processJSONRPCRequest(jsonrpcReq)
+	if err != oerr.ErrJSONRPCInvalidMethodParams {
+		fmt.Println(err)
+		t.Fatal("bad method params should have caused errors")
+	}
+}
+
+func TestInvalidJSONRPCRequestInvalidCiphersuite(t *testing.T) {
+	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 5, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pog := cfg.osrv.Ciphersuite().POG()
+	P, err := pog.EncodeToGroup([]byte("random_input"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf, err := P.Serialize()
+	if err != nil {
+		t.Fatal(err)
+	}
+	jsonrpcReq := &jsonrpc.Request{
+		Version: "2.0",
+		Method:  "eval",
+		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}, Ciphersuite: validOPRFP521Ciphersuite},
+		ID:      1,
+	}
+	// actual value checks are done in other tests
+	_, err = cfg.processJSONRPCRequest(jsonrpcReq)
+	if err != oerr.ErrJSONRPCInvalidMethodParams {
+		fmt.Println(err)
+		t.Fatal("bad method params should have caused errors")
+	}
+}
+
 func TestInvalidJSONRPCRequestBadlyEncodedParam(t *testing.T) {
 	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 5, false)
 	if err != nil {
@@ -202,7 +258,7 @@ func TestInvalidJSONRPCRequestBadParams(t *testing.T) {
 	jsonrpcReq := &jsonrpc.Request{
 		Version: "2.0",
 		Method:  "eval",
-		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString([]byte("bad_byte_string"))}},
+		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString([]byte("bad_byte_string"))}, Ciphersuite: validOPRFP384Ciphersuite},
 		ID:      1,
 	}
 	// actual value checks are done in other tests

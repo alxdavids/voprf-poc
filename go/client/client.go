@@ -221,7 +221,8 @@ func (cfg *Config) createJSONRPCRequest(eles [][]byte, id int) *jsonrpc.Request 
 		Version: "2.0",
 		Method:  "eval",
 		Params: jsonrpc.RequestParams{
-			Data: hexParams,
+			Data:        hexParams,
+			Ciphersuite: cfg.ocli.Ciphersuite().Name(),
 		},
 		ID: id,
 	}
