@@ -228,6 +228,11 @@ func (c Client) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
 // Unblind returns the unblinded group element N = r^{-1}*Z if the DLEQ proof
 // check passes (proof check is committed if the ciphersuite is not verififable)
 func (c Client) Unblind(ev Evaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
+	// check that the lengths of the expected evaluations is the same as the
+	// number generated
+	if len(ev.Elements) != len(origs) {
+		return nil, oerr.ErrClientInconsistentResponse
+	}
 	if !c.ciph.Verifiable() {
 		return c.oprfUnblind(ev, blinds)
 	}
@@ -239,11 +244,6 @@ func (c Client) voprfUnblind(ev Evaluation, origs []gg.GroupElement, blinds []*b
 	ciph := c.ciph
 	eles := ev.Elements
 	proof := ev.Proof
-	// check that the lengths of the expected evaluations is the same as the
-	// number generated
-	if len(eles) != len(origs) {
-		return nil, oerr.ErrOPRFInvalidInput
-	}
 	// check DLEQ proof
 	b := false
 	if len(eles) == 1 {

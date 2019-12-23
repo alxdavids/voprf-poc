@@ -257,10 +257,6 @@ func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, error) {
 	if err != nil {
 		return nil, err
 	}
-	// normalize point and perform multiplication
-	if err != nil {
-		return nil, err
-	}
 	p.X, p.Y = curve.ops.ScalarMult(p.X, p.Y, k.Bytes())
 	return p, nil
 }
