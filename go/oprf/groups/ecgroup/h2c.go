@@ -17,7 +17,6 @@ type h2cParams struct {
 	gc      GroupCurve
 	name    string
 	dst     []byte
-	mapping int
 	z       int
 	a       *big.Int
 	b       *big.Int
@@ -35,47 +34,37 @@ type h2cParams struct {
 // getH2CParams returns the h2cParams object for the specified curve
 func getH2CParams(gc GroupCurve) (h2cParams, error) {
 	h2cName := "SSWU-RO"
+	params := h2cParams{
+		gc:      gc,
+		name:    h2cName,
+		a:       gc.consts.a,
+		b:       gc.ops.Params().B,
+		p:       gc.P(),
+		hash:    gc.Hash(),
+		ee:      gc.ee,
+		isSqExp: gc.consts.isSqExp,
+		sqrtExp: gc.consts.sqrtExp,
+		sgn0:    gc.sgn0,
+	}
 	switch gc.Name() {
 	case "P-384":
-		return h2cParams{
-			gc:      gc,
-			name:    h2cName,
-			dst:     []byte(fmt.Sprintf("VOPRF-P384-SHA512-%s-", h2cName)),
-			mapping: 0,
-			z:       -12,
-			a:       gc.consts.a,
-			b:       gc.ops.Params().B,
-			p:       gc.P(),
-			m:       1,
-			hash:    gc.Hash(),
-			ee:      gc.ee,
-			l:       72,
-			hEff:    one,
-			isSqExp: gc.consts.isSqExp,
-			sqrtExp: gc.consts.sqrtExp,
-			sgn0:    gc.sgn0,
-		}, nil
+		params.dst = []byte(fmt.Sprintf("VOPRF-P384-SHA512-%s-", h2cName))
+		params.z = -12
+		params.m = 1
+		params.l = 72
+		params.hEff = one
+		break
 	case "P-521":
-		return h2cParams{
-			gc:      gc,
-			name:    h2cName,
-			dst:     []byte(fmt.Sprintf("VOPRF-P521-SHA512-%s-", h2cName)),
-			mapping: 0,
-			z:       -4,
-			a:       gc.consts.a,
-			b:       gc.ops.Params().B,
-			p:       gc.P(),
-			m:       1,
-			hash:    gc.Hash(),
-			ee:      gc.ee,
-			l:       96,
-			hEff:    one,
-			isSqExp: gc.consts.isSqExp,
-			sqrtExp: gc.consts.sqrtExp,
-			sgn0:    gc.sgn0,
-		}, nil
+		params.dst = []byte(fmt.Sprintf("VOPRF-P521-SHA512-%s-", h2cName))
+		params.z = -4
+		params.m = 1
+		params.l = 96
+		params.hEff = one
+		break
+	default:
+		return h2cParams{}, oerr.ErrUnsupportedGroup
 	}
-	return h2cParams{}, oerr.ErrUnsupportedGroup
+	return params, nil
 }
 
 // hashToBase hashes a buffer into a vector of underlying base field elements,
@@ -119,44 +108,41 @@ func (params h2cParams) hashToBaseField(buf []byte, ctr int) ([]*big.Int, error)
 // hashToCurve hashes a buffer to a curve point on the chosen curve, this
 // function can be modelled as a random oracle.
 func (params h2cParams) hashToCurve(alpha []byte) (Point, error) {
-	u0, err := params.hashToBaseField(alpha, 0)
-	if err != nil {
-		return Point{}, err
-	}
-	u1, err := params.hashToBaseField(alpha, 1)
-	if err != nil {
-		return Point{}, err
-	}
-
 	// attempt to encode bytes as curve point
-	Q0 := Point{}.New(params.gc).(Point)
-	Q1 := Point{}.New(params.gc).(Point)
-	var e0, e1 error
-	switch params.gc.Name() {
-	case "P-384", "P-521":
-		Q0, e0 = params.sswu(u0)
-		Q1, e1 = params.sswu(u1)
+	R := Point{}.New(params.gc).(Point)
+	switch params.name {
+	case "SSWU-RO":
+		// See https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-05#section-6.6.1
+		u0, err := params.hashToBaseField(alpha, 0)
+		if err != nil {
+			return Point{}, err
+		}
+		u1, err := params.hashToBaseField(alpha, 1)
+		if err != nil {
+			return Point{}, err
+		}
+		Q0, err := params.sswu(u0)
+		if err != nil {
+			return Point{}, err
+		}
+		Q1, err := params.sswu(u1)
+		if err != nil {
+			return Point{}, err
+		}
+		geR, err := Q0.Add(Q1)
+		if err != nil {
+			return Point{}, err
+		}
+		R, err = castToPoint(geR)
+		if err != nil {
+			return Point{}, err
+		}
 		break
 	default:
-		e0 = oerr.ErrIncompatibleGroupParams
-	}
-
-	// return error if one occurred, or the point that was encoded
-	if e0 != nil {
-		return Point{}, e0
-	} else if e1 != nil {
-		return Point{}, e1
+		return Point{}, oerr.ErrIncompatibleGroupParams
 	}
 
 	// construct the output point R
-	geR, err := Q0.Add(Q1)
-	if err != nil {
-		return Point{}, err
-	}
-	R, err := castToPoint(geR)
-	if err != nil {
-		return Point{}, err
-	}
 	P, err := R.clearCofactor(params.hEff)
 	if err != nil {
 		return Point{}, err

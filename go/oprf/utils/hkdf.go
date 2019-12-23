@@ -13,12 +13,16 @@ import (
 //    min-entropy
 // examples include HKDF-Extract and HKDF-Expand (RFC5869)
 type ExtractorExpander interface {
+	Name() string
 	Extractor() func(func() hash.Hash, []byte, []byte) []byte
 	Expander() func(func() hash.Hash, []byte, []byte) io.Reader
 }
 
 // HKDFExtExp implements the ExtractorExpander interface using HKDF
 type HKDFExtExp struct{}
+
+// Name returns the name of the extractor-expander instance (the string "HKDF")
+func (e HKDFExtExp) Name() string { return "HKDF" }
 
 // Extractor extracts randomly distributed bytes from a set of input bytes using
 // HKDF
