@@ -1,4 +1,4 @@
-# voprf-poc-js
+# voprf-poc/go
 
 A [golang](https://golang.org/) implementation of the VOPRF protocol in
 [draft-irtf-cfrg-voprf](https://datatracker.ietf.org/doc/draft-irtf-cfrg-voprf/).
