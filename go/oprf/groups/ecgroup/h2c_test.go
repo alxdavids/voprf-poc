@@ -82,7 +82,7 @@ func performHashToBase(curve GroupCurve) error {
 		expected := expectedHashToBaseResponses[curve.Name()][alpha]
 		cmp := u.Cmp(expected)
 		if cmp != 0 {
-			return errors.New(fmt.Sprintf("hash-to-base output for input alpha: %s is incorrect, expected: %s, got: %s", alpha, expected.String(), u.String()))
+			return fmt.Errorf("hash-to-base output for input alpha: %s is incorrect, expected: %s, got: %s", alpha, expected.String(), u.String())
 		}
 	}
 	return nil
