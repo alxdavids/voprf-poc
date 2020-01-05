@@ -41,12 +41,10 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 		curve = p384.P384()
 		h = sha512.New()
 		ee = utils.HKDFExtExp{}
-		break
 	case "P-521":
 		curve = elliptic.P521()
 		h = sha512.New()
 		ee = utils.HKDFExtExp{}
-		break
 	default:
 		return nil, oerr.ErrUnsupportedGroup
 	}
@@ -128,7 +126,7 @@ func (c GroupCurve) UniformFieldElement() (*big.Int, error) {
 	buf := make([]byte, byteLen)
 
 	// rejection sampling
-	for true {
+	for {
 		_, err := io.ReadFull(rand.Reader, buf)
 		if err != nil {
 			return nil, oerr.ErrInternalInstantiation

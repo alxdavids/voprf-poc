@@ -36,7 +36,6 @@ func main() {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		break
 	case "server":
 		fmt.Println("Starting server...")
 		if err := runServer(ciphersuite, max); err != nil {

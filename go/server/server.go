@@ -58,13 +58,12 @@ func (cfg *Config) ListenAndServe() error {
 		return err
 	}
 	fmt.Printf("Public key: %s\n", hex.EncodeToString(ser))
-	for true {
+	for {
 		e := cfg.hsrv.ListenAndServe()
 		if e != nil {
 			return oerr.ErrServerInternal
 		}
 	}
-	return nil
 }
 
 // handleOPRF handles the HTTP request that arrives

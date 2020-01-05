@@ -60,10 +60,8 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 	switch split[1] {
 	case "P384":
 		pogNew, err = pog.New("P-384")
-		break
 	case "P521":
 		pogNew, err = pog.New("P-521")
-		break
 	default:
 		return Ciphersuite{}, oerr.ErrUnsupportedGroup
 	}
@@ -77,7 +75,6 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 		if reflect.TypeOf(pogNew.EE()).Name() != "HKDFExtExp" {
 			return Ciphersuite{}, oerr.ErrUnsupportedEE
 		}
-		break
 	default:
 		return Ciphersuite{}, oerr.ErrUnsupportedEE
 	}
@@ -89,7 +86,6 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 			// do a quick check to see if the hash function is the same
 			return Ciphersuite{}, oerr.ErrUnsupportedHash
 		}
-		break
 	default:
 		return Ciphersuite{}, oerr.ErrUnsupportedHash
 	}
