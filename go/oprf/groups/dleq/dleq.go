@@ -56,7 +56,7 @@ func BatchGenerate(pog gg.PrimeOrderGroup, h3, h4 hash.Hash, h5 utils.ExtractorE
 	}
 
 	// compute composite group elements
-	M, Z, err := computeComposites(h4, h5, seed, batchM, batchZ)
+	M, Z, err := computeComposites(pog, h4, h5, seed, batchM, batchZ)
 	if err != nil {
 		return Proof{}, err
 	}
@@ -118,7 +118,7 @@ func (proof Proof) BatchVerify(pog gg.PrimeOrderGroup, h3, h4 hash.Hash, h5 util
 	}
 
 	// compute composite group elements
-	M, Z, err := computeComposites(h4, h5, seed, batchM, batchZ)
+	M, Z, err := computeComposites(pog, h4, h5, seed, batchM, batchZ)
 	if err != nil {
 		return false
 	}
@@ -158,18 +158,30 @@ func computeSeed(pog gg.PrimeOrderGroup, h4 hash.Hash, Y gg.GroupElement, batchM
 
 // computeComposites constructs the composite GroupElement objects that are
 // used for generating and verifying a batched DLEQ proof
-func computeComposites(h4 hash.Hash, h5 utils.ExtractorExpander, seed []byte, batchM, batchZ []gg.GroupElement) (gg.GroupElement, gg.GroupElement, error) {
+func computeComposites(pog gg.PrimeOrderGroup, h4 hash.Hash, h5 utils.ExtractorExpander, seed []byte, batchM, batchZ []gg.GroupElement) (gg.GroupElement, gg.GroupElement, error) {
 	var M gg.GroupElement
 	var Z gg.GroupElement
+	ctr := 0
 	for i := 0; i < len(batchM); i++ {
-		extract := h5.Extractor()
-		iBuf, err := utils.I2osp(i, 4)
+		ctrBytes, err := utils.I2osp(ctr, 4)
 		if err != nil {
 			return nil, nil, err
 		}
-		hkdfInp := append(iBuf, []byte("voprf_batch_dleq")...)
-		diBuf := extract(func() hash.Hash { h4.Reset(); return h4 }, seed, hkdfInp)
-		di := new(big.Int).SetBytes(diBuf)
+		ctr++
+		hkdfInp := append(ctrBytes, []byte("voprf_batch_dleq")...)
+
+		// sample coefficient and reject if it is too big
+		expand := h5.Expander()
+		output := expand(func() hash.Hash { h4.Reset(); return h4 }, seed, hkdfInp)
+		diBuf := make([]byte, pog.ByteLength())
+		output.Read(diBuf)
+		di := new(big.Int).SetBytes(diBuf[:pog.ByteLength()])
+		if di.Cmp(pog.Order()) > 0 {
+			i--
+			continue
+		}
+
+		// multiply group elements by coefficients
 		diMi, err := batchM[i].ScalarMult(di)
 		if err != nil {
 			return nil, nil, err
