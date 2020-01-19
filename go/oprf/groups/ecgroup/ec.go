@@ -14,13 +14,21 @@ import (
 	"github.com/alxdavids/voprf-poc/go/oprf/utils"
 	"github.com/alxdavids/voprf-poc/go/oprf/utils/constants"
 	"github.com/cloudflare/circl/ecc/p384"
+
+	"github.com/otrv4/ed448"
+	p448 "github.com/otrv4/ed448"
 )
+
+type curve struct {
+	e1 elliptic.Curve        // nist curves
+	e2 ed448.GoldilocksCurve // curve448
+}
 
 // GroupCurve implements the PrimeOrderGroup interface using an elliptic curve
 // to provide the underlying group structure. The abstraction of the curve
 // interface is based on the one used in draft-irtf-hash-to-curve-05.
 type GroupCurve struct {
-	ops        elliptic.Curve
+	ops        curve
 	name       string
 	hash       hash.Hash
 	ee         utils.ExtractorExpander
@@ -33,57 +41,73 @@ type GroupCurve struct {
 // New constructs a new GroupCurve object implementing the PrimeOrderGroup
 // interface. Currently, the only supported curves are NIST P384 and P521.
 func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
-	var curve elliptic.Curve
-	var h hash.Hash
-	var ee utils.ExtractorExpander
+	var p *big.Int
+	var gc GroupCurve
 	switch name {
 	case "P-384":
-		curve = p384.P384()
-		h = sha512.New()
-		ee = utils.HKDFExtExp{}
+		gc.ops.e1 = p384.P384()
+		curve := gc.ops.e1
+		gc.nist = true
+		gc.byteLength = (curve.Params().BitSize + 7) / 8
+		gc.consts.a = constants.MinusThree
+		p = curve.Params().P
 	case "P-521":
-		curve = elliptic.P521()
-		h = sha512.New()
-		ee = utils.HKDFExtExp{}
+		gc.ops.e1 = elliptic.P521()
+		curve := gc.ops.e1
+		gc.nist = true
+		gc.byteLength = (curve.Params().BitSize + 7) / 8
+		gc.consts.a = constants.MinusThree
+		p = curve.Params().P
+	case "curve-448":
+		gc.ops.e2 = p448.Curve448()
+		curve := gc.ops.e2
+		gc.nist = false
+		gc.byteLength = curve.Params().BitSize / 8
+		gc.consts.a = curve.Params().A
+		p = curve.Params().P
 	default:
 		return nil, oerr.ErrUnsupportedGroup
 	}
-	p := curve.Params().P
-	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, constants.One), new(big.Int).ModInverse(constants.Two, p)), p)
-	sqrtExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, constants.One), new(big.Int).ModInverse(constants.Four, p)), p)
-	return GroupCurve{
-		ops:        curve,
-		name:       name,
-		hash:       h,
-		ee:         ee,
-		byteLength: (curve.Params().BitSize + 7) / 8,
-		nist:       true,
-		sgn0:       utils.Sgn0LE,
-		consts: CurveConstants{
-			a:       constants.MinusThree,
-			sqrtExp: sqrtExp,
-			isSqExp: isSqExp,
-		},
-	}, nil
+	gc.name = name
+	gc.hash = sha512.New()
+	gc.ee = utils.HKDFExtExp{}
+	gc.sgn0 = utils.Sgn0LE
+	gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, constants.One), new(big.Int).ModInverse(constants.Two, p)), p)
+	gc.consts.sqrtExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, constants.One), new(big.Int).ModInverse(constants.Four, p)), p)
+	return gc, nil
 }
 
 // Order returns the order of the base point for the elliptic curve that is used
 func (c GroupCurve) Order() *big.Int {
-	return c.ops.Params().N
+	if c.name == "curve-448" {
+		return c.ops.e2.Params().N
+	}
+
+	return c.ops.e1.Params().N
 }
 
 // P returns the order of the underlying field for the elliptic curve that is
 // used
 func (c GroupCurve) P() *big.Int {
-	return c.ops.Params().P
+	if c.name == "curve-448" {
+		return c.ops.e2.Params().P
+	}
+
+	return c.ops.e1.Params().P
 }
 
 // Generator returns a point in the curve representing a fixed generator  of the
 // prime-order group.
 func (c GroupCurve) Generator() gg.GroupElement {
 	G := Point{}.New(c).(Point)
-	G.X = c.ops.Params().Gx
-	G.Y = c.ops.Params().Gy
+	if c.name == "curve-448" {
+		G.X = c.ops.e2.Params().Gu
+		G.Y = c.ops.e2.Params().Gv
+		return G
+	}
+
+	G.X = c.ops.e1.Params().Gx
+	G.Y = c.ops.e1.Params().Gy
 	return G
 }
 
@@ -166,30 +190,28 @@ type CurveConstants struct {
 // CreateNistCurve creates an instance of a GroupCurve corresponding to a NIST
 // elliptic curve (supports P384 or P521).
 func CreateNistCurve(curve elliptic.Curve, h hash.Hash, ee utils.ExtractorExpander) GroupCurve {
-	name := ""
+	var gc GroupCurve
+	var p *big.Int
 	switch curve {
 	case p384.P384():
-		name = "P-384"
+		gc.ops.e1 = p384.P384()
+		gc.name = "P-384"
+		p = gc.ops.e1.Params().P
+		gc.byteLength = (gc.ops.e1.Params().BitSize + 7) / 8
 	case elliptic.P521():
-		name = "P-521"
+		gc.ops.e1 = elliptic.P521()
+		gc.name = "P-521"
+		p = gc.ops.e1.Params().P
+		gc.byteLength = (gc.ops.e1.Params().BitSize + 7) / 8
 	}
-	p := curve.Params().P
-	isSqExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, constants.One), new(big.Int).ModInverse(constants.Two, p)), p)
-	sqrtExp := new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, constants.One), new(big.Int).ModInverse(constants.Four, p)), p)
-	return GroupCurve{
-		ops:        curve,
-		name:       name,
-		hash:       h,
-		ee:         ee,
-		byteLength: (curve.Params().BitSize + 7) / 8,
-		nist:       true,
-		sgn0:       utils.Sgn0LE,
-		consts: CurveConstants{
-			a:       constants.MinusThree,
-			sqrtExp: sqrtExp,
-			isSqExp: isSqExp,
-		},
-	}
+	gc.hash = h
+	gc.ee = ee
+	gc.nist = true
+	gc.sgn0 = utils.Sgn0LE
+	gc.consts.a = constants.MinusThree
+	gc.consts.sqrtExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, constants.One), new(big.Int).ModInverse(constants.Four, p)), p)
+	gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, constants.One), new(big.Int).ModInverse(constants.Two, p)), p)
+	return gc
 }
 
 // Point implements the GroupElement interface and is compatible with the
@@ -242,7 +264,12 @@ func (p Point) IsValid() bool {
 	if err != nil {
 		return false
 	}
-	return curve.ops.IsOnCurve(p.X, p.Y)
+
+	if curve.name == "curve-448" {
+		return curve.ops.e2.IsOnCurve(p.X, p.Y)
+	}
+
+	return curve.ops.e1.IsOnCurve(p.X, p.Y)
 }
 
 // ScalarMult multiplies p by the provided Scalar value, and returns p or an
@@ -255,7 +282,15 @@ func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.X, p.Y = curve.ops.ScalarMult(p.X, p.Y, k.Bytes())
+
+	if curve.name == "curve-448" {
+		u := curve.ops.e2.ScalarMult(p.X, p.Y, k.Bytes())
+		p.X = new(big.Int).SetBytes(u)
+		p.Y = constants.Zero
+		return p, nil
+	}
+
+	p.X, p.Y = curve.ops.e1.ScalarMult(p.X, p.Y, k.Bytes())
 	return p, nil
 }
 
@@ -275,7 +310,13 @@ func (p Point) Add(ge gg.GroupElement) (gg.GroupElement, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.X, p.Y = curve.ops.Add(p.X, p.Y, pAdd.X, pAdd.Y)
+
+	if curve.name == "curve-448" {
+		p.X, p.Y = curve.ops.e2.Add(p.X, p.Y, pAdd.X, pAdd.Y)
+		return p, nil
+	}
+
+	p.X, p.Y = curve.ops.e1.Add(p.X, p.Y, pAdd.X, pAdd.Y)
 	return p, nil
 }
 
@@ -380,7 +421,7 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, error) {
 	x := new(big.Int).SetBytes(buf[1:])
 	rhs := new(big.Int).Add(new(big.Int).Exp(x, constants.Two, order), constants.MinusThree) // a = -3
 	rhs = rhs.Mul(rhs, x)
-	rhs = rhs.Add(rhs, curve.ops.Params().B)
+	rhs = rhs.Add(rhs, curve.ops.e1.Params().B)
 	rhs = rhs.Mod(rhs, order)
 
 	// construct y coordinate with correct sign
