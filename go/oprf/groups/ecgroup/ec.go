@@ -208,9 +208,40 @@ func CreateNistCurve(curve elliptic.Curve, h hash.Hash, ee utils.ExtractorExpand
 	gc.ee = ee
 	gc.nist = true
 	gc.sgn0 = utils.Sgn0LE
-	gc.consts.a = constants.MinusThree
-	gc.consts.sqrtExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, constants.One), new(big.Int).ModInverse(constants.Four, p)), p)
-	gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, constants.One), new(big.Int).ModInverse(constants.Two, p)), p)
+
+	consts := CurveConstants{
+		a:       constants.MinusThree,
+		sqrtExp: new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, constants.One), new(big.Int).ModInverse(constants.Four, p)), p),
+		isSqExp: new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, constants.One), new(big.Int).ModInverse(constants.Two, p)), p),
+	}
+
+	gc.consts = consts
+
+	return gc
+}
+
+// CreateCurve448 creates an instance of a GroupCurve corresponding to curve448.
+func CreateCurve448(h hash.Hash, ee utils.ExtractorExpander) GroupCurve {
+	c := curve{e2: p448.Curve448()}
+	gc := GroupCurve{
+		ops:        c,
+		name:       "curve-448",
+		byteLength: c.e2.Params().BitSize / 8,
+		hash:       h,
+		ee:         ee,
+		nist:       false,
+		sgn0:       utils.Sgn0LE,
+	}
+
+	p := gc.ops.e2.Params().P
+	consts := CurveConstants{
+		a:       gc.ops.e2.Params().A,
+		sqrtExp: new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, constants.One), new(big.Int).ModInverse(constants.Four, p)), p),
+		isSqExp: new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, constants.One), new(big.Int).ModInverse(constants.Two, p)), p),
+	}
+
+	gc.consts = consts
+
 	return gc
 }
 
