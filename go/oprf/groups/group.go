@@ -62,6 +62,8 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 		pogNew, err = pog.New("P-384")
 	case "P521":
 		pogNew, err = pog.New("P-521")
+	case "curve448":
+		pogNew, err = pog.New("curve-448")
 	default:
 		return Ciphersuite{}, oerr.ErrUnsupportedGroup
 	}
@@ -93,6 +95,12 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 	// check hash-to-curve support
 	switch split[4] {
 	case "SSWU-RO":
+		// do nothing
+		break
+	case "ICART-RO":
+		// do nothing
+		break
+	case "ELL2-RO":
 		// do nothing
 		break
 	default:
