@@ -63,6 +63,35 @@ func TestHashToCurveP521(t *testing.T) {
 =======
 }
 
+// This seems oudated with
+// https://github.com/cfrg/draft-irtf-cfrg-hash-to-curve/tree/master/poc
+func TestHashToBaseCurve448(t *testing.T) {
+	fmt.Println("\n HERE")
+	curve := CreateCurve448(sha512.New(), utils.HKDFExtExp{})
+
+	params, err := getH2CParams(curve)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	uArr, err := params.hashToBaseField([]byte("asdf"), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(uArr) != 1 {
+		t.Fatal(err)
+	}
+	u := uArr[0]
+	expU := new(big.Int)
+	expU, _ = new(big.Int).SetString("414827222779065559384321009109495901246435099226919514166979195454783131417299182707726134184189727287139306701825633252614618191788611", 10)
+
+	cmp := u.Cmp(expU)
+	if cmp != 0 {
+		t.Fatal("Points are not equal")
+	}
+}
+
 // These test vectors come from running
 // https://github.com/cfrg/draft-irtf-cfrg-hash-to-curve/tree/master/poc
 func TestEll2Curve448(t *testing.T) {

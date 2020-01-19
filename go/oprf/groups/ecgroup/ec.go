@@ -63,7 +63,7 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 		gc.ops.e2 = p448.Curve448()
 		curve := gc.ops.e2
 		gc.nist = false
-		gc.byteLength = curve.Params().BitSize / 8
+		gc.byteLength = (curve.Params().BitSize + 7) / 8
 		gc.consts.a = curve.Params().A
 		gc.consts.isSqExp = new(big.Int).Rsh(new(big.Int).Sub(curve.Params().P, constants.One), 1)
 		gc.consts.sqrtExp = new(big.Int).Rsh(new(big.Int).Sub(curve.Params().P, constants.One), 1)
