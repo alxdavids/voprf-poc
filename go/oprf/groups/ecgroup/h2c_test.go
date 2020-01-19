@@ -57,8 +57,47 @@ func TestHashToCurveP521(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+<<<<<<< HEAD
 	testVectors := hashToCurveTestVectors{}
 	err = json.Unmarshal(buf, &testVectors)
+=======
+}
+
+func TestEll2Curve448(t *testing.T) {
+	curve := CreateCurve448(sha512.New(), utils.HKDFExtExp{})
+
+	params, err := getH2CParams(curve)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	u, expU, expV := new(big.Int), new(big.Int), new(big.Int)
+	u, _ = new(big.Int).SetString("531158213341481379438720561479166615757974252368106701931706243386594190504906772737779341137470819502538803513642877478909898080924700", 10)
+	expU, _ = new(big.Int).SetString("475059367077818289758128910667396262190262234593598384316194642461546019506295030165533250828462826885463026651453766395722384985774943", 10)
+	expV, _ = new(big.Int).SetString("374637763660393560818954983911528203279792857929498786368575860891959417533586012673301497308795212099780024735615233510543266766975738", 10)
+
+	P, err := params.elligator2(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check point is valid
+	if !P.IsValid() {
+		t.Fatal(err)
+	}
+
+	// check test vectors
+	Q := Point{X: expU, Y: expV, pog: curve, compress: true}
+	if !P.Equal(Q) {
+		t.Fatal(err)
+	}
+}
+
+// performHashToBase performs full hash-to-base for each of the test inputs and
+// checks against expected responses
+func performHashToBase(curve GroupCurve) error {
+	params, err := getH2CParams(curve)
+>>>>>>> Implement elligator2 for curve448 and add first test from sage output #9
 	if err != nil {
 		t.Fatal(err)
 	}

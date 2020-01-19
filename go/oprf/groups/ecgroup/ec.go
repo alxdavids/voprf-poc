@@ -41,7 +41,6 @@ type GroupCurve struct {
 // New constructs a new GroupCurve object implementing the PrimeOrderGroup
 // interface. Currently, the only supported curves are NIST P384 and P521.
 func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
-	var p *big.Int
 	var gc GroupCurve
 	switch name {
 	case "P-384":
@@ -50,21 +49,24 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 		gc.nist = true
 		gc.byteLength = (curve.Params().BitSize + 7) / 8
 		gc.consts.a = constants.MinusThree
-		p = curve.Params().P
+		gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Two, curve.Params().P)), curve.Params().P)
+		gc.consts.sqrtExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Four, curve.Params().P)), curve.Params().P)
 	case "P-521":
 		gc.ops.e1 = elliptic.P521()
 		curve := gc.ops.e1
 		gc.nist = true
 		gc.byteLength = (curve.Params().BitSize + 7) / 8
 		gc.consts.a = constants.MinusThree
-		p = curve.Params().P
+		gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Two, curve.Params().P)), curve.Params().P)
+		gc.consts.sqrtExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Four, curve.Params().P)), curve.Params().P)
 	case "curve-448":
 		gc.ops.e2 = p448.Curve448()
 		curve := gc.ops.e2
 		gc.nist = false
 		gc.byteLength = curve.Params().BitSize / 8
 		gc.consts.a = curve.Params().A
-		p = curve.Params().P
+		gc.consts.isSqExp = new(big.Int).Rsh(new(big.Int).Sub(curve.Params().P, constants.One), 1)
+		gc.consts.sqrtExp = new(big.Int).Rsh(new(big.Int).Sub(curve.Params().P, constants.One), 1)
 	default:
 		return nil, oerr.ErrUnsupportedGroup
 	}
@@ -72,8 +74,6 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 	gc.hash = sha512.New()
 	gc.ee = utils.HKDFExtExp{}
 	gc.sgn0 = utils.Sgn0LE
-	gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, constants.One), new(big.Int).ModInverse(constants.Two, p)), p)
-	gc.consts.sqrtExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, constants.One), new(big.Int).ModInverse(constants.Four, p)), p)
 	return gc, nil
 }
 
@@ -226,7 +226,7 @@ func CreateCurve448(h hash.Hash, ee utils.ExtractorExpander) GroupCurve {
 	gc := GroupCurve{
 		ops:        c,
 		name:       "curve-448",
-		byteLength: c.e2.Params().BitSize / 8,
+		byteLength: (c.e2.Params().BitSize + 7) / 8,
 		hash:       h,
 		ee:         ee,
 		nist:       false,
