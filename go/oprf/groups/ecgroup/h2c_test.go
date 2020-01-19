@@ -63,6 +63,8 @@ func TestHashToCurveP521(t *testing.T) {
 =======
 }
 
+// These test vectors come from running
+// https://github.com/cfrg/draft-irtf-cfrg-hash-to-curve/tree/master/poc
 func TestEll2Curve448(t *testing.T) {
 	curve := CreateCurve448(sha512.New(), utils.HKDFExtExp{})
 
@@ -77,7 +79,6 @@ func TestEll2Curve448(t *testing.T) {
 	expV, _ = new(big.Int).SetString("374637763660393560818954983911528203279792857929498786368575860891959417533586012673301497308795212099780024735615233510543266766975738", 10)
 
 	arr := []*big.Int{u}
-
 	P, err := params.elligator2(arr)
 	if err != nil {
 		t.Fatal(err)
@@ -88,8 +89,47 @@ func TestEll2Curve448(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// check test vectors
 	Q := Point{X: expU, Y: expV, pog: curve, compress: true}
+	if !P.Equal(Q) {
+		t.Fatal(err)
+	}
+
+	u, _ = new(big.Int).SetString("13286549665757675293110799743048869076811080173393053961806622826876856717004552933535923204521163438500332014368881740553999164062862", 10)
+	expU, _ = new(big.Int).SetString("676823903729580992730290093819255051434774712407078465391179438953583600246952395190617150144373540186129895370849032085748480009405615", 10)
+	expV, _ = new(big.Int).SetString("573002640115363041401045831713929918805259451095374773704372739049170404387928384413020573223078356788570345499697397900680655401975544", 10)
+
+	arr = []*big.Int{u}
+	P, err = params.elligator2(arr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check point is valid
+	if !P.IsValid() {
+		t.Fatal(err)
+	}
+
+	Q = Point{X: expU, Y: expV, pog: curve, compress: true}
+	if !P.Equal(Q) {
+		t.Fatal(err)
+	}
+
+	u, _ = new(big.Int).SetString("65794201449915909195162482323557946028316250977501987402800747419941972621011984880029106987314603408049670541154930026746639891120679", 10)
+	expU, _ = new(big.Int).SetString("519893819735499894756511465827647092157452391919753080921537124773807642984081599517868062928846779989242762286761148060085026375409121", 10)
+	expV, _ = new(big.Int).SetString("602848029033798841945752448963295438634920082080698374368962120810443354157395268760073202605429244928907133690884408947460828569030989", 10)
+
+	arr = []*big.Int{u}
+	P, err = params.elligator2(arr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check point is valid
+	if !P.IsValid() {
+		t.Fatal(err)
+	}
+
+	Q = Point{X: expU, Y: expV, pog: curve, compress: true}
 	if !P.Equal(Q) {
 		t.Fatal(err)
 	}
