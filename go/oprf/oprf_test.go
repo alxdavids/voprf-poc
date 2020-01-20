@@ -14,10 +14,12 @@ import (
 )
 
 var (
-	validOPRFP384Ciphersuite  = "OPRF-P384-HKDF-SHA512-SSWU-RO"
-	validOPRFP521Ciphersuite  = "OPRF-P521-HKDF-SHA512-SSWU-RO"
-	validVOPRFP384Ciphersuite = "VOPRF-P384-HKDF-SHA512-SSWU-RO"
-	validVOPRFP521Ciphersuite = "VOPRF-P521-HKDF-SHA512-SSWU-RO"
+	validOPRFP384Ciphersuite      = "OPRF-P384-HKDF-SHA512-SSWU-RO"
+	validOPRFP521Ciphersuite      = "OPRF-P521-HKDF-SHA512-SSWU-RO"
+	validVOPRFP384Ciphersuite     = "VOPRF-P384-HKDF-SHA512-SSWU-RO"
+	validVOPRFP521Ciphersuite     = "VOPRF-P521-HKDF-SHA512-SSWU-RO"
+	validOPRFCURVE448Ciphersuite  = "OPRF-curve448-HKDF-SHA512-ELL2-RO"
+	validVOPRFCURVE448Ciphersuite = "OPRF-curve448-HKDF-SHA512-ELL2-RO"
 )
 
 func TestFullOPRFP384(t *testing.T) {
@@ -50,6 +52,11 @@ func TestFullVOPRFP521(t *testing.T) {
 
 func TestFullVOPRFP521Multiple(t *testing.T) {
 	checkFull(t, validOPRFP521Ciphersuite, 5)
+}
+
+func TestFullCurve448(t *testing.T) {
+	t.Skip("Skipping test.")
+	checkFull(t, validOPRFCURVE448Ciphersuite, 1)
 }
 
 func TestServerSetupP384(t *testing.T) {

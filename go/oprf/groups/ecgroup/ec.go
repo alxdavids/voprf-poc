@@ -114,6 +114,15 @@ func (c GroupCurve) Generator() gg.GroupElement {
 // GeneratorMult returns k*G, where G is the generator of the curve.
 func (c GroupCurve) GeneratorMult(k *big.Int) (gg.GroupElement, error) {
 	G := c.Generator()
+
+	if c.name == "curve-448" {
+		p := Point{}
+		u := c.ops.e2.ScalarBaseMult(k.Bytes())
+		p.X = new(big.Int).SetBytes(u)
+		p.Y = constants.Zero
+		return p, nil
+	}
+
 	return G.ScalarMult(k)
 }
 
