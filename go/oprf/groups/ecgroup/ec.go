@@ -144,6 +144,7 @@ func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return p, nil
 }
 
