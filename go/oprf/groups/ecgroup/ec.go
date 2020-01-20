@@ -66,7 +66,7 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 		gc.byteLength = (curve.Params().BitSize + 7) / 8
 		gc.consts.a = curve.Params().A
 		gc.consts.isSqExp = new(big.Int).Rsh(new(big.Int).Sub(curve.Params().P, constants.One), 1)
-		gc.consts.sqrtExp = new(big.Int).Rsh(new(big.Int).Sub(curve.Params().P, constants.One), 1)
+		gc.consts.sqrtExp = new(big.Int).Rsh(new(big.Int).Add(curve.Params().P, constants.One), 2)
 	default:
 		return nil, oerr.ErrUnsupportedGroup
 	}
