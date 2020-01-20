@@ -315,9 +315,6 @@ func (p Point) IsValid() bool {
 // ScalarMult multiplies p by the provided Scalar value, and returns p or an
 // error.
 func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, error) {
-	if !p.IsValid() {
-		return nil, oerr.ErrInvalidGroupElement
-	}
 	curve, err := castToCurve(p.pog)
 	if err != nil {
 		return nil, err
@@ -326,8 +323,12 @@ func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, error) {
 	if curve.name == "curve-448" {
 		u := curve.ops.e2.ScalarMult(p.X, p.Y, k.Bytes())
 		p.X = new(big.Int).SetBytes(u)
-		p.Y = constants.Zero
+		p.Y = constants.One
 		return p, nil
+	}
+
+	if !p.IsValid() {
+		return nil, oerr.ErrInvalidGroupElement
 	}
 
 	p.X, p.Y = curve.ops.e1.ScalarMult(p.X, p.Y, k.Bytes())
@@ -373,6 +374,11 @@ func (p Point) Serialize() ([]byte, error) {
 		buf := p.nistSerialize(curve)
 		return buf, nil
 	}
+
+	if curve.name == "curve-448" {
+		return p.X.Bytes(), nil
+	}
+
 	return nil, oerr.ErrUnsupportedGroup
 }
 
@@ -486,6 +492,7 @@ func (p Point) clearCofactor(hEff *big.Int) (Point, error) {
 	if err != nil {
 		return Point{}, err
 	}
+
 	// type assertion withour normalization
 	point, err := castToPoint(ret)
 	if err != nil {

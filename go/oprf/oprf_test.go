@@ -370,7 +370,6 @@ func checkFull(t *testing.T, validCiphersuite string, n int) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		assert.True(t, P.IsValid())
 		inputs[i] = x
 		eles[i] = P
 		blinds[i] = r
