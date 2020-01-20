@@ -15,13 +15,12 @@ import (
 	"github.com/alxdavids/voprf-poc/go/oprf/utils/constants"
 	"github.com/cloudflare/circl/ecc/p384"
 
-	"github.com/otrv4/ed448"
 	p448 "github.com/otrv4/ed448"
 )
 
 type curve struct {
-	e1 elliptic.Curve        // nist curves
-	e2 ed448.GoldilocksCurve // curve448
+	e1 elliptic.Curve       // nist curves
+	e2 p448.GoldilocksCurve // curve448
 }
 
 // GroupCurve implements the PrimeOrderGroup interface using an elliptic curve

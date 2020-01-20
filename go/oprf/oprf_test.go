@@ -16,10 +16,10 @@ import (
 var (
 	validOPRFP384Ciphersuite      = "OPRF-P384-HKDF-SHA512-SSWU-RO"
 	validOPRFP521Ciphersuite      = "OPRF-P521-HKDF-SHA512-SSWU-RO"
+	validOPRFCURVE448Ciphersuite  = "OPRF-curve448-HKDF-SHA512-ELL2-RO"
 	validVOPRFP384Ciphersuite     = "VOPRF-P384-HKDF-SHA512-SSWU-RO"
 	validVOPRFP521Ciphersuite     = "VOPRF-P521-HKDF-SHA512-SSWU-RO"
-	validOPRFCURVE448Ciphersuite  = "OPRF-curve448-HKDF-SHA512-ELL2-RO"
-	validVOPRFCURVE448Ciphersuite = "OPRF-curve448-HKDF-SHA512-ELL2-RO"
+	validVOPRFCURVE448Ciphersuite = "VOPRF-curve448-HKDF-SHA512-ELL2-RO"
 )
 
 func TestFullOPRFP384(t *testing.T) {

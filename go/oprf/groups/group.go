@@ -97,9 +97,6 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 	case "SSWU-RO":
 		// do nothing
 		break
-	case "ICART-RO":
-		// do nothing
-		break
 	case "ELL2-RO":
 		// do nothing
 		break

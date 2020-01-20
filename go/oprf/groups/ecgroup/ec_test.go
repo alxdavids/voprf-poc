@@ -214,9 +214,7 @@ func ciphersuiteFromString(t *testing.T, groupName string, verifiable bool) {
 		s = "V"
 	}
 
-	if groupName == "P-384" {
-		ciphName = fmt.Sprintf("%sOPRF-%s-HKDF-SHA512-ICART-RO", s, strings.ReplaceAll(groupName, "-", ""))
-	} else if groupName == "P-521" {
+	if groupName == "P-384" || groupName == "P-521" {
 		ciphName = fmt.Sprintf("%sOPRF-%s-HKDF-SHA512-SSWU-RO", s, strings.ReplaceAll(groupName, "-", ""))
 	} else if groupName == "curve-448" {
 		ciphName = fmt.Sprintf("%sOPRF-%s-HKDF-SHA512-ELL2-RO", s, strings.ReplaceAll(groupName, "-", ""))
