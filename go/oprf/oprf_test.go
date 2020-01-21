@@ -67,6 +67,10 @@ func TestServerSetupP521(t *testing.T) {
 	checkServerSetup(t, validOPRFP521Ciphersuite)
 }
 
+func TestServerSetupCurve448(t *testing.T) {
+	checkServerSetup(t, validOPRFCURVE448Ciphersuite)
+}
+
 func TestServerEvalP384(t *testing.T) {
 	checkServerEval(t, validOPRFP384Ciphersuite, 1)
 }
@@ -97,6 +101,11 @@ func TestServerEvalP521Verifiable(t *testing.T) {
 
 func TestServerEvalP521VerifiableMultiple(t *testing.T) {
 	checkServerEval(t, validVOPRFP521Ciphersuite, 5)
+}
+
+func TestServerEvalCurve448(t *testing.T) {
+	t.Skip("Skipping test.")
+	checkServerEval(t, validOPRFCURVE448Ciphersuite, 1)
 }
 
 func TestServerBlind(t *testing.T) {
@@ -140,6 +149,10 @@ func TestClientSetupP521(t *testing.T) {
 	checkClientSetup(t, validOPRFP521Ciphersuite)
 }
 
+func TestClientSetupCurve448(t *testing.T) {
+	checkClientSetup(t, validOPRFCURVE448Ciphersuite)
+}
+
 func TestClientBlindUnblindP384(t *testing.T) {
 	checkClientBlindUnblind(t, validOPRFP384Ciphersuite, 1)
 }
@@ -172,12 +185,21 @@ func TestClientBlindUnblindP521VerifiableMultiple(t *testing.T) {
 	checkClientBlindUnblind(t, validVOPRFP521Ciphersuite, 5)
 }
 
+func TestClientBlindUnblindCurve448(t *testing.T) {
+	t.Skip("Skipping test.")
+	checkClientBlindUnblind(t, validOPRFCURVE448Ciphersuite, 1)
+}
+
 func TestClientFinalizeP384(t *testing.T) {
 	checkClientFinalize(t, validOPRFP384Ciphersuite)
 }
 
 func TestClientFinalizeP521(t *testing.T) {
 	checkClientFinalize(t, validOPRFP521Ciphersuite)
+}
+
+func TestClientFinalizeCurve448(t *testing.T) {
+	checkClientFinalize(t, validOPRFCURVE448Ciphersuite)
 }
 
 func TestClientEval(t *testing.T) {
@@ -455,8 +477,11 @@ func clientSetupUnblind(validCiphersuite string, n int) (Client, Evaluation, [][
 		if err != nil {
 			return Client{}, Evaluation{}, nil, nil, nil, nil, err
 		}
-		if !P.IsValid() {
-			return Client{}, Evaluation{}, nil, nil, nil, nil, errors.New("Point is not valid")
+
+		if pog.Name() != "curve-448" {
+			if !P.IsValid() {
+				return Client{}, Evaluation{}, nil, nil, nil, nil, errors.New("Point is not valid")
+			}
 		}
 		inputs[i] = x
 		eles[i] = P
