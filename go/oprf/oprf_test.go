@@ -104,7 +104,6 @@ func TestServerEvalP521VerifiableMultiple(t *testing.T) {
 }
 
 func TestServerEvalCurve448(t *testing.T) {
-	t.Skip("Skipping test.")
 	checkServerEval(t, validOPRFCURVE448Ciphersuite, 1)
 }
 

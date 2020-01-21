@@ -277,20 +277,30 @@ func (p Point) New(pog gg.PrimeOrderGroup) gg.GroupElement {
 // Equal returns true if the two Point objects have the same X and Y
 // coordinates and belong to the same curve. Otherwise it returns false.
 func (p Point) Equal(ge gg.GroupElement) bool {
+	curve, err := castToCurve(p.pog)
+	if err != nil {
+		return false
+	}
+
 	pEq, err := castToPoint(ge)
 	if err != nil {
 		return false
 	}
-	// check that both points are valid
-	if !p.IsValid() || !pEq.IsValid() {
-		return false
+
+	if curve.name != "curve-448" {
+		// check that both points are valid
+		if !p.IsValid() || !pEq.IsValid() {
+			return false
+		}
 	}
+
 	// check that the supplied Point is valid with respect to the group for p
 	pChkGroup := Point{}.New(p.pog).(Point)
 	pChkGroup.X = pEq.X
 	pChkGroup.Y = pEq.Y
-	if !pChkGroup.IsValid() {
-		return false
+
+	if curve.name == "curve-448" {
+		return (p.X.Cmp(pEq.X) == 0)
 	}
 
 	// check that the point coordinates are the same
@@ -339,13 +349,17 @@ func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, error) {
 // error. This computes the Addition operation in the additive group
 // instantiated by the curve.
 func (p Point) Add(ge gg.GroupElement) (gg.GroupElement, error) {
-	if !p.IsValid() {
-		return nil, oerr.ErrInvalidGroupElement
-	}
 	curve, err := castToCurve(p.pog)
 	if err != nil {
 		return nil, err
 	}
+
+	if curve.name != "curve-448" {
+		if !p.IsValid() {
+			return nil, oerr.ErrInvalidGroupElement
+		}
+	}
+
 	// retrieve and normalize points
 	pAdd, err := castToPoint(ge)
 	if err != nil {
@@ -517,12 +531,21 @@ func castToCurve(group gg.PrimeOrderGroup) (GroupCurve, error) {
 // castToPoint attempts to cast the input GroupElement to a normalize Point
 // object
 func castToPoint(ge gg.GroupElement) (Point, error) {
-	point, ok := ge.(Point)
+	p, ok := ge.(Point)
 	if !ok {
 		return Point{}, oerr.ErrTypeAssertion
 	}
-	if !point.IsValid() {
-		return Point{}, oerr.ErrInvalidGroupElement
+
+	curve, err := castToCurve(p.pog)
+	if err != nil {
+		return Point{}, err
 	}
-	return point, nil
+
+	if curve.name != "curve-448" {
+		if !p.IsValid() {
+			return Point{}, oerr.ErrInvalidGroupElement
+		}
+	}
+
+	return p, nil
 }
