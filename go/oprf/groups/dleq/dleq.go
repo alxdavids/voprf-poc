@@ -24,6 +24,12 @@ func Generate(pog gg.PrimeOrderGroup, h hash.Hash, k *big.Int, Y, M, Z gg.GroupE
 		return Proof{}, err
 	}
 
+	return FixedGenerate(pog, h, k, Y, M, Z, t)
+}
+
+// FixedGenerate constructs a new Proof object with the random scalar t
+// explicitly generated
+func FixedGenerate(pog gg.PrimeOrderGroup, h hash.Hash, k *big.Int, Y, M, Z gg.GroupElement, t *big.Int) (Proof, error) {
 	// A := tG, B := tM
 	A, err := pog.GeneratorMult(t)
 	if err != nil {
@@ -50,19 +56,26 @@ func Generate(pog gg.PrimeOrderGroup, h hash.Hash, k *big.Int, Y, M, Z gg.GroupE
 // BatchGenerate generates a batched DLEQ proof evaluated over multiple values
 // of the form Z[i] = kM[i], wrt to the public key Y = kG
 func BatchGenerate(pog gg.PrimeOrderGroup, h3, h4 hash.Hash, h5 utils.ExtractorExpander, k *big.Int, Y gg.GroupElement, batchM, batchZ []gg.GroupElement) (Proof, error) {
-	seed, err := computeSeed(pog, h4, Y, batchM, batchZ)
-	if err != nil {
-		return Proof{}, err
-	}
-
 	// compute composite group elements
-	M, Z, err := computeComposites(pog, h4, h5, seed, batchM, batchZ)
+	M, Z, err := batchComposites(pog, h4, h5, Y, batchM, batchZ)
 	if err != nil {
 		return Proof{}, err
 	}
 
 	// generate DLEQ proof object
 	return Generate(pog, h3, k, Y, M, Z)
+}
+
+// FixedBatchGenerate generates a batched DLEQ proof with fixed proof generation
+func FixedBatchGenerate(pog gg.PrimeOrderGroup, h3, h4 hash.Hash, h5 utils.ExtractorExpander, k *big.Int, Y gg.GroupElement, batchM, batchZ []gg.GroupElement, t *big.Int) (Proof, error) {
+	// compute composite group elements
+	M, Z, err := batchComposites(pog, h4, h5, Y, batchM, batchZ)
+	if err != nil {
+		return Proof{}, err
+	}
+
+	// generate DLEQ proof object
+	return FixedGenerate(pog, h3, k, Y, M, Z, t)
 }
 
 // Verify runs the DLEQ proof validation algorithm and returns a bool
@@ -111,14 +124,8 @@ func (proof Proof) Verify(pog gg.PrimeOrderGroup, h hash.Hash, Y, M, Z gg.GroupE
 // BatchVerify verifies a batched DLEQ proof object over an array of
 // GroupElement objects of the form Zi = kMi where Y = kG.
 func (proof Proof) BatchVerify(pog gg.PrimeOrderGroup, h3, h4 hash.Hash, h5 utils.ExtractorExpander, Y gg.GroupElement, batchM, batchZ []gg.GroupElement) bool {
-	// compute initial seed
-	seed, err := computeSeed(pog, h4, Y, batchM, batchZ)
-	if err != nil {
-		return false
-	}
-
 	// compute composite group elements
-	M, Z, err := computeComposites(pog, h4, h5, seed, batchM, batchZ)
+	M, Z, err := batchComposites(pog, h4, h5, Y, batchM, batchZ)
 	if err != nil {
 		return false
 	}
@@ -209,6 +216,14 @@ func computeComposites(pog gg.PrimeOrderGroup, h4 hash.Hash, h5 utils.ExtractorE
 		}
 	}
 	return M, Z, nil
+}
+
+func batchComposites(pog gg.PrimeOrderGroup, h4 hash.Hash, h5 utils.ExtractorExpander, Y gg.GroupElement, batchM, batchZ []gg.GroupElement) (gg.GroupElement, gg.GroupElement, error) {
+	seed, err := computeSeed(pog, h4, Y, batchM, batchZ)
+	if err != nil {
+		return nil, nil, err
+	}
+	return computeComposites(pog, h4, h5, seed, batchM, batchZ)
 }
 
 // computeHash serializes the group elements and computes the hash output c

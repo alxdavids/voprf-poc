@@ -33,6 +33,16 @@ var (
 		[]byte{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
 		[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 	}
+	testBlinds = []*big.Int{
+		big.NewInt(123),
+		big.NewInt(1234),
+		big.NewInt(12345),
+		big.NewInt(123456),
+		big.NewInt(1234567),
+		big.NewInt(12345678),
+		big.NewInt(123456789),
+		big.NewInt(1234567890),
+	}
 )
 
 // Config holds all the relevant information for a client-side OPRF
@@ -69,8 +79,8 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputP
 // SendOPRFRequest constructs and sends an OPRF request to the OPRF server
 // instance. The response is processed by running the Unblind() and Finalize()
 // functionalities.
-func (cfg *Config) SendOPRFRequest(useTestVectors bool) error {
-	oprfReq, err := cfg.createOPRFRequest(useTestVectors)
+func (cfg *Config) SendOPRFRequest(test bool) error {
+	oprfReq, err := cfg.createOPRFRequest(test)
 	if err != nil {
 		return err
 	}
@@ -109,8 +119,8 @@ func (cfg *Config) SendOPRFRequest(useTestVectors bool) error {
 // createOPRFRequest creates the first message in the OPRF protocol to send to
 // the OPRF server. The parameter n indicates the number of tokens that should
 // be sent
-func (cfg *Config) createOPRFRequest(useTestVectors bool) (*jsonrpc.Request, error) {
-	if useTestVectors {
+func (cfg *Config) createOPRFRequest(test bool) (*jsonrpc.Request, error) {
+	if test {
 		cfg.n = len(testVectors)
 	}
 	n := cfg.n
@@ -123,7 +133,7 @@ func (cfg *Config) createOPRFRequest(useTestVectors bool) (*jsonrpc.Request, err
 	var encodedElements [][]byte
 	for i := 0; i < n; i++ {
 		var buf []byte
-		if useTestVectors {
+		if test {
 			// use test vector
 			buf = testVectors[i]
 		} else {
@@ -137,7 +147,16 @@ func (cfg *Config) createOPRFRequest(useTestVectors bool) (*jsonrpc.Request, err
 		inputs = append(inputs, buf)
 
 		// create a blinded group element
-		ge, blind, err := cfg.ocli.Blind(buf)
+		var ge gg.GroupElement
+		var blind *big.Int
+		var err error
+		if !test {
+			ge, blind, err = cfg.ocli.Blind(buf)
+		} else {
+			blind = testBlinds[i]
+			ge, err = cfg.ocli.BlindFixed(buf, blind)
+		}
+
 		if err != nil {
 			return nil, err
 		}

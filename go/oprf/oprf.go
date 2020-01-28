@@ -122,6 +122,15 @@ func (s Server) Eval(batchM []gg.GroupElement) (Evaluation, error) {
 	return s.voprfEval(batchM)
 }
 
+// FixedEval computes the Server-side evaluation of the (V)OPRF with fixed DLEQ
+// values (for testing)
+func (s Server) FixedEval(batchM []gg.GroupElement, tDleq string) (Evaluation, error) {
+	if !s.Ciphersuite().Verifiable() {
+		return s.oprfEval(batchM)
+	}
+	return s.voprfFixedEval(batchM, tDleq)
+}
+
 // oprfEval evaluates OPRF_Eval as specified in draft-irtf-cfrg-voprf-02
 func (s Server) oprfEval(batchM []gg.GroupElement) (Evaluation, error) {
 	batchZ := make([]gg.GroupElement, len(batchM))
@@ -150,6 +159,33 @@ func (s Server) voprfEval(batchM []gg.GroupElement) (Evaluation, error) {
 		proof, err = dleq.Generate(ciph.POG(), ciph.H3(), sk.K, sk.PubKey, batchM[0], batchZ[0])
 	} else {
 		proof, err = dleq.BatchGenerate(ciph.POG(), ciph.H3(), ciph.H4(), ciph.H5(), sk.K, sk.PubKey, batchM, batchZ)
+	}
+	if err != nil {
+		return Evaluation{}, err
+	}
+
+	return Evaluation{Elements: batchZ, Proof: proof}, nil
+}
+
+// voprfFixedEval evaluates VOPRF_Eval with a fixed DLEQ parameter
+func (s Server) voprfFixedEval(batchM []gg.GroupElement, tDleq string) (Evaluation, error) {
+	eval, err := s.oprfEval(batchM)
+	if err != nil {
+		return Evaluation{}, err
+	}
+	batchZ := eval.Elements
+
+	ciph := s.Ciphersuite()
+	sk := s.SecretKey()
+	t, ok := new(big.Int).SetString(tDleq, 16)
+	if !ok {
+		panic("Bad hex value specified for fixed DLEQ value")
+	}
+	var proof dleq.Proof
+	if len(batchM) == 1 {
+		proof, err = dleq.FixedGenerate(ciph.POG(), ciph.H3(), sk.K, sk.PubKey, batchM[0], batchZ[0], t)
+	} else {
+		proof, err = dleq.FixedBatchGenerate(ciph.POG(), ciph.H3(), ciph.H4(), ciph.H5(), sk.K, sk.PubKey, batchM, batchZ, t)
 	}
 	if err != nil {
 		return Evaluation{}, err
@@ -201,15 +237,9 @@ func (c Client) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participa
 }
 
 // Blind samples a new random blind value from ZZp and returns P=r*T where T is
-// the representation of the input bytes x in the group pog
+// the representation of the input bytes x in the group pog.
 func (c Client) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
 	pog := c.ciph.POG()
-
-	// encode bytes to group
-	T, err := pog.EncodeToGroup(x)
-	if err != nil {
-		return nil, nil, err
-	}
 
 	// sample a random blind
 	r, err := pog.UniformFieldElement()
@@ -218,11 +248,27 @@ func (c Client) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
 	}
 
 	// compute blinded group element
-	P, err := T.ScalarMult(r)
-	if err != nil {
-		return nil, nil, err
-	}
+	P, err := c.BlindFixed(x, r)
 	return P, r, nil
+}
+
+// BlindFixed performs the actual blinding, with the blinding value specified as
+// a fixed parameter.
+func (c Client) BlindFixed(x []byte, blind *big.Int) (gg.GroupElement, error) {
+	pog := c.Ciphersuite().POG()
+
+	// encode bytes to group
+	T, err := pog.EncodeToGroup(x)
+	if err != nil {
+		return nil, err
+	}
+
+	// compute blinded group element
+	P, err := T.ScalarMult(blind)
+	if err != nil {
+		return nil, err
+	}
+	return P, nil
 }
 
 // Unblind returns the unblinded group element N = r^{-1}*Z if the DLEQ proof
