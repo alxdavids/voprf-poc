@@ -23,26 +23,6 @@ var (
 	storedBlinds       []*big.Int
 	storedEvaluation   oprf.Evaluation
 	storedFinalOutputs [][]byte
-	testVectors        = [][]byte{
-		[]byte{0},
-		[]byte{1},
-		[]byte{1, 0, 1, 0, 1, 0, 1, 0},
-		[]byte{0, 1, 0, 1, 0, 1, 0, 1},
-		[]byte{1, 1, 1, 1, 1, 1, 1, 1},
-		[]byte{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
-		[]byte{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
-		[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	}
-	testBlinds = []*big.Int{
-		big.NewInt(123),
-		big.NewInt(1234),
-		big.NewInt(12345),
-		big.NewInt(123456),
-		big.NewInt(1234567),
-		big.NewInt(12345678),
-		big.NewInt(123456789),
-		big.NewInt(1234567890),
-	}
 )
 
 // Config holds all the relevant information for a client-side OPRF
@@ -52,11 +32,13 @@ type Config struct {
 	n          int
 	addr       string
 	outputPath string
+	test       bool
+	testVector testVector
 }
 
 // CreateConfig instantiates the client that will communicate with the HTTP
 // server running the (V)OPRF
-func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputPath string) (*Config, error) {
+func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputPath string, testIndex int) (*Config, error) {
 	ptpnt, err := oprf.Client{}.Setup(ciphersuite, pogInit)
 	if err != nil {
 		return nil, err
@@ -67,11 +49,28 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputP
 	}
 
 	// create server config
+	test := testIndex != -1
 	cfg := &Config{
 		ocli:       ocli,
 		n:          n,
 		addr:       "http://localhost:3001",
 		outputPath: outputPath,
+		test:       test,
+	}
+	if test {
+		bytes, err := ioutil.ReadFile(fmt.Sprintf("../test_vectors/%s.json", ciphersuite))
+		if err != nil {
+			return nil, err
+		}
+		testVectors := []testVector{}
+		json.Unmarshal(bytes, &testVectors)
+		cfg.testVector = testVectors[testIndex]
+		cfg.n = len(cfg.testVector.Inputs)
+		// set public key
+		err = cfg.SetPublicKey(cfg.testVector.PubKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return cfg, nil
 }
@@ -79,8 +78,8 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputP
 // SendOPRFRequest constructs and sends an OPRF request to the OPRF server
 // instance. The response is processed by running the Unblind() and Finalize()
 // functionalities.
-func (cfg *Config) SendOPRFRequest(test bool) error {
-	oprfReq, err := cfg.createOPRFRequest(test)
+func (cfg *Config) SendOPRFRequest() error {
+	oprfReq, err := cfg.createOPRFRequest()
 	if err != nil {
 		return err
 	}
@@ -119,10 +118,7 @@ func (cfg *Config) SendOPRFRequest(test bool) error {
 // createOPRFRequest creates the first message in the OPRF protocol to send to
 // the OPRF server. The parameter n indicates the number of tokens that should
 // be sent
-func (cfg *Config) createOPRFRequest(test bool) (*jsonrpc.Request, error) {
-	if test {
-		cfg.n = len(testVectors)
-	}
+func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 	n := cfg.n
 	if n < 1 {
 		return nil, errors.New("The value of n must be greater than 0")
@@ -131,11 +127,15 @@ func (cfg *Config) createOPRFRequest(test bool) (*jsonrpc.Request, error) {
 	var elements []gg.GroupElement
 	var blinds []*big.Int
 	var encodedElements [][]byte
+	var err error
 	for i := 0; i < n; i++ {
 		var buf []byte
-		if test {
+		if cfg.test {
 			// use test vector
-			buf = testVectors[i]
+			buf, err = hex.DecodeString(cfg.testVector.Inputs[i])
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			// sample a random input
 			buf = make([]byte, cfg.ocli.Ciphersuite().POG().ByteLength())
@@ -149,12 +149,15 @@ func (cfg *Config) createOPRFRequest(test bool) (*jsonrpc.Request, error) {
 		// create a blinded group element
 		var ge gg.GroupElement
 		var blind *big.Int
-		var err error
-		if !test {
-			ge, blind, err = cfg.ocli.Blind(buf)
-		} else {
-			blind = testBlinds[i]
+		if cfg.test {
+			bufBlind, err := hex.DecodeString(cfg.testVector.Blinds[i])
+			if err != nil {
+				return nil, err
+			}
+			blind = new(big.Int).SetBytes(bufBlind)
 			ge, err = cfg.ocli.BlindFixed(buf, blind)
+		} else {
+			ge, blind, err = cfg.ocli.Blind(buf)
 		}
 
 		if err != nil {
@@ -336,4 +339,12 @@ func (cfg *Config) PrintStorage() error {
 		}
 	}
 	return nil
+}
+
+// testVector holds the relevant test vectors when running the client in
+// test mode
+type testVector struct {
+	PubKey string   `json:"pub_key"`
+	Inputs []string `json:"inputs"`
+	Blinds []string `json:"blinds"`
 }

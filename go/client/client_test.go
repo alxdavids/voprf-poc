@@ -20,7 +20,7 @@ var (
 )
 
 func TestCreateConfigP384(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "some_file")
+	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "some_file", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func TestCreateConfigP384(t *testing.T) {
 }
 
 func TestCreateConfigP521(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP521Ciphersuite, ecgroup.GroupCurve{}, 1, "some_file")
+	cfg, err := CreateConfig(validOPRFP521Ciphersuite, ecgroup.GroupCurve{}, 1, "some_file", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,18 +42,18 @@ func TestCreateConfigP521(t *testing.T) {
 }
 
 func TestInvalidCiphersuite(t *testing.T) {
-	_, err := CreateConfig("OPRF-P256-HKDF-SHA512-SSWU-RO", ecgroup.GroupCurve{}, 1, "")
+	_, err := CreateConfig("OPRF-P256-HKDF-SHA512-SSWU-RO", ecgroup.GroupCurve{}, 1, "", -1)
 	if err != oerr.ErrUnsupportedGroup {
 		t.Fatal("bad group should have triggered a bad ciphersuite error")
 	}
 }
 
 func TestCreateOPRFRequest(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "")
+	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	jsonrpcReq, err := cfg.createOPRFRequest(false)
+	jsonrpcReq, err := cfg.createOPRFRequest()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,18 +89,18 @@ func TestCreateOPRFRequest(t *testing.T) {
 }
 
 func TestCreateOPRFRequestBadN(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, -1, "")
+	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, -1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = cfg.createOPRFRequest(false)
+	_, err = cfg.createOPRFRequest()
 	if err == nil {
 		t.Fatal("n < 0 should be unsupported")
 	}
 }
 
 func TestCreateJSONRPCRequest(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "")
+	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestCreateJSONRPCRequest(t *testing.T) {
 }
 
 func TestParseJSONRPCResponseSuccess(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "")
+	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestParseJSONRPCResponseSuccess(t *testing.T) {
 }
 
 func TestParseJSONRPCResponseError(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "")
+	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func TestParseJSONRPCResponseError(t *testing.T) {
 }
 
 func TestParseJSONRPCResponseInvalidResult(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "")
+	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +186,7 @@ func TestParseJSONRPCResponseInvalidResult(t *testing.T) {
 }
 
 func TestParseJSONRPCResponseInvalidField(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "")
+	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}

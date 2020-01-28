@@ -1,0 +1,3 @@
+[submodule "rust/ecc-rs"]
+	path = rust/ecc-rs
+	url = git@github.com:alxdavids/ecc-rs.git
