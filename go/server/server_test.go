@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/alxdavids/oprf-poc/go/jsonrpc"
-	"github.com/alxdavids/oprf-poc/go/oerr"
-	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
-	"github.com/alxdavids/oprf-poc/go/oprf/groups/ecgroup"
+	"github.com/alxdavids/voprf-poc/go/jsonrpc"
+	"github.com/alxdavids/voprf-poc/go/oerr"
+	gg "github.com/alxdavids/voprf-poc/go/oprf/groups"
+	"github.com/alxdavids/voprf-poc/go/oprf/groups/ecgroup"
 	"github.com/stretchr/testify/assert"
 )
 

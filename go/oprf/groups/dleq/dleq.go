@@ -4,10 +4,10 @@ import (
 	"hash"
 	"math/big"
 
-	"github.com/alxdavids/oprf-poc/go/oerr"
-	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
-	"github.com/alxdavids/oprf-poc/go/oprf/groups/ecgroup"
-	"github.com/alxdavids/oprf-poc/go/oprf/utils"
+	"github.com/alxdavids/voprf-poc/go/oerr"
+	gg "github.com/alxdavids/voprf-poc/go/oprf/groups"
+	"github.com/alxdavids/voprf-poc/go/oprf/groups/ecgroup"
+	"github.com/alxdavids/voprf-poc/go/oprf/utils"
 )
 
 // Proof corresponds to the DLEQ proof object that is used to prove that the

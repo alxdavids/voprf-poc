@@ -8,7 +8,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/alxdavids/oprf-poc/go/oprf/utils"
+	"github.com/alxdavids/voprf-poc/go/oprf/utils"
 	"github.com/cloudflare/circl/ecc/p384"
 )
 

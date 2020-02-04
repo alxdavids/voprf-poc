@@ -1,4 +1,4 @@
-module github.com/alxdavids/oprf-poc/go
+module github.com/alxdavids/voprf-poc/go
 
 go 1.13
 

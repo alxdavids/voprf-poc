@@ -3,7 +3,7 @@ package utils
 import (
 	"math/big"
 
-	"github.com/alxdavids/oprf-poc/go/oerr"
+	"github.com/alxdavids/voprf-poc/go/oerr"
 )
 
 // I2osp converts an integer to an octet-string

@@ -3,7 +3,7 @@ package utils
 import (
 	"math/big"
 
-	"github.com/alxdavids/oprf-poc/go/oprf/utils/constants"
+	"github.com/alxdavids/voprf-poc/go/oprf/utils/constants"
 )
 
 // revCmpBit reverses the result of a comparison bit indicator

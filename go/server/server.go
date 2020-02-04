@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/alxdavids/oprf-poc/go/jsonrpc"
-	"github.com/alxdavids/oprf-poc/go/oerr"
-	"github.com/alxdavids/oprf-poc/go/oprf"
-	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
+	"github.com/alxdavids/voprf-poc/go/jsonrpc"
+	"github.com/alxdavids/voprf-poc/go/oerr"
+	"github.com/alxdavids/voprf-poc/go/oprf"
+	gg "github.com/alxdavids/voprf-poc/go/oprf/groups"
 )
 
 // Config corresponds to the actual HTTP instantiation of the server in the OPRF

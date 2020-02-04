@@ -1,6 +1,6 @@
 package jsonrpc
 
-import "github.com/alxdavids/oprf-poc/go/oerr"
+import "github.com/alxdavids/voprf-poc/go/oerr"
 
 // Request describes the structure of a JSONRPC request
 type Request struct {

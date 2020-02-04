@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"math/big"
 
-	"github.com/alxdavids/oprf-poc/go/oerr"
-	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
-	"github.com/alxdavids/oprf-poc/go/oprf/groups/dleq"
+	"github.com/alxdavids/voprf-poc/go/oerr"
+	gg "github.com/alxdavids/voprf-poc/go/oprf/groups"
+	"github.com/alxdavids/voprf-poc/go/oprf/groups/dleq"
 )
 
 // PublicKey represents a commitment to a given secret key that is made public

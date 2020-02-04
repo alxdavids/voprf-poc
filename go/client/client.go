@@ -11,10 +11,10 @@ import (
 	"math/big"
 	"net/http"
 
-	"github.com/alxdavids/oprf-poc/go/jsonrpc"
-	"github.com/alxdavids/oprf-poc/go/oprf"
-	gg "github.com/alxdavids/oprf-poc/go/oprf/groups"
-	"github.com/alxdavids/oprf-poc/go/oprf/groups/dleq"
+	"github.com/alxdavids/voprf-poc/go/jsonrpc"
+	"github.com/alxdavids/voprf-poc/go/oprf"
+	gg "github.com/alxdavids/voprf-poc/go/oprf/groups"
+	"github.com/alxdavids/voprf-poc/go/oprf/groups/dleq"
 )
 
 var (

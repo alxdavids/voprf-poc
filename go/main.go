@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/alxdavids/oprf-poc/go/client"
-	"github.com/alxdavids/oprf-poc/go/oprf/groups/ecgroup"
-	"github.com/alxdavids/oprf-poc/go/server"
+	"github.com/alxdavids/voprf-poc/go/client"
+	"github.com/alxdavids/voprf-poc/go/oprf/groups/ecgroup"
+	"github.com/alxdavids/voprf-poc/go/server"
 )
 
 var (
