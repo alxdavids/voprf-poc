@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"net/http"
 	"time"
@@ -17,16 +18,16 @@ import (
 // Config corresponds to the actual HTTP instantiation of the server in the OPRF
 // protocol, it contains an oprf.Server object for processing OPRF operations
 type Config struct {
-	osrv  oprf.Server // Server object for performing OPRF operations
-	hsrv  http.Server // HTTP Server
-	max   int         // Max number of OPRF evaluations to be permitted in one go
-	tls   bool        // TODO: TLS is still not supported
-	test  bool        // Indicates that the server runs in test mode
-	tDleq string      // a fixed scalar value used for generating DLEQ proofs
+	osrv       oprf.Server // Server object for performing OPRF operations
+	hsrv       http.Server // HTTP Server
+	max        int         // Max number of OPRF evaluations to be permitted in one go
+	tls        bool        // TODO: TLS is still not supported
+	test       bool        // Indicates that the server is running in test mode
+	testVector testVector  // test vectors are used when running in test mode
 }
 
 // CreateConfig returns a HTTP Server object
-func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, max int, tls, test bool, tDleq string) (*Config, error) {
+func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, max int, tls bool, testIndex int) (*Config, error) {
 	ptpnt, err := oprf.Server{}.Setup(ciphersuite, pogInit)
 	if err != nil {
 		return nil, err
@@ -37,6 +38,7 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, max int, tls, 
 	}
 
 	// create server config
+	test := testIndex != -1
 	cfg := &Config{
 		osrv: osrv,
 		hsrv: http.Server{
@@ -45,51 +47,57 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, max int, tls, 
 			WriteTimeout:   10 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
-		max:   max,
-		tls:   tls,
-		test:  test,
-		tDleq: tDleq,
+		max:  max,
+		test: test,
+		tls:  tls,
 	}
 	cfg.hsrv.Handler = http.HandlerFunc(cfg.handleOPRF)
-	return cfg, nil
-}
 
-// ListenAndServe listens for connections and responds to request using the OPRF
-// functionality
-func (cfg *Config) ListenAndServe(key string) error {
-	fmt.Println("Server listening on port 3001")
+	// when running in test mode we use fixed test vectors
+	if test {
+		bytes, err := ioutil.ReadFile(fmt.Sprintf("../test_vectors/%s.json", ciphersuite))
+		if err != nil {
+			return nil, err
+		}
+		testVectors := []testVector{}
+		json.Unmarshal(bytes, &testVectors)
+		cfg.testVector = testVectors[testIndex]
 
-	// if a fixed key is provided then we should use this one
-	if key != "" {
-		k, ok := new(big.Int).SetString(key, 16)
+		// set new keys
+		k, ok := new(big.Int).SetString(cfg.testVector.Key, 16)
 		if !ok {
 			panic("Bad key value specified")
 		}
 		pog := cfg.osrv.Ciphersuite().POG()
 		pubKey, err := pog.GeneratorMult(k)
 		if err != nil {
-			return oerr.ErrServerInternal
+			return nil, err
 		}
 		cfg.osrv = cfg.osrv.SetSecretKey(oprf.SecretKey{K: k, PubKey: pubKey})
-	}
 
+		// output new secret key
+		fmt.Printf("Secret key: %s\n", cfg.testVector.Key)
+	}
+	return cfg, nil
+}
+
+// ListenAndServe listens for connections and responds to request using the OPRF
+// functionality
+func (cfg *Config) ListenAndServe() error {
+	fmt.Println("Server listening on port 3001")
 	// output public key (and optionally secret key values)
 	sk := cfg.osrv.SecretKey()
 	ser, err := sk.PubKey.Serialize()
 	if err != nil {
 		return err
 	}
+	fmt.Printf("Secret key: %s\n", hex.EncodeToString(sk.K.Bytes()))
 	fmt.Printf("Public key: %s\n", hex.EncodeToString(ser))
-	if cfg.test {
-		key := sk.K
-		fmt.Printf("Secret key: %s\n", hex.EncodeToString(key.Bytes()))
-	}
-
 	// run server
 	for {
 		e := cfg.hsrv.ListenAndServe()
 		if e != nil {
-			return oerr.ErrServerInternal
+			return e
 		}
 	}
 }
@@ -178,16 +186,21 @@ func (cfg *Config) processEval(params []string) (map[string][][]byte, error) {
 
 	// compute (V)OPRF evaluation over provided inputs
 	var eval oprf.Evaluation
-	if cfg.tDleq == "" {
-		eval, err = cfg.osrv.Eval(inputs)
-	} else {
-		eval, err = cfg.osrv.FixedEval(inputs, cfg.tDleq)
-	}
-	if err != nil {
-		return nil, err
-	}
 	if cfg.test {
-		// if testing, then we want to recompute t for helping with test vectors
+		// when testing, we need to set a fixed DLEQ value
+		eval, err = cfg.osrv.FixedEval(inputs, cfg.testVector.DleqScalar)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		eval, err = cfg.osrv.Eval(inputs)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// print out DLEQ scalar
+	if osrv.Ciphersuite().Verifiable() {
 		k := osrv.SecretKey().K
 		c := eval.Proof.C
 		s := eval.Proof.S
@@ -262,4 +275,12 @@ func respError(w http.ResponseWriter, e error, status int) {
 	w.WriteHeader(status)
 	w.Write(resp)
 	fmt.Printf("Error occurred processing client request (message: %v)\n", e)
+}
+
+// testVector holds the relevant test vectors when running the server in
+// test mode
+type testVector struct {
+	Key        string `json:"key"`
+	PubKey     string `json:"pub_key"`
+	DleqScalar string `json:"dleq_scalar"`
 }
