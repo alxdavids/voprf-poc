@@ -103,11 +103,11 @@ func (c GroupCurve) ByteLength() int {
 // points. The hash-to-curve method for the curve is implemented using the
 // specification defined in draft-irtf-hash-to-curve-05.
 func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, error) {
-	params, err := getH2CParams(c)
+	hasher, err := getH2CSuite(c)
 	if err != nil {
 		return nil, err
 	}
-	p, err := params.hashToCurve(buf)
+	p, err := hasher.Hash(buf)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +205,10 @@ type Point struct {
 
 // New returns a new point initialised to constants.Zero
 func (p Point) New(pog gg.PrimeOrderGroup) gg.GroupElement {
-	return Point{X: constants.Zero, Y: constants.Zero, pog: pog, compress: true}
+	return Point{
+		X:   new(big.Int).Set(constants.Zero),
+		Y:   new(big.Int).Set(constants.Zero),
+		pog: pog, compress: true}
 }
 
 // Equal returns true if the two Point objects have the same X and Y
