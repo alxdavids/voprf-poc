@@ -208,7 +208,9 @@ func (p Point) New(pog gg.PrimeOrderGroup) gg.GroupElement {
 	return Point{
 		X:   new(big.Int).Set(constants.Zero),
 		Y:   new(big.Int).Set(constants.Zero),
-		pog: pog, compress: true}
+		pog: pog,
+		compress: true,
+	}
 }
 
 // Equal returns true if the two Point objects have the same X and Y
