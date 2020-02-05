@@ -9,7 +9,8 @@ SUFFIX=$(CURVE)-HKDF-SHA512-SSWU-RO
 CIPHERSUITE=OPRF-$(SUFFIX)
 
 # client args
-OPRF_CLIENT_ARGS=--mode=client --n=3 --ciph=$(CIPHERSUITE)
+N_EVALS=3
+OPRF_CLIENT_ARGS=--mode=client --n=$(N_EVALS) --ciph=$(CIPHERSUITE)
 CLIENT_ARGS=$(OPRF_CLIENT_ARGS)
 
 # VOPRF args
@@ -22,7 +23,8 @@ endif
 MAX_EVALS=10
 SERVER_ARGS=--mode=server --max_evals=$(MAX_EVALS) --ciph=$(CIPHERSUITE)
 
-CLIENT_TEST_VECTOR_ARGS=$(CLIENT_ARGS) -test_vectors
+CLIENT_TV_ARGS=--mode=client --ciph=$(CIPHERSUITE) --test=$(TV_IDX)
+SERVER_TV_ARGS=--mode=server --max_evals=10 --ciph=$(CIPHERSUITE) --test=$(TV_IDX)
 
 .PHONY: server
 server:
@@ -32,9 +34,13 @@ server:
 client:
 	go $(RUN_COMMAND) $(CLIENT_ARGS)
 
-.PHONY: test-vectors
-test-vectors:
-	go $(RUN_COMMAND) $(CLIENT_TEST_VECTOR_ARGS)
+.PHONY: server-tv
+server-tv:
+	go $(RUN_COMMAND) $(SERVER_TV_ARGS)
+
+.PHONY: client-tv
+client-tv:
+	go $(RUN_COMMAND) $(CLIENT_TV_ARGS)
 
 .PHONY: test
 test:

@@ -1,0 +1,143 @@
+[
+    {
+        "key": "01ee8059176aaa114f6c42840342a627f2517433fcf41cce56609f6b646317c86607d532e12026ba0aa7c6aecb3f459e74dad26f155cdf7182e1f0e7a6be1abe514f",
+        "pub_key": "0301db545d062e94ec4aa01b47995cef156aee789484a5cf45ba409566e994315130854be68e0699bc2d4073ec11188535f295623361fa7ddd681e784c6c3aee2bc886",
+        "inputs": [
+            "00",
+            "01",
+            "0100010001000100",
+            "0001000100010001",
+            "0101010101010101",
+            "01000100010001000100010001000100",
+            "00010001000100010001000100010001",
+            "01010101010101010101010101010101"
+        ],
+        "blinds": [
+            "7b",
+            "04d2",
+            "3039",
+            "01e240",
+            "12d687",
+            "bc614e",
+            "075bcd15",
+            "499602d2"
+        ],
+        "dleq_scalar": "0bed988ef71364a4d8c2e042176736d5cd39314cd237c3d6822148ea14ef38448ab34caebae39b0d252c1895b4171d43f7ccff41be13780d0a085299d82b7616c9"
+    },
+    {
+        "key": "c158c753df6d52138f2dc5e64f97e5c7fe79cc8d7221fd902e3985eecc3c088c8361fa828b857253bfdbff493aaa0ba9f778e8d7c61df6f322da2bae44693c17d2",
+        "pub_key": "03013c276714a1b26b857a61c066246d8ae155b29b98c66ab6c10996e23199272a132ceb0bdba4d1423792720d9c67f9fff86a22f613e7eba65b04ce6911513d2252ec",
+        "inputs": [
+            "00",
+            "01",
+            "0100010001000100",
+            "0001000100010001",
+            "0101010101010101",
+            "01000100010001000100010001000100",
+            "00010001000100010001000100010001",
+            "01010101010101010101010101010101"
+        ],
+        "blinds": [
+            "7b",
+            "04d2",
+            "3039",
+            "01e240",
+            "12d687",
+            "bc614e",
+            "075bcd15",
+            "499602d2"
+        ],
+        "dleq_scalar": "01dd8eaa7063373873017281198537cf59b3bcbc4738e35d124a09ddd7ca2929af0bad76d1ee3e826030b93b411abe238ff2d8dfff777db422233ff5731b8dc14500"
+    },
+    {
+        "key": "0111cbd37e92f40dedeb1b1c6dde0b0f7b8a68be59d0e9ffba0a1b7f421bb6c5067dbadce6cb2288012d2d518b543bf36106b7df6518a8734f5ea1675a36918da53f",
+        "pub_key": "0201886f7e5220163b62f47ad238059ff040862e59d999e6ded85611e36a16ac82d9ed54c2dd97ba01bca684de72338d5c709e9a37bfb2233b230a4f9edca9e3a7fa7b",
+        "inputs": [
+            "00",
+            "01",
+            "0100010001000100",
+            "0001000100010001",
+            "0101010101010101",
+            "01000100010001000100010001000100",
+            "00010001000100010001000100010001",
+            "01010101010101010101010101010101"
+        ],
+        "blinds": [
+            "7b",
+            "04d2",
+            "3039",
+            "01e240",
+            "12d687",
+            "bc614e",
+            "075bcd15",
+            "499602d2"
+        ],
+        "dleq_scalar": "71b700617b18154a51b8e7cc35a5afc9ae76491706c3ad8c77275d907677ba897257b228c31eda4fed112c7691136cde1ec63161c45ae5dbbd26fbac126698491b"
+    },
+    {
+        "key": "4f61ac099a3c4bc254f778f441098af6190de13064e25667dee0f78a91fea8b193f9d75279553ada81fa9b656f22202a625c595939da97c3d29422c246df96a293",
+        "pub_key": "0201c5adf6c1f305285846fcca793e60b5e9af2f75268ceee4390b559d38837f07ceabf08ea42d93c35b217b9258827708ef2532ec2b476c96276a3b4150075d6f72fa",
+        "inputs": [
+            "0100010001000100"
+        ],
+        "blinds": [
+            "499602d2"
+        ],
+        "dleq_scalar": "01d9f76232af5d167aecbd1ad853002d290b6f9e2ce19a8baedfa418ba5905ae61e25d883caaa4e9ff4ac06cd335466828b2ee44f3352e4082d74868f573b906cbb6"
+    },
+    {
+        "key": "4f61ac099a3c4bc254f778f441098af6190de13064e25667dee0f78a91fea8b193f9d75279553ada81fa9b656f22202a625c595939da97c3d29422c246df96a293",
+        "pub_key": "0201c5adf6c1f305285846fcca793e60b5e9af2f75268ceee4390b559d38837f07ceabf08ea42d93c35b217b9258827708ef2532ec2b476c96276a3b4150075d6f72fa",
+        "inputs": [
+            "01000100010001000100010001000100"
+        ],
+        "blinds": [
+            "075bcd15"
+        ],
+        "dleq_scalar": "01d9f76232af5d167aecbd1ad853002d290b6f9e2ce19a8baedfa418ba5905ae61e25d883caaa4e9ff4ac06cd335466828b2ee44f3352e4082d74868f573b906cbb6"
+    },
+    {
+        "key": "4f61ac099a3c4bc254f778f441098af6190de13064e25667dee0f78a91fea8b193f9d75279553ada81fa9b656f22202a625c595939da97c3d29422c246df96a293",
+        "pub_key": "0201c5adf6c1f305285846fcca793e60b5e9af2f75268ceee4390b559d38837f07ceabf08ea42d93c35b217b9258827708ef2532ec2b476c96276a3b4150075d6f72fa",
+        "inputs": [
+            "00"
+        ],
+        "blinds": [
+            "bc614e"
+        ],
+        "dleq_scalar": "01d9f76232af5d167aecbd1ad853002d290b6f9e2ce19a8baedfa418ba5905ae61e25d883caaa4e9ff4ac06cd335466828b2ee44f3352e4082d74868f573b906cbb6"
+    },
+    {
+        "key": "01c5496e0b88c1cf60f580a7ba55bfa8caa7270fd991ae8b2ee696bc5a2e5442146019f1e8751d2aff77cccbafce4ac571b89fa8070deae0313f84ea6b1f6ba14e92",
+        "pub_key": "03003fe322596f945fe98431f8ca8ece37057b3a50c7a0a04e0cc20a29dde3e46a99b781ec6211ddd0486f840d63e832366311700a36fa6b09b0fdc3852b557e7672f6",
+        "inputs": [
+            "0100010001000100"
+        ],
+        "blinds": [
+            "499602d2"
+        ],
+        "dleq_scalar": "ec5382546dbc32298827b9afd58184991395ae99a4351a603e2d126acf4e4b79d650ca84c5ae8bceaeb75a852b71636e03e0a0088a517a780990ac72061c779e8c"
+    },
+    {
+        "key": "01c5496e0b88c1cf60f580a7ba55bfa8caa7270fd991ae8b2ee696bc5a2e5442146019f1e8751d2aff77cccbafce4ac571b89fa8070deae0313f84ea6b1f6ba14e92",
+        "pub_key": "03003fe322596f945fe98431f8ca8ece37057b3a50c7a0a04e0cc20a29dde3e46a99b781ec6211ddd0486f840d63e832366311700a36fa6b09b0fdc3852b557e7672f6",
+        "inputs": [
+            "01000100010001000100010001000100"
+        ],
+        "blinds": [
+            "075bcd15"
+        ],
+        "dleq_scalar": "ec5382546dbc32298827b9afd58184991395ae99a4351a603e2d126acf4e4b79d650ca84c5ae8bceaeb75a852b71636e03e0a0088a517a780990ac72061c779e8c"
+    },
+    {
+        "key": "01c5496e0b88c1cf60f580a7ba55bfa8caa7270fd991ae8b2ee696bc5a2e5442146019f1e8751d2aff77cccbafce4ac571b89fa8070deae0313f84ea6b1f6ba14e92",
+        "pub_key": "03003fe322596f945fe98431f8ca8ece37057b3a50c7a0a04e0cc20a29dde3e46a99b781ec6211ddd0486f840d63e832366311700a36fa6b09b0fdc3852b557e7672f6",
+        "inputs": [
+            "00"
+        ],
+        "blinds": [
+            "bc614e"
+        ],
+        "dleq_scalar": "ec5382546dbc32298827b9afd58184991395ae99a4351a603e2d126acf4e4b79d650ca84c5ae8bceaeb75a852b71636e03e0a0088a517a780990ac72061c779e8c"
+    }
+]

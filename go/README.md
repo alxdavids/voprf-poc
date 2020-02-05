@@ -1,14 +1,16 @@
-# voprf-poc/go
+# voprf-go
 
 A [golang](https://golang.org/) implementation of the VOPRF protocol in
 [draft-irtf-cfrg-voprf](https://datatracker.ietf.org/doc/draft-irtf-cfrg-voprf/).
 
-- [voprf-poc-js](#voprf-poc-js)
+- [voprf-go](#voprf-go)
   - [Quickstart](#quickstart)
     - [Documentation](#documentation)
+    - [Testing & benchmarks](#testing--benchmarks)
     - [Server](#server)
     - [Client](#client)
     - [Generate test vectors](#generate-test-vectors)
+    - [Supported ciphersuites](#supported-ciphersuites)
   - [Client Outputs](#client-outputs)
     - [Inputs](#inputs)
     - [Blinds](#blinds)
@@ -26,6 +28,20 @@ Run:
 ```
 
 and navigate to http://localhost:6060/pkg.
+
+### Testing & benchmarks
+
+Run tests:
+
+```
+make test
+```
+
+Run benchmarks:
+
+```
+make bench
+```
 
 ### Server
 
@@ -140,15 +156,28 @@ supported.
 
 ### Generate test vectors
 
-To generate test vectors for the (V)OPRF, run a server with `max_evals >= 8` (it
-is set to `10` by default) and then run:
+Run a server:
 
 ```
-make test-vectors
+make server-tv TV_IDX=<tv_idx> CIPHERSUITE=<ciphersuite>
 ```
 
-As before, we can set `VERIFIABLE`, `PUBLIC_KEY` and `CURVE` to alter the
-ciphersuite.
+Run a client:
+
+```
+make client-tv TV_IDX=<tv_idx> CIPHERSUITE=<ciphersuite>
+```
+
+The setting of `<tv_idx>` corresponds to the index of the test vector that is
+used. The ciphersuite can be configured as above, but only verifiable
+ciphersuites are supported.
+
+### Supported ciphersuites
+
+- OPRF-P384-HKDF-SHA512-SSWU-RO
+- VOPRF-P384-HKDF-SHA512-SSWU-RO
+- OPRF-P521-HKDF-SHA512-SSWU-RO
+- VOPRF-P521-HKDF-SHA512-SSWU-RO
 
 ## Client Outputs
 
