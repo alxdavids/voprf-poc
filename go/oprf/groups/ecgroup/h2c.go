@@ -5,9 +5,9 @@ import (
 	"hash"
 	"math/big"
 
-	"github.com/alxdavids/oprf-poc/go/oerr"
-	"github.com/alxdavids/oprf-poc/go/oprf/utils"
-	"github.com/alxdavids/oprf-poc/go/oprf/utils/constants"
+	"github.com/alxdavids/voprf-poc/go/oerr"
+	"github.com/alxdavids/voprf-poc/go/oprf/utils"
+	"github.com/alxdavids/voprf-poc/go/oprf/utils/constants"
 )
 
 // h2cParams contains all of the parameters required for computing the

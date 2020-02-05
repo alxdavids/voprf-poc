@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/alxdavids/oprf-poc/go/oerr"
-	"github.com/alxdavids/oprf-poc/go/oprf/utils"
+	"github.com/alxdavids/voprf-poc/go/oerr"
+	"github.com/alxdavids/voprf-poc/go/oprf/utils"
 )
 
 // Ciphersuite corresponds to the OPRF ciphersuite that is chosen. The
