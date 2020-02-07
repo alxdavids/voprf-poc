@@ -7,7 +7,7 @@ in <https://datatracker.ietf.org/doc/draft-irtf-cfrg-voprf/>.
 
 Clone:
 ```
-go clone git@github.com:alxdavids/voprf-poc.git --recursive
+git clone git@github.com:alxdavids/voprf-poc.git --recursive
 ```
 
 ## Implementations
