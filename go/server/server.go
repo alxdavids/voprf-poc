@@ -55,7 +55,7 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, max int, tls b
 
 	// when running in test mode we use fixed test vectors
 	if test {
-		bytes, err := ioutil.ReadFile(fmt.Sprintf("../test_vectors/%s.json", ciphersuite))
+		bytes, err := ioutil.ReadFile(fmt.Sprintf("../test-vectors/%s.json", ciphersuite))
 		if err != nil {
 			return nil, err
 		}

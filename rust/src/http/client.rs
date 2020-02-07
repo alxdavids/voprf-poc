@@ -46,7 +46,7 @@ impl<T,H> Config<T,H>
             // deserialize test vectors
             let tvs: Vec<TestVector> = serde_json::from_str(
                             &fs::read_to_string(
-                                format!("../test_vectors/{}.json", ciph.name)
+                                format!("../test-vectors/{}.json", ciph.name)
                             ).unwrap()).unwrap();
             let t_vec = tvs[test_idx as usize].clone();
             pk_to_use = Some(t_vec.pub_key.clone());
