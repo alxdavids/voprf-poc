@@ -40,7 +40,7 @@ func getH2CSuite(gc GroupCurve) (HashToPoint, error) {
 	default:
 		return nil, oerr.ErrUnsupportedGroup
 	}
-	dst := append([]byte("VOPRF-"), suite...)
+	dst := append([]byte("RFCXXXX-VOPRF-"), suite...)
 	hasher, err := suite.Get()
 	if err != nil {
 		return nil, err

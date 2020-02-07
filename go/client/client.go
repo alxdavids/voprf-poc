@@ -58,7 +58,7 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputP
 		test:       test,
 	}
 	if test {
-		bytes, err := ioutil.ReadFile(fmt.Sprintf("../test_vectors/%s.json", ciphersuite))
+		bytes, err := ioutil.ReadFile(fmt.Sprintf("../test-vectors/%s.json", ciphersuite))
 		if err != nil {
 			return nil, err
 		}

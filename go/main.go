@@ -25,7 +25,7 @@ func main() {
 	flag.IntVar(&max, "max_evals", 1, "Specifies the maximum number of OPRF evaluations that are permitted by the server")
 	flag.IntVar(&n, "n", 1, "Specifies the number of OPRF evaluations to be attempted by the client")
 	flag.StringVar(&pk, "pk", "not_set", "Specifies a hex-encoded public key for use by the client when verifying server messages (client)")
-	flag.IntVar(&test, "test", -1, "This flag specifies a client running mode that uses fixed test vector input from testdata/test_vectors.json. The int value provided corresponds to the index of the vector that is used.")
+	flag.IntVar(&test, "test", -1, "This flag specifies a client running mode that uses fixed test vector input from testdata/test-vectors.json. The int value provided corresponds to the index of the vector that is used.")
 	flag.Parse()
 
 	switch mode {

@@ -45,7 +45,7 @@ impl PrimeOrderGroup<NistPoint,Sha512> {
             byte_length: P384_BYTE_LENGTH,
             hash: || p384_hash(),
             deserialize: |buf: &[u8]| NistPoint::new(P384).unwrap().deserialize(buf),
-            encode_to_group: |buf: &[u8]| NistPoint::new(P384).unwrap().hash_to_curve(buf),
+            encode_to_group: |buf: &[u8]| NistPoint::new(P384).unwrap().hash_to_curve(buf, "RFCXXXX-VOPRF".to_string()),
             is_valid: |p: &NistPoint| p.is_valid(),
             is_equal: |p1: &NistPoint, p2: &NistPoint| p1.equals(p2),
             add: |p1: &NistPoint, p2: &NistPoint| p1.to_jacobian().add(&p2.to_jacobian()).to_affine(),
@@ -56,7 +56,7 @@ impl PrimeOrderGroup<NistPoint,Sha512> {
                 let mut rng = OsRng;
                 let mut alpha = vec![0; P384_BYTE_LENGTH];
                 rng.fill_bytes(&mut alpha);
-                NistPoint::new(P384).unwrap().hash_to_curve(&alpha)
+                NistPoint::new(P384).unwrap().hash_to_curve(&alpha, "RFCXXXX-VOPRF".to_string())
             },
             uniform_bytes: |out: &mut Vec<u8>| {
                 let bytes = NistPoint::new(P384).unwrap()
@@ -278,10 +278,10 @@ mod tests {
         (pog.serialize)(&p, true, &mut ser);
         // TODO: use official test vector
         let test_arr: [u8; 1+P384_BYTE_LENGTH] = [
-            2, 6, 194, 56, 29, 191, 23, 31, 169, 125, 50, 215, 223, 66, 28, 104,
-            162, 137, 7, 105, 187, 29, 205, 63, 3, 192, 25, 56, 94, 203, 94, 77,
-            242, 12, 187, 189, 129, 61, 155, 75, 253, 73, 210, 108, 197, 135, 5,
-            44, 177
+            3, 71, 200, 194, 66, 217, 162, 108, 160, 125, 77, 19, 159, 198, 168,
+            53, 78, 216, 108, 129, 84, 67, 119, 32, 221, 107, 28, 72, 61, 140,
+            154, 6, 34, 23, 98, 185, 185, 126, 14, 208, 77, 63, 13, 237, 235,
+            166, 220, 134, 81
         ];
         assert_eq!(ser, test_arr.to_vec())
     }

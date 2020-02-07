@@ -11,7 +11,7 @@
 //! * run P384 VOPRF (verifiable):
 //!     `cargo run -- --group=P384 --mode=server --max_evals=10 --verifiable`
 //! * run P384 VOPRF using test vectors (verifiable), `test` can take values
-//!   0..8 corresponding to the arrays found in test_vectors/:
+//!   0..8 corresponding to the arrays found in test-vectors/:
 //!     `cargo run -- --group=P384 --mode=server --max_evals=10 --test=1`
 //! * running with the ristretto255 ciphersuite just requires changing `group`
 //!   to `ristretto255`
@@ -68,7 +68,7 @@ impl<T,H> Config<T,H>
             // deserialize test vectors
             let tvs: Vec<TestVector> = serde_json::from_str(
                                 &fs::read_to_string(
-                                    format!("../test_vectors/{}.json", name)
+                                    format!("../test-vectors/{}.json", name)
                                 ).unwrap()).unwrap();
             let t_vec = tvs[test_idx as usize].clone();
             // set new secret key
