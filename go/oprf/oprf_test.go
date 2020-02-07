@@ -261,7 +261,7 @@ func checkServerEval(t *testing.T, validCiphersuite string, n int) {
 	if ciph.Verifiable() {
 		proof := ev.Proof
 		if n == 1 {
-			assert.True(t, proof.Verify(pog, ciph.H3(), s.SecretKey().PubKey, eles[0], ev.Elements[0]))
+			assert.True(t, proof.Verify(pog, ciph.H3(), ciph.H5(), s.SecretKey().PubKey, eles[0], ev.Elements[0]))
 		} else {
 			assert.True(t, proof.BatchVerify(pog, ciph.H3(), ciph.H4(), ciph.H5(), s.SecretKey().PubKey, eles, ev.Elements))
 		}

@@ -119,7 +119,6 @@ func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, error) {
 //
 // NOT constant time due to rejection sampling
 func (c GroupCurve) UniformFieldElement() (*big.Int, error) {
-	var mask = []byte{0xff, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f}
 	N := c.Order() // base point subgroup order
 	bitLen := N.BitLen()
 	byteLen := (bitLen + 7) >> 3
@@ -132,7 +131,7 @@ func (c GroupCurve) UniformFieldElement() (*big.Int, error) {
 			return nil, oerr.ErrInternalInstantiation
 		}
 		// Mask to account for field sizes that are not a whole number of bytes.
-		buf[0] &= mask[bitLen%8]
+		buf = utils.MaskScalar(buf, bitLen)
 		// Check if scalar is in the correct range.
 		if new(big.Int).SetBytes(buf).Cmp(N) >= 0 {
 			continue
@@ -206,9 +205,9 @@ type Point struct {
 // New returns a new point initialised to constants.Zero
 func (p Point) New(pog gg.PrimeOrderGroup) gg.GroupElement {
 	return Point{
-		X:   new(big.Int).Set(constants.Zero),
-		Y:   new(big.Int).Set(constants.Zero),
-		pog: pog,
+		X:        new(big.Int).Set(constants.Zero),
+		Y:        new(big.Int).Set(constants.Zero),
+		pog:      pog,
 		compress: true,
 	}
 }

@@ -110,8 +110,8 @@ fn p384_fixed_dleq_gen(key: &[u8], pub_key: &NistPoint, input: &NistPoint, eval:
     let gen = NistPoint::get_generator(P384).unwrap();
     let a = gen.scalar_mul(t).to_affine();
     let b = input.scalar_mul(t).to_affine();
-    let mut c: Vec<u8> = Vec::new();
-    p384_dleq_hash(&[pub_key, input, eval, &a, &b], &mut c);
+    let mut c = vec![0; P384_BYTE_LENGTH];
+    compute_expanded_dleq_challenge(&[pub_key, input, eval, &a, &b], &mut c);
     let c_sc = BigInt::from_bytes_be(Sign::Plus, &c);
     let t_sc = BigInt::from_bytes_be(Sign::Plus, t);
     let k_sc = BigInt::from_bytes_be(Sign::Plus, &key);
@@ -130,8 +130,8 @@ fn p384_dleq_vrf(pub_key: &NistPoint, input: &NistPoint, eval: &NistPoint, proof
     let s_m = input.scalar_mul(s_proof);
     let c_z = eval.scalar_mul(c_proof);
     let b = s_m.add(&c_z).to_affine();
-    let mut c_vrf: Vec<u8> = Vec::new();
-    p384_dleq_hash(&[pub_key, input, eval, &a, &b], &mut c_vrf);
+    let mut c_vrf = vec![0; P384_BYTE_LENGTH];
+    compute_expanded_dleq_challenge(&[pub_key, input, eval, &a, &b], &mut c_vrf);
     return c_proof == &g.reduce_scalar(&c_vrf, true);
 }
 
@@ -177,8 +177,7 @@ fn p384_compute_composites(seed: &[u8], inputs: &[NistPoint], evals: &[NistPoint
         let mut d_i = vec![0; P384_BYTE_LENGTH];
         Hkdf{}.expand(seed, &ctr_vec, &mut d_i);
         // reject if greater than N
-        let reduced = p.reduce_scalar(&d_i, true);
-        if BigUint::from_bytes_be(&reduced) != BigUint::from_bytes_be(&d_i) {
+        if !verify_scalar_size(&d_i) {
             continue;
         }
         let dm_i = m_i.scalar_mul(&d_i);
@@ -206,9 +205,39 @@ fn p384_batch_dleq_seed(y: &NistPoint, m: &[NistPoint], z: &[NistPoint], out: &m
     p384_dleq_hash(&inputs, out)
 }
 
+// Samples bytes uniformly corresponding to scalars in the base field associated
+// with P-384
 fn p384_sample_uniform_bytes(out: &mut Vec<u8>) {
     let bytes = NistPoint::new(P384).unwrap().uniform_bytes_from_field().unwrap();
     copy_into(&bytes, out)
+}
+
+// Samples the random challenge value `c` used in the NI version of the DLEQ
+// proof system
+fn compute_expanded_dleq_challenge(inputs: &[&NistPoint], c: &mut Vec<u8>) {
+    let mut seed: Vec<u8> = Vec::new();
+    p384_dleq_hash(inputs, &mut seed);
+    let label = "voprf_dleq_challenge".as_bytes();
+    let mut ctr = 0;
+    loop {
+        let mut info = Vec::new();
+        info.write_u32::<BigEndian>(ctr as u32).unwrap();
+        info.extend_from_slice(&label);
+        Hkdf{}.expand(&seed, &info, c);
+        if !(verify_scalar_size(c)) {
+            ctr = ctr+1;
+            continue;
+        }
+        break;
+    }
+}
+
+// returns true if the scalar is within the order of the base field, and false
+// otherwise.
+fn verify_scalar_size(c: &[u8]) -> bool {
+    let p = NistPoint::new(P384).unwrap();
+    let reduced = p.reduce_scalar(&c, true);
+    BigUint::from_bytes_be(&reduced) == BigUint::from_bytes_be(&c)
 }
 
 // returns the associated hash function (SHA512) for working with the p384

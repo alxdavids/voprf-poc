@@ -156,7 +156,7 @@ func (s Server) voprfEval(batchM []gg.GroupElement) (Evaluation, error) {
 	sk := s.SecretKey()
 	var proof dleq.Proof
 	if len(batchM) == 1 {
-		proof, err = dleq.Generate(ciph.POG(), ciph.H3(), sk.K, sk.PubKey, batchM[0], batchZ[0])
+		proof, err = dleq.Generate(ciph.POG(), ciph.H3(), ciph.H5(), sk.K, sk.PubKey, batchM[0], batchZ[0])
 	} else {
 		proof, err = dleq.BatchGenerate(ciph.POG(), ciph.H3(), ciph.H4(), ciph.H5(), sk.K, sk.PubKey, batchM, batchZ)
 	}
@@ -183,7 +183,7 @@ func (s Server) voprfFixedEval(batchM []gg.GroupElement, tDleq string) (Evaluati
 	}
 	var proof dleq.Proof
 	if len(batchM) == 1 {
-		proof, err = dleq.FixedGenerate(ciph.POG(), ciph.H3(), sk.K, sk.PubKey, batchM[0], batchZ[0], t)
+		proof, err = dleq.FixedGenerate(ciph.POG(), ciph.H3(), ciph.H5(), sk.K, sk.PubKey, batchM[0], batchZ[0], t)
 	} else {
 		proof, err = dleq.FixedBatchGenerate(ciph.POG(), ciph.H3(), ciph.H4(), ciph.H5(), sk.K, sk.PubKey, batchM, batchZ, t)
 	}
@@ -293,7 +293,7 @@ func (c Client) voprfUnblind(ev Evaluation, origs []gg.GroupElement, blinds []*b
 	// check DLEQ proof
 	b := false
 	if len(eles) == 1 {
-		b = proof.Verify(ciph.POG(), ciph.H3(), c.PublicKey(), origs[0], eles[0])
+		b = proof.Verify(ciph.POG(), ciph.H3(), ciph.H5(), c.PublicKey(), origs[0], eles[0])
 	} else {
 		b = proof.BatchVerify(ciph.POG(), ciph.H3(), ciph.H4(), ciph.H5(), c.PublicKey(), origs, eles)
 	}
