@@ -18,18 +18,18 @@ type Proof struct {
 
 // Generate constructs a new Proof object using a VOPRF secret key and the group
 // elements that were provided as input
-func Generate(pog gg.PrimeOrderGroup, h hash.Hash, k *big.Int, Y, M, Z gg.GroupElement) (Proof, error) {
+func Generate(pog gg.PrimeOrderGroup, h3 hash.Hash, h5 utils.ExtractorExpander, k *big.Int, Y, M, Z gg.GroupElement) (Proof, error) {
 	t, err := pog.UniformFieldElement()
 	if err != nil {
 		return Proof{}, err
 	}
 
-	return FixedGenerate(pog, h, k, Y, M, Z, t)
+	return FixedGenerate(pog, h3, h5, k, Y, M, Z, t)
 }
 
 // FixedGenerate constructs a new Proof object with the random scalar t
 // explicitly generated
-func FixedGenerate(pog gg.PrimeOrderGroup, h hash.Hash, k *big.Int, Y, M, Z gg.GroupElement, t *big.Int) (Proof, error) {
+func FixedGenerate(pog gg.PrimeOrderGroup, h3 hash.Hash, h5 utils.ExtractorExpander, k *big.Int, Y, M, Z gg.GroupElement, t *big.Int) (Proof, error) {
 	// A := tG, B := tM
 	A, err := pog.GeneratorMult(t)
 	if err != nil {
@@ -41,7 +41,7 @@ func FixedGenerate(pog gg.PrimeOrderGroup, h hash.Hash, k *big.Int, Y, M, Z gg.G
 	}
 
 	// compute hash output c
-	c, err := computeHashAsBigInt(h, pog.Generator(), Y, M, Z, A, B)
+	c, err := computeDleqChallenge(pog, h3, h5, pog.Generator(), Y, M, Z, A, B)
 	if err != nil {
 		return Proof{}, err
 	}
@@ -63,7 +63,7 @@ func BatchGenerate(pog gg.PrimeOrderGroup, h3, h4 hash.Hash, h5 utils.ExtractorE
 	}
 
 	// generate DLEQ proof object
-	return Generate(pog, h3, k, Y, M, Z)
+	return Generate(pog, h3, h5, k, Y, M, Z)
 }
 
 // FixedBatchGenerate generates a batched DLEQ proof with fixed proof generation
@@ -75,12 +75,12 @@ func FixedBatchGenerate(pog gg.PrimeOrderGroup, h3, h4 hash.Hash, h5 utils.Extra
 	}
 
 	// generate DLEQ proof object
-	return FixedGenerate(pog, h3, k, Y, M, Z, t)
+	return FixedGenerate(pog, h3, h5, k, Y, M, Z, t)
 }
 
 // Verify runs the DLEQ proof validation algorithm and returns a bool
 // indicating success or failure
-func (proof Proof) Verify(pog gg.PrimeOrderGroup, h hash.Hash, Y, M, Z gg.GroupElement) bool {
+func (proof Proof) Verify(pog gg.PrimeOrderGroup, h3 hash.Hash, h5 utils.ExtractorExpander, Y, M, Z gg.GroupElement) bool {
 	// A = sG + cY
 	sG, err := pog.GeneratorMult(proof.S)
 	if err != nil {
@@ -109,7 +109,7 @@ func (proof Proof) Verify(pog gg.PrimeOrderGroup, h hash.Hash, Y, M, Z gg.GroupE
 	}
 
 	// recompute hash output
-	c, err := computeHashAsBigInt(h, pog.Generator(), Y, M, Z, A, B)
+	c, err := computeDleqChallenge(pog, h3, h5, pog.Generator(), Y, M, Z, A, B)
 	if err != nil {
 		return false
 	}
@@ -131,7 +131,7 @@ func (proof Proof) BatchVerify(pog gg.PrimeOrderGroup, h3, h4 hash.Hash, h5 util
 	}
 
 	// Verify standalone DLEQ proof object
-	return proof.Verify(pog, h3, Y, M, Z)
+	return proof.Verify(pog, h3, h5, Y, M, Z)
 }
 
 // Serialize takes the values of the proof object and converts them into bytes
@@ -178,11 +178,7 @@ func computeComposites(pog gg.PrimeOrderGroup, h4 hash.Hash, h5 utils.ExtractorE
 		hkdfInp := append(ctrBytes, []byte("voprf_batch_dleq")...)
 
 		// sample coefficient and reject if it is too big
-		expand := h5.Expander()
-		output := expand(func() hash.Hash { h4.Reset(); return h4 }, seed, hkdfInp)
-		diBuf := make([]byte, pog.ByteLength())
-		output.Read(diBuf)
-		di := new(big.Int).SetBytes(diBuf[:pog.ByteLength()])
+		di := computeExpansion(pog, h4, h5, seed, hkdfInp)
 		if di.Cmp(pog.Order()) > 0 {
 			i--
 			continue
@@ -239,14 +235,45 @@ func computeHash(h hash.Hash, eles ...gg.GroupElement) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// computeHashAsBigInt outputs whatever computeHash outputs (on the same input),
-// but with the output cast to big.Int type
-func computeHashAsBigInt(h hash.Hash, eles ...gg.GroupElement) (*big.Int, error) {
-	cBuf, err := computeHash(h, eles...)
+// computeDleqChallenge outputs a BigInt value corresponding to the
+// randomly distributed challenge in an invocation of the DLEQ NIZK (in
+// accordance with the FS transform)
+func computeDleqChallenge(pog gg.PrimeOrderGroup, h hash.Hash, ee utils.ExtractorExpander, eles ...gg.GroupElement) (*big.Int, error) {
+	seed, err := computeHash(h, eles...)
 	if err != nil {
 		return nil, err
 	}
-	return new(big.Int).SetBytes(cBuf), nil
+
+	// rejection sampling for values that are less than the group order
+	ctr := 0
+	for {
+		ctrBytes, err := utils.I2osp(ctr, 4)
+		if err != nil {
+			return nil, err
+		}
+		c := computeExpansion(pog, h, ee, seed, append(ctrBytes, []byte("voprf_dleq_challenge")...))
+		if c.Cmp(pog.Order()) > 0 {
+			continue
+		}
+		return c, nil
+	}
+}
+
+// computeExpansion computes a scalar value for the scalar field GF(p)
+// associated with the prime-order group from the expansion of an initial seed
+// and label
+func computeExpansion(pog gg.PrimeOrderGroup, h hash.Hash, ee utils.ExtractorExpander, seed []byte, label []byte) *big.Int {
+	expander := ee.Expander()
+	output := expander(func() hash.Hash { h.Reset(); return h }, seed, label)
+	bitSize := pog.Order().BitLen()
+	byteLen := (bitSize + 7) >> 3
+	r := make([]byte, byteLen)
+	output.Read(r)
+	// we have to mask off excess bits if the size of the underlying field is
+	// not a whole number of bytes (see
+	// https://github.com/golang/go/blob/master/src/crypto/elliptic/elliptic.go#L273)
+	r = utils.MaskScalar(r, bitSize)
+	return new(big.Int).SetBytes(r)
 }
 
 // getSerializedElements returns the serializations of multiple GroupElement

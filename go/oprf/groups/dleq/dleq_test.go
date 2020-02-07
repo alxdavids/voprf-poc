@@ -78,11 +78,11 @@ func TestBatchedDLEQBadElement(t *testing.T) {
 }
 
 func validateDLEQ(t *testing.T, groupName string) {
-	pog, h3, _, pk, M, Z, proof, err := createProof(groupName)
+	pog, h3, h5, _, pk, M, Z, proof, err := createProof(groupName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !proof.Verify(pog, h3, pk, M, Z) {
+	if !proof.Verify(pog, h3, h5, pk, M, Z) {
 		t.Fatal("Proof failed to validate")
 	}
 }
@@ -130,25 +130,25 @@ func setup(groupName string) (gg.PrimeOrderGroup, hash.Hash, hash.Hash, utils.Ex
 	return pog, h3, h4, h5, sk, pk, nil
 }
 
-func createProof(groupName string) (gg.PrimeOrderGroup, hash.Hash, *big.Int, gg.GroupElement, gg.GroupElement, gg.GroupElement, Proof, error) {
-	pog, h3, _, _, sk, pk, err := setup(groupName)
+func createProof(groupName string) (gg.PrimeOrderGroup, hash.Hash, utils.ExtractorExpander, *big.Int, gg.GroupElement, gg.GroupElement, gg.GroupElement, Proof, error) {
+	pog, h3, _, h5, sk, pk, err := setup(groupName)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, Proof{}, err
+		return nil, nil, nil, nil, nil, nil, nil, Proof{}, err
 	}
 	M, Z, err := generateAndEval(pog, sk, "random_input")
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, Proof{}, err
+		return nil, nil, nil, nil, nil, nil, nil, Proof{}, err
 	}
 
-	proof, err := Generate(pog, h3, sk, pk, M, Z)
+	proof, err := Generate(pog, h3, h5, sk, pk, M, Z)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, Proof{}, err
+		return nil, nil, nil, nil, nil, nil, nil, Proof{}, err
 	}
-	return pog, h3, sk, pk, M, Z, proof, nil
+	return pog, h3, h5, sk, pk, M, Z, proof, nil
 }
 
 func createBatchedProof(groupName string, n int) (gg.PrimeOrderGroup, hash.Hash, hash.Hash, utils.ExtractorExpander, *big.Int, gg.GroupElement, []gg.GroupElement, []gg.GroupElement, Proof, error) {
-	pog, h3, h4, h5, sk, pk, err := setup("P384")
+	pog, h3, h4, h5, sk, pk, err := setup(groupName)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, nil, Proof{}, err
 	}
@@ -182,13 +182,13 @@ func BenchmarkGenerateP521(b *testing.B) {
 }
 
 func benchGenerate(b *testing.B, groupName string) {
-	pog, h3, sk, pk, M, Z, _, err := createProof(groupName)
+	pog, h3, h5, sk, pk, M, Z, _, err := createProof(groupName)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	for i := 0; i < b.N; i++ {
-		_, err := Generate(pog, h3, sk, pk, M, Z)
+		_, err := Generate(pog, h3, h5, sk, pk, M, Z)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -204,13 +204,13 @@ func BenchmarkVerifyP521(b *testing.B) {
 }
 
 func benchVerify(b *testing.B, groupName string) {
-	pog, h3, _, pk, M, Z, proof, err := createProof(groupName)
+	pog, h3, h5, _, pk, M, Z, proof, err := createProof(groupName)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	for i := 0; i < b.N; i++ {
-		if !proof.Verify(pog, h3, pk, M, Z) {
+		if !proof.Verify(pog, h3, h5, pk, M, Z) {
 			b.Fatal("bad verification")
 		}
 	}
