@@ -3,6 +3,8 @@
 A selection of proof-of-concept implementations of the OPRF protocol detailed
 in <https://datatracker.ietf.org/doc/draft-irtf-cfrg-voprf/>.
 
+![](https://github.com/alxdavids/voprf-poc/workflows/Tests%20on%20CI/badge.svg)
+
 ## Quickstart
 
 Clone:
