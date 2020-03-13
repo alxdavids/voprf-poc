@@ -55,7 +55,6 @@ func TestFullVOPRFP521Multiple(t *testing.T) {
 }
 
 func TestFullCurve448(t *testing.T) {
-	t.Skip("Skipping test.")
 	checkFull(t, validOPRFCURVE448Ciphersuite, 1)
 }
 
@@ -185,7 +184,6 @@ func TestClientBlindUnblindP521VerifiableMultiple(t *testing.T) {
 }
 
 func TestClientBlindUnblindCurve448(t *testing.T) {
-	t.Skip("Skipping test.")
 	checkClientBlindUnblind(t, validOPRFCURVE448Ciphersuite, 1)
 }
 
