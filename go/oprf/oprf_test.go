@@ -475,11 +475,10 @@ func clientSetupUnblind(validCiphersuite string, n int) (Client, Evaluation, [][
 			return Client{}, Evaluation{}, nil, nil, nil, nil, err
 		}
 
-		if pog.Name() != "curve-448" {
-			if !P.IsValid() {
-				return Client{}, Evaluation{}, nil, nil, nil, nil, errors.New("Point is not valid")
-			}
+		if !P.IsValid() {
+			return Client{}, Evaluation{}, nil, nil, nil, nil, errors.New("Point is not valid")
 		}
+
 		inputs[i] = x
 		eles[i] = P
 		blinds[i] = r

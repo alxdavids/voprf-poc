@@ -249,31 +249,20 @@ func (p Point) New(pog gg.PrimeOrderGroup) gg.GroupElement {
 // Equal returns true if the two Point objects have the same X and Y
 // coordinates and belong to the same curve. Otherwise it returns false.
 func (p Point) Equal(ge gg.GroupElement) bool {
-	curve, err := castToCurve(p.pog)
-	if err != nil {
-		return false
-	}
-
 	pEq, err := castToPoint(ge)
 	if err != nil {
 		return false
 	}
 
-	if curve.name != "curve-448" {
-		// check that both points are valid
-		if !p.IsValid() || !pEq.IsValid() {
-			return false
-		}
+	// check that both points are valid
+	if !p.IsValid() || !pEq.IsValid() {
+		return false
 	}
 
 	// check that the supplied Point is valid with respect to the group for p
 	pChkGroup := Point{}.New(p.pog).(Point)
 	pChkGroup.X = pEq.X
 	pChkGroup.Y = pEq.Y
-
-	if curve.name == "curve-448" {
-		return (p.X.Cmp(pEq.X) == 0)
-	}
 
 	// check that the point coordinates are the same
 	return (p.X.Cmp(pEq.X) == 0) && (p.Y.Cmp(pEq.Y) == 0)
@@ -298,10 +287,8 @@ func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, error) {
 		return nil, err
 	}
 
-	if curve.name != "curve-448" {
-		if !p.IsValid() {
-			return nil, oerr.ErrInvalidGroupElement
-		}
+	if !p.IsValid() {
+		return nil, oerr.ErrInvalidGroupElement
 	}
 
 	p.X, p.Y = curve.ops.ScalarMult(p.X, p.Y, k.Bytes())
@@ -317,10 +304,8 @@ func (p Point) Add(ge gg.GroupElement) (gg.GroupElement, error) {
 		return nil, err
 	}
 
-	if curve.name != "curve-448" {
-		if !p.IsValid() {
-			return nil, oerr.ErrInvalidGroupElement
-		}
+	if !p.IsValid() {
+		return nil, oerr.ErrInvalidGroupElement
 	}
 
 	// retrieve and normalize points
@@ -494,15 +479,8 @@ func castToPoint(ge gg.GroupElement) (Point, error) {
 		return Point{}, oerr.ErrTypeAssertion
 	}
 
-	curve, err := castToCurve(p.pog)
-	if err != nil {
-		return Point{}, err
-	}
-
-	if curve.name != "curve-448" {
-		if !p.IsValid() {
-			return Point{}, oerr.ErrInvalidGroupElement
-		}
+	if !p.IsValid() {
+		return Point{}, oerr.ErrInvalidGroupElement
 	}
 
 	return p, nil
