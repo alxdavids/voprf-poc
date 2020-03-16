@@ -7,6 +7,7 @@
 
 pub mod ristretto;
 pub mod p384;
+pub mod p384_redox;
 
 use std::io::Error;
 

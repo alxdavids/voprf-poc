@@ -2,3 +2,9 @@
 	path = rust/ecc-rs
 	url = https://github.com/alxdavids/ecc-rs/
 	branch = master
+[submodule "rust/redox-ecc"]
+	path = rust/redox-ecc
+	url = git@github.com:armfazh/redox-ecc.git
+[submodule "rust/h2c-rust-ref"]
+	path = rust/h2c-rust-ref
+	url = git@github.com:armfazh/h2c-rust-ref.git
