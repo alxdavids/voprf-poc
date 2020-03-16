@@ -2,3 +2,7 @@
 	path = rust/ecc-rs
 	url = https://github.com/alxdavids/ecc-rs/
 	branch = master
+[submodule "rust/h2c-rust-ref"]
+	path = rust/h2c-rust-ref
+	url = git@github.com:alxdavids/h2c-rust-ref.git
+	branch = alxdavids/voprf-rs

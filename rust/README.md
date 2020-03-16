@@ -157,7 +157,14 @@ test vectors currently take indices between `0` and `8`.
 
 ## Supported ciphersuites
 
-- OPRF-P384-HKDF-SHA512-SSWU-RO, `<group_name> = P384`
-- VOPRF-P384-HKDF-SHA512-SSWU-RO, `<group_name> = P384`
-- OPRF-ristretto255-HKDF-SHA512-SSWU-RO `<group_name> = ristretto255` (EXPERIMENTAL)
-- VOPRF-ristretto255-HKDF-SHA512-SSWU-RO `<group_name> = ristretto255` (EXPERIMENTAL)
+- OPRF-P384-HKDF-SHA512-SSWU-RO, `<group_name> = P384Old | P384`
+- VOPRF-P384-HKDF-SHA512-SSWU-RO, `<group_name> = P384Old | P384`
+- OPRF-P521-HKDF-SHA512-SSWU-RO, `<group_name> = P521`
+- VOPRF-P521-HKDF-SHA512-SSWU-RO, `<group_name> = P521`
+- OPRF-curve448-HKDF-SHA512-ELL2-RO, `<group_name> = curve448`
+- VOPRF-curve448-HKDF-SHA512-ELL2-RO, `<group_name> = curve448`
+- OPRF-ristretto255-HKDF-SHA512-ELL2-RO `<group_name> = ristretto255` (EXPERIMENTAL)
+- VOPRF-ristretto255-HKDF-SHA512-ELL2-RO `<group_name> = ristretto255` (EXPERIMENTAL)
+
+note: the `P384Old` group uses a different underlying elliptic curve
+library.

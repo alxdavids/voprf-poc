@@ -252,7 +252,7 @@ func computeDleqChallenge(pog gg.PrimeOrderGroup, h hash.Hash, ee utils.Extracto
 			return nil, err
 		}
 		c := computeExpansion(pog, h, ee, seed, append(ctrBytes, []byte("voprf_dleq_challenge")...))
-		if c.Cmp(pog.Order()) > 0 {
+		if c.Cmp(pog.Order()) >= 0 {
 			continue
 		}
 		return c, nil

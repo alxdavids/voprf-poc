@@ -43,12 +43,12 @@ The state of support for the officially documented ciphersuites in
 
 | Ciphersuite | go | rust |
 | ----------- | -- | ---- |
-| OPRF-curve448-HKDF-SHA512-ELL2-RO | Y | N |
+| OPRF-curve448-HKDF-SHA512-ELL2-RO | Y | Y |
 | OPRF-P384-HKDF-SHA512-SSWU-RO | Y | Y |
-| OPRF-P521-HKDF-SHA512-SSWU-RO | Y | N |
-| VOPRF-curve448-HKDF-SHA512-ELL2-RO | Y | N |
+| OPRF-P521-HKDF-SHA512-SSWU-RO | Y | Y |
+| VOPRF-curve448-HKDF-SHA512-ELL2-RO | Y | Y |
 | VOPRF-P384-HKDF-SHA512-SSWU-RO | Y | Y |
-| VOPRF-P521-HKDF-SHA512-SSWU-RO | Y | N |
+| VOPRF-P521-HKDF-SHA512-SSWU-RO | Y | Y |
 
 ### Experimental
 

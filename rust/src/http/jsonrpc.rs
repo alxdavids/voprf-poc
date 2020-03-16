@@ -92,7 +92,9 @@ pub fn error(err: ErrorType, id: i16) -> String {
         ErrorType::InvalidParams => ErrorResult{ message: "Invalid method parameter(s).".to_string(), code: -32602 },
         ErrorType::IncompatibleCiphersuite => ErrorResult{ message: "Specified ciphersuite is incompatible with server.".to_string(), code: -32000 },
         ErrorType::Deserialization => ErrorResult{ message: "Failed to deserialize client input.".to_string(), code: -32001 },
-        _ => ErrorResult{ message: "Internal JSON-RPC error.".to_string(), code: -32603 },
+        _ => {
+            ErrorResult{ message: "Internal JSON-RPC error.".to_string(), code: -32603 }
+        },
     };
     let resp_err = ResponseError{ jsonrpc: "2.0".to_string(), error: result, id: id };
     serde_json::to_string(&resp_err).unwrap()

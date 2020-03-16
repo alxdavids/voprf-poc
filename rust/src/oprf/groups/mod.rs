@@ -3,12 +3,27 @@
 //! insatntiations of the group settings. Currently supported groups:
 //!
 //! - ristretto255 (experimental, not specified in draft)
-
-
 pub mod ristretto;
 pub mod p384;
+pub mod redox_ecc;
 
 use std::io::Error;
+
+/// GroupID is a unique identifier for each individual `PrimeOrderGroup`
+/// instantiation
+#[derive(Clone)]
+pub enum GroupID {
+    /// Original P384 group using internal ecc-rs crate
+    P384Old,
+    /// ristretto255 group
+    Ristretto255,
+    /// P384 group instantiation implemented using redox-ecc crate
+    P384,
+    /// P521 group instantiation implemented using redox-ecc crate
+    P521,
+    /// curve448 group instantiation implemented using redox-ecc crate
+    Curve448,
+}
 
 /// The `PrimeOrderGroup` struct defines the behaviour expected from an additive
 /// group with prime order instantiation. The template variable `T` corresponds
@@ -128,7 +143,7 @@ use std::io::Error;
 /// ```
 /// use voprf_rs::oprf::groups::PrimeOrderGroup;
 /// // create group instantiation
-/// let pog = PrimeOrderGroup::p384();
+/// let pog = PrimeOrderGroup::p384_old();
 /// ```
 ///
 /// Notes:
@@ -139,6 +154,8 @@ use std::io::Error;
 ///     required for VOPRF functionality
 #[derive(Clone)]
 pub struct PrimeOrderGroup<T,H> {
+    /// Individual group instantiation identifier
+    pub group_id: GroupID,
     /// A fixed generator for the group instantiation
     pub generator: T,
     /// The byte length of group elements

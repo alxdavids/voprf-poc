@@ -1,6 +1,8 @@
 package oerr
 
-import "errors"
+import (
+	"errors"
+)
 
 var (
 	// ErrJSONRPCParse indicates that a JSON-RPC parsing error occurred
