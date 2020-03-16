@@ -31,11 +31,11 @@ func TestFullOPRFP384Multiple(t *testing.T) {
 }
 
 func TestFullVOPRFP384(t *testing.T) {
-	checkFull(t, validOPRFP384Ciphersuite, 1)
+	checkFull(t, validVOPRFP384Ciphersuite, 1)
 }
 
 func TestFullVOPRFP384Multiple(t *testing.T) {
-	checkFull(t, validOPRFP384Ciphersuite, 5)
+	checkFull(t, validVOPRFP384Ciphersuite, 5)
 }
 
 func TestFullOPRFP521(t *testing.T) {
@@ -47,15 +47,27 @@ func TestFullOPRFP521Multiple(t *testing.T) {
 }
 
 func TestFullVOPRFP521(t *testing.T) {
-	checkFull(t, validOPRFP521Ciphersuite, 1)
+	checkFull(t, validVOPRFP521Ciphersuite, 1)
 }
 
 func TestFullVOPRFP521Multiple(t *testing.T) {
-	checkFull(t, validOPRFP521Ciphersuite, 5)
+	checkFull(t, validVOPRFP521Ciphersuite, 5)
 }
 
-func TestFullCurve448(t *testing.T) {
+func TestFullOPRFCurve448(t *testing.T) {
 	checkFull(t, validOPRFCURVE448Ciphersuite, 1)
+}
+
+func TestFullOPRFCurve448Multiple(t *testing.T) {
+	checkFull(t, validOPRFCURVE448Ciphersuite, 5)
+}
+
+func TestFullVOPRFCurve448(t *testing.T) {
+	checkFull(t, validVOPRFCURVE448Ciphersuite, 1)
+}
+
+func TestFullVOPRFCurve448Multiple(t *testing.T) {
+	checkFull(t, validVOPRFCURVE448Ciphersuite, 5)
 }
 
 func TestServerSetupP384(t *testing.T) {
@@ -104,6 +116,18 @@ func TestServerEvalP521VerifiableMultiple(t *testing.T) {
 
 func TestServerEvalCurve448(t *testing.T) {
 	checkServerEval(t, validOPRFCURVE448Ciphersuite, 1)
+}
+
+func TestServerEvalCurve448Multiple(t *testing.T) {
+	checkServerEval(t, validOPRFCURVE448Ciphersuite, 5)
+}
+
+func TestServerEvalCurve448Verifiable(t *testing.T) {
+	checkServerEval(t, validVOPRFCURVE448Ciphersuite, 1)
+}
+
+func TestServerEvalCurve448VerifiableMultiple(t *testing.T) {
+	checkServerEval(t, validVOPRFCURVE448Ciphersuite, 5)
 }
 
 func TestServerBlind(t *testing.T) {
@@ -185,6 +209,18 @@ func TestClientBlindUnblindP521VerifiableMultiple(t *testing.T) {
 
 func TestClientBlindUnblindCurve448(t *testing.T) {
 	checkClientBlindUnblind(t, validOPRFCURVE448Ciphersuite, 1)
+}
+
+func TestClientBlindUnblindCurve448Multiple(t *testing.T) {
+	checkClientBlindUnblind(t, validOPRFCURVE448Ciphersuite, 5)
+}
+
+func TestClientBlindUnblindCurve448Verifiable(t *testing.T) {
+	checkClientBlindUnblind(t, validVOPRFCURVE448Ciphersuite, 1)
+}
+
+func TestClientBlindUnblindCurve448VerifiableMultiple(t *testing.T) {
+	checkClientBlindUnblind(t, validVOPRFCURVE448Ciphersuite, 5)
 }
 
 func TestClientFinalizeP384(t *testing.T) {
@@ -389,6 +425,8 @@ func checkFull(t *testing.T, validCiphersuite string, n int) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		assert.True(t, P.IsValid())
+
 		inputs[i] = x
 		eles[i] = P
 		blinds[i] = r
