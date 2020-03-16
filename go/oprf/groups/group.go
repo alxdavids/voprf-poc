@@ -94,10 +94,7 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 
 	// check hash-to-curve support
 	switch split[4] {
-	case "SSWU-RO":
-		// do nothing
-		break
-	case "ELL2-RO":
+	case "SSWU-RO", "ELL2-RO":
 		// do nothing
 		break
 	default:

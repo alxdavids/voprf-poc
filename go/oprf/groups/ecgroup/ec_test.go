@@ -238,7 +238,7 @@ func ciphersuiteFromString(t *testing.T, groupName string, verifiable bool) {
 }
 
 func ciphersuiteFromStringInvalidH2C(t *testing.T, groupName string) {
-	ciphName := fmt.Sprintf("OPRF-%s-HKDF-SHA512-ELL1", strings.ReplaceAll(groupName, "-", ""))
+	ciphName := fmt.Sprintf("OPRF-%s-HKDF-SHA512-ELL2", strings.ReplaceAll(groupName, "-", ""))
 	_, err := gg.Ciphersuite{}.FromString(ciphName, GroupCurve{})
 	if err != oerr.ErrUnsupportedH2C {
 		t.Fatal("Error didn't occur")
