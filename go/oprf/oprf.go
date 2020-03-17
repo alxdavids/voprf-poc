@@ -306,12 +306,12 @@ func (c Client) voprfUnblind(ev Evaluation, origs []gg.GroupElement, blinds []*b
 // oprfUnblind runs OPRF_Unblind as specified in draft-irtf-cfrg-voprf-02
 func (c Client) oprfUnblind(ev Evaluation, blinds []*big.Int) ([]gg.GroupElement, error) {
 	pog := c.ciph.POG()
-	p := pog.Order()
+	n := pog.Order()
 	eles := ev.Elements
 	res := make([]gg.GroupElement, len(eles))
 	for i, r := range blinds {
 		Z := eles[i]
-		rInv := new(big.Int).ModInverse(r, p)
+		rInv := new(big.Int).ModInverse(r, n)
 		N, err := Z.ScalarMult(rInv)
 		if err != nil {
 			return nil, err

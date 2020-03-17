@@ -14,10 +14,12 @@ import (
 )
 
 var (
-	validOPRFP384Ciphersuite  = "OPRF-P384-HKDF-SHA512-SSWU-RO"
-	validOPRFP521Ciphersuite  = "OPRF-P521-HKDF-SHA512-SSWU-RO"
-	validVOPRFP384Ciphersuite = "VOPRF-P384-HKDF-SHA512-SSWU-RO"
-	validVOPRFP521Ciphersuite = "VOPRF-P521-HKDF-SHA512-SSWU-RO"
+	validOPRFP384Ciphersuite      = "OPRF-P384-HKDF-SHA512-SSWU-RO"
+	validOPRFP521Ciphersuite      = "OPRF-P521-HKDF-SHA512-SSWU-RO"
+	validOPRFCURVE448Ciphersuite  = "OPRF-curve448-HKDF-SHA512-ELL2-RO"
+	validVOPRFP384Ciphersuite     = "VOPRF-P384-HKDF-SHA512-SSWU-RO"
+	validVOPRFP521Ciphersuite     = "VOPRF-P521-HKDF-SHA512-SSWU-RO"
+	validVOPRFCURVE448Ciphersuite = "VOPRF-curve448-HKDF-SHA512-ELL2-RO"
 )
 
 func TestFullOPRFP384(t *testing.T) {
@@ -29,11 +31,11 @@ func TestFullOPRFP384Multiple(t *testing.T) {
 }
 
 func TestFullVOPRFP384(t *testing.T) {
-	checkFull(t, validOPRFP384Ciphersuite, 1)
+	checkFull(t, validVOPRFP384Ciphersuite, 1)
 }
 
 func TestFullVOPRFP384Multiple(t *testing.T) {
-	checkFull(t, validOPRFP384Ciphersuite, 5)
+	checkFull(t, validVOPRFP384Ciphersuite, 5)
 }
 
 func TestFullOPRFP521(t *testing.T) {
@@ -45,11 +47,27 @@ func TestFullOPRFP521Multiple(t *testing.T) {
 }
 
 func TestFullVOPRFP521(t *testing.T) {
-	checkFull(t, validOPRFP521Ciphersuite, 1)
+	checkFull(t, validVOPRFP521Ciphersuite, 1)
 }
 
 func TestFullVOPRFP521Multiple(t *testing.T) {
-	checkFull(t, validOPRFP521Ciphersuite, 5)
+	checkFull(t, validVOPRFP521Ciphersuite, 5)
+}
+
+func TestFullOPRFCurve448(t *testing.T) {
+	checkFull(t, validOPRFCURVE448Ciphersuite, 1)
+}
+
+func TestFullOPRFCurve448Multiple(t *testing.T) {
+	checkFull(t, validOPRFCURVE448Ciphersuite, 5)
+}
+
+func TestFullVOPRFCurve448(t *testing.T) {
+	checkFull(t, validVOPRFCURVE448Ciphersuite, 1)
+}
+
+func TestFullVOPRFCurve448Multiple(t *testing.T) {
+	checkFull(t, validVOPRFCURVE448Ciphersuite, 5)
 }
 
 func TestServerSetupP384(t *testing.T) {
@@ -58,6 +76,10 @@ func TestServerSetupP384(t *testing.T) {
 
 func TestServerSetupP521(t *testing.T) {
 	checkServerSetup(t, validOPRFP521Ciphersuite)
+}
+
+func TestServerSetupCurve448(t *testing.T) {
+	checkServerSetup(t, validOPRFCURVE448Ciphersuite)
 }
 
 func TestServerEvalP384(t *testing.T) {
@@ -90,6 +112,22 @@ func TestServerEvalP521Verifiable(t *testing.T) {
 
 func TestServerEvalP521VerifiableMultiple(t *testing.T) {
 	checkServerEval(t, validVOPRFP521Ciphersuite, 5)
+}
+
+func TestServerEvalCurve448(t *testing.T) {
+	checkServerEval(t, validOPRFCURVE448Ciphersuite, 1)
+}
+
+func TestServerEvalCurve448Multiple(t *testing.T) {
+	checkServerEval(t, validOPRFCURVE448Ciphersuite, 5)
+}
+
+func TestServerEvalCurve448Verifiable(t *testing.T) {
+	checkServerEval(t, validVOPRFCURVE448Ciphersuite, 1)
+}
+
+func TestServerEvalCurve448VerifiableMultiple(t *testing.T) {
+	checkServerEval(t, validVOPRFCURVE448Ciphersuite, 5)
 }
 
 func TestServerBlind(t *testing.T) {
@@ -133,6 +171,10 @@ func TestClientSetupP521(t *testing.T) {
 	checkClientSetup(t, validOPRFP521Ciphersuite)
 }
 
+func TestClientSetupCurve448(t *testing.T) {
+	checkClientSetup(t, validOPRFCURVE448Ciphersuite)
+}
+
 func TestClientBlindUnblindP384(t *testing.T) {
 	checkClientBlindUnblind(t, validOPRFP384Ciphersuite, 1)
 }
@@ -165,12 +207,32 @@ func TestClientBlindUnblindP521VerifiableMultiple(t *testing.T) {
 	checkClientBlindUnblind(t, validVOPRFP521Ciphersuite, 5)
 }
 
+func TestClientBlindUnblindCurve448(t *testing.T) {
+	checkClientBlindUnblind(t, validOPRFCURVE448Ciphersuite, 1)
+}
+
+func TestClientBlindUnblindCurve448Multiple(t *testing.T) {
+	checkClientBlindUnblind(t, validOPRFCURVE448Ciphersuite, 5)
+}
+
+func TestClientBlindUnblindCurve448Verifiable(t *testing.T) {
+	checkClientBlindUnblind(t, validVOPRFCURVE448Ciphersuite, 1)
+}
+
+func TestClientBlindUnblindCurve448VerifiableMultiple(t *testing.T) {
+	checkClientBlindUnblind(t, validVOPRFCURVE448Ciphersuite, 5)
+}
+
 func TestClientFinalizeP384(t *testing.T) {
 	checkClientFinalize(t, validOPRFP384Ciphersuite)
 }
 
 func TestClientFinalizeP521(t *testing.T) {
 	checkClientFinalize(t, validOPRFP521Ciphersuite)
+}
+
+func TestClientFinalizeCurve448(t *testing.T) {
+	checkClientFinalize(t, validOPRFCURVE448Ciphersuite)
 }
 
 func TestClientEval(t *testing.T) {
@@ -364,6 +426,7 @@ func checkFull(t *testing.T, validCiphersuite string, n int) {
 			t.Fatal(err)
 		}
 		assert.True(t, P.IsValid())
+
 		inputs[i] = x
 		eles[i] = P
 		blinds[i] = r
@@ -449,9 +512,11 @@ func clientSetupUnblind(validCiphersuite string, n int) (Client, Evaluation, [][
 		if err != nil {
 			return Client{}, Evaluation{}, nil, nil, nil, nil, err
 		}
+
 		if !P.IsValid() {
 			return Client{}, Evaluation{}, nil, nil, nil, nil, errors.New("Point is not valid")
 		}
+
 		inputs[i] = x
 		eles[i] = P
 		blinds[i] = r

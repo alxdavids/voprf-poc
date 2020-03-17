@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	testCurves = []string{"P-384", "P-521"}
+	testCurves = []string{"P-384", "P-521", "curve-448"}
 )
 
 func TestCiphersuiteFromString(t *testing.T) {
@@ -208,11 +208,18 @@ func checkPointEquality(t *testing.T, curve elliptic.Curve) {
 }
 
 func ciphersuiteFromString(t *testing.T, groupName string, verifiable bool) {
-	s := ""
+	var s, ciphName string
+
 	if verifiable {
 		s = "V"
 	}
-	ciphName := fmt.Sprintf("%sOPRF-%s-HKDF-SHA512-SSWU-RO", s, strings.ReplaceAll(groupName, "-", ""))
+
+	if groupName == "P-384" || groupName == "P-521" {
+		ciphName = fmt.Sprintf("%sOPRF-%s-HKDF-SHA512-SSWU-RO", s, strings.ReplaceAll(groupName, "-", ""))
+	} else if groupName == "curve-448" {
+		ciphName = fmt.Sprintf("%sOPRF-%s-HKDF-SHA512-ELL2-RO", s, strings.ReplaceAll(groupName, "-", ""))
+	}
+
 	ciph, err := gg.Ciphersuite{}.FromString(ciphName, GroupCurve{})
 	if err != nil {
 		t.Fatal(err)
