@@ -1,9 +1,7 @@
 package ecgroup
 
 import (
-	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -13,9 +11,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/alxdavids/voprf-poc/go/oprf/utils"
-	"github.com/cloudflare/circl/ecc/p384"
 )
 
 type hashToCurveTestVectors struct {
@@ -33,7 +28,7 @@ type expectedPoint struct {
 }
 
 func TestHashToCurveP384(t *testing.T) {
-	curve := CreateNistCurve(p384.P384(), sha512.New(), utils.HKDFExtExp{})
+	curve := initCurve(t, "P-384")
 	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/p384-sha512-sswu-ro-.json")
 	if err != nil {
 		t.Fatal(err)
@@ -50,7 +45,7 @@ func TestHashToCurveP384(t *testing.T) {
 }
 
 func TestHashToCurveP521(t *testing.T) {
-	curve := CreateNistCurve(elliptic.P521(), sha512.New(), utils.HKDFExtExp{})
+	curve := initCurve(t, "P-521")
 	dir, _ := os.Getwd()
 	fmt.Println(dir)
 	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/p521-sha512-sswu-ro-.json")
@@ -113,11 +108,15 @@ func performHashToCurve(curve GroupCurve, testVectors hashToCurveTestVectors) er
 }
 
 func BenchmarkHashToCurveP384(b *testing.B) {
-	benchmarkHashToCurve(b, CreateNistCurve(p384.P384(), sha512.New(), utils.HKDFExtExp{}))
+	benchmarkHashToCurve(b, benchInitCurve(b, "P-384"))
 }
 
 func BenchmarkHashToCurveP521(b *testing.B) {
-	benchmarkHashToCurve(b, CreateNistCurve(p384.P384(), sha512.New(), utils.HKDFExtExp{}))
+	benchmarkHashToCurve(b, benchInitCurve(b, "P-521"))
+}
+
+func BenchmarkHashToCurveC448(b *testing.B) {
+	benchmarkHashToCurve(b, benchInitCurve(b, "curve-448"))
 }
 
 func benchmarkHashToCurve(b *testing.B, curve GroupCurve) {
@@ -138,4 +137,16 @@ func benchmarkHashToCurve(b *testing.B, curve GroupCurve) {
 			b.Fatal(err)
 		}
 	}
+}
+
+func benchInitCurve(b *testing.B, curveName string) GroupCurve {
+	gg, err := GroupCurve{}.New(curveName)
+	if err != nil {
+		b.Fatal(err)
+	}
+	curve, err := castToCurve(gg)
+	if err != nil {
+		b.Fatal(err)
+	}
+	return curve
 }

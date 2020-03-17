@@ -27,38 +27,41 @@ type GroupCurve struct {
 	hash       hash.Hash
 	ee         utils.ExtractorExpander
 	byteLength int
-	nist       bool
+	encoding   string
 	sgn0       func(*big.Int) *big.Int
 	consts     CurveConstants
 }
 
 // New constructs a new GroupCurve object implementing the PrimeOrderGroup
-// interface. Currently, the only supported curves are NIST P384 and P521.
+// interface.
 func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 	var gc GroupCurve
 	switch name {
 	case "P-384":
 		gc.ops = p384.P384()
 		curve := gc.ops
-		gc.nist = true
+		gc.encoding = "weier"
 		gc.byteLength = (curve.Params().BitSize + 7) / 8
 		gc.consts.a = constants.MinusThree
+		gc.consts.b = curve.Params().B
 		gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Two, curve.Params().P)), curve.Params().P)
 		gc.consts.sqrtExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Four, curve.Params().P)), curve.Params().P)
 	case "P-521":
 		gc.ops = elliptic.P521()
 		curve := gc.ops
-		gc.nist = true
+		gc.encoding = "weier"
 		gc.byteLength = (curve.Params().BitSize + 7) / 8
 		gc.consts.a = constants.MinusThree
+		gc.consts.b = curve.Params().B
 		gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Two, curve.Params().P)), curve.Params().P)
 		gc.consts.sqrtExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Four, curve.Params().P)), curve.Params().P)
 	case "curve-448":
 		gc.ops = p448.Curve448()
 		curve := gc.ops
-		gc.nist = false
+		gc.encoding = "mont"
 		gc.byteLength = (curve.Params().BitSize + 7) / 8
-		gc.consts.a = curve.Params().B
+		gc.consts.a = curve.Params().B // Alex: p448 implementation mis-uses this const
+		gc.consts.b = constants.One
 		gc.consts.isSqExp = new(big.Int).Rsh(new(big.Int).Sub(curve.Params().P, constants.One), 1)
 		gc.consts.sqrtExp = new(big.Int).Rsh(new(big.Int).Add(curve.Params().P, constants.One), 2)
 	default:
@@ -167,63 +170,7 @@ func (c GroupCurve) EE() utils.ExtractorExpander { return c.ee }
 // exponents that can be used for computing square roots in the underlying
 // field.
 type CurveConstants struct {
-	a, sqrtExp, isSqExp *big.Int
-}
-
-// CreateNistCurve creates an instance of a GroupCurve corresponding to a NIST
-// elliptic curve (supports P384 or P521).
-func CreateNistCurve(curve elliptic.Curve, h hash.Hash, ee utils.ExtractorExpander) GroupCurve {
-	var gc GroupCurve
-	var p *big.Int
-	switch curve {
-	case p384.P384():
-		gc.ops = p384.P384()
-		gc.name = "P-384"
-		p = gc.ops.Params().P
-		gc.byteLength = (gc.ops.Params().BitSize + 7) / 8
-	case elliptic.P521():
-		gc.ops = elliptic.P521()
-		gc.name = "P-521"
-		p = gc.ops.Params().P
-		gc.byteLength = (gc.ops.Params().BitSize + 7) / 8
-	}
-	gc.hash = h
-	gc.ee = ee
-	gc.nist = true
-	gc.sgn0 = utils.Sgn0LE
-
-	consts := CurveConstants{
-		a:       constants.MinusThree,
-		sqrtExp: new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, constants.One), new(big.Int).ModInverse(constants.Four, p)), p),
-		isSqExp: new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, constants.One), new(big.Int).ModInverse(constants.Two, p)), p),
-	}
-
-	gc.consts = consts
-
-	return gc
-}
-
-// CreateCurve448 creates an instance of a GroupCurve corresponding to curve448.
-func CreateCurve448(h hash.Hash, ee utils.ExtractorExpander) GroupCurve {
-	var gc GroupCurve
-	gc.ops = p448.Curve448()
-	gc.name = "curve-448"
-	p := gc.ops.Params().P
-	gc.byteLength = (gc.ops.Params().BitSize + 7) / 8
-	gc.hash = h
-	gc.ee = ee
-	gc.nist = false
-	gc.sgn0 = utils.Sgn0LE
-
-	consts := CurveConstants{
-		a:       gc.ops.Params().B,
-		sqrtExp: new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(p, constants.One), new(big.Int).ModInverse(constants.Four, p)), p),
-		isSqExp: new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(p, constants.One), new(big.Int).ModInverse(constants.Two, p)), p),
-	}
-
-	gc.consts = consts
-
-	return gc
+	a, b, sqrtExp, isSqExp *big.Int
 }
 
 // Point implements the GroupElement interface and is compatible with the
@@ -326,43 +273,7 @@ func (p Point) Serialize() ([]byte, error) {
 		return nil, err
 	}
 
-	// attempt to deserialize
-	if curve.nist {
-		buf := p.nistSerialize(curve)
-		return buf, nil
-	}
-
-	if curve.name == "curve-448" {
-		return p.X.Bytes(), nil
-	}
-
-	return nil, oerr.ErrUnsupportedGroup
-}
-
-// Deserialize unmarshals an octet-string into a valid Point object for the
-// specified curve. If the bytes do not correspond to a valid Point then it
-// returns an error.
-func (p Point) Deserialize(buf []byte) (gg.GroupElement, error) {
-	curve, err := castToCurve(p.pog)
-	if err != nil {
-		return nil, err
-	}
-	if curve.nist {
-		p, err = p.nistDeserialize(curve, buf)
-		if err != nil {
-			return nil, err
-		}
-		return p, nil
-	}
-	return nil, oerr.ErrUnsupportedGroup
-}
-
-// nistSerialize marshals the point object into an octet-string of either
-// compressed or uncompressed SEC1 format
-// (https://www.secg.org/sec1-v2.pdf#subsubsection.2.3.3)
-//
-// NOT constant time due to variable number of bytes
-func (p Point) nistSerialize(curve GroupCurve) []byte {
+	// serialize according to curve type
 	xBytes, yBytes := p.X.Bytes(), p.Y.Bytes()
 	// append zeroes to the front if the bytes are not filled up
 	xBytes = append(make([]byte, curve.ByteLength()-len(xBytes)), xBytes...)
@@ -381,29 +292,24 @@ func (p Point) nistSerialize(curve GroupCurve) []byte {
 		// select correct tag
 		tag = subtle.ConstantTimeSelect(e, 2, 3)
 	}
-	return append([]byte{byte(tag)}, bytes...)
+
+	return append([]byte{byte(tag)}, bytes...), nil
 }
 
-// nistDeserialize creates a point object from an octet-string according to the
-// SEC1 specification (https://www.secg.org/sec1-v2.pdf#subsubsection.2.3.4)
-func (p Point) nistDeserialize(curve GroupCurve, buf []byte) (Point, error) {
-	tag := buf[0]
-	compressed := false
+// Deserialize unmarshals an octet-string into a valid Point object for the
+// specified curve. If the bytes do not correspond to a valid Point then it
+// returns an error.
+func (p Point) Deserialize(buf []byte) (gg.GroupElement, error) {
+	curve, err := castToCurve(p.pog)
+	if err != nil {
+		return nil, err
+	}
+
+	// attempt to deserialize
 	byteLength := curve.ByteLength()
-	switch tag {
-	case 2, 3:
-		if byteLength < len(buf)-1 {
-			return Point{}, oerr.ErrDeserializing
-		}
-		compressed = true
-		break
-	case 4:
-		if byteLength*2 < len(buf)-1 {
-			return Point{}, oerr.ErrDeserializing
-		}
-		break
-	default:
-		return Point{}, oerr.ErrDeserializing
+	compressed, err := checkBytes(buf, byteLength)
+	if err != nil {
+		return Point{}, err
 	}
 
 	// deserialize depending on whether point is compressed or not
@@ -412,23 +318,40 @@ func (p Point) nistDeserialize(curve GroupCurve, buf []byte) (Point, error) {
 		p.Y = new(big.Int).SetBytes(buf[byteLength+1:])
 		return p, nil
 	}
-	return p.nistDecompress(curve, buf)
+	return p.decompress(curve, buf)
 }
 
-// nistDecompress takes a buffer for an x coordinate as input and attempts to
+// decompress takes a buffer for an x coordinate as input and attempts to
 // construct a valid curve point by re-evaluating the curve equation to
 // construct the y coordinate. If it fails it returns an error.
-func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, error) {
-	// recompute curve equation y^2 = x^3 + ax + b
+//
+// accepts curve points in the following formats:
+// 		- Weierstrass format: y^2 = x^3 + ax + b
+// 		- Montgomery format: b*y^2 = x^3 + a*x^2 + x
+func (p Point) decompress(curve GroupCurve, buf []byte) (Point, error) {
 	order := curve.P()
+	var y2 *big.Int
 	x := new(big.Int).SetBytes(buf[1:])
-	rhs := new(big.Int).Add(new(big.Int).Exp(x, constants.Two, order), constants.MinusThree) // a = -3
-	rhs = rhs.Mul(rhs, x)
-	rhs = rhs.Add(rhs, curve.ops.Params().B)
-	rhs = rhs.Mod(rhs, order)
+	switch curve.encoding {
+	case "weier":
+		x2Plusa := new(big.Int).Add(new(big.Int).Exp(x, constants.Two, order), curve.consts.a)
+		x3Plusax := new(big.Int).Mul(x2Plusa, x)
+		x3PlusaxPlusb := new(big.Int).Add(x3Plusax, curve.ops.Params().B)
+		y2 = new(big.Int).Mod(x3PlusaxPlusb, order)
+		break
+	case "mont":
+		xPlusa := new(big.Int).Add(x, curve.consts.a)
+		x2Plusax := new(big.Int).Mul(xPlusa, x)
+		x2PlusaxPlus1 := new(big.Int).Add(x2Plusax, constants.One)
+		byy := new(big.Int).Mul(x2PlusaxPlus1, x)
+		y2 = new(big.Int).Mul(byy, new(big.Int).ModInverse(curve.consts.b, order))
+		break
+	default:
+		return Point{}, oerr.ErrUnsupportedGroup
+	}
 
 	// construct y coordinate with correct sign
-	y := rhs.Exp(rhs, curve.consts.sqrtExp, order)
+	y := new(big.Int).Exp(y2, curve.consts.sqrtExp, order)
 	bufParity := utils.EqualsToBigInt(big.NewInt(int64(buf[0])), constants.Two)
 	yParity := utils.EqualsToBigInt(utils.Sgn0LE(y), constants.One)
 	y = utils.Cmov(new(big.Int).Mul(y, constants.MinusOne), y, utils.EqualsToBigInt(bufParity, yParity))
@@ -440,6 +363,30 @@ func (p Point) nistDecompress(curve GroupCurve, buf []byte) (Point, error) {
 		return Point{}, oerr.ErrInvalidGroupElement
 	}
 	return p, nil
+}
+
+// checkBytes checks that the number of bytes corresponds to the correct
+// curve type and serialization tag that is present
+func checkBytes(buf []byte, expectedLen int) (bool, error) {
+	tag := buf[0]
+	compressed := false
+	switch tag {
+	case 2, 3:
+		if expectedLen < len(buf)-1 {
+			return false, oerr.ErrDeserializing
+		}
+		compressed = true
+		break
+	case 4:
+		if expectedLen*2 < len(buf)-1 {
+			return false, oerr.ErrDeserializing
+		}
+		break
+	default:
+		return false, oerr.ErrDeserializing
+	}
+
+	return compressed, nil
 }
 
 // clearCofactor clears the cofactor (hEff) of the Point p by performing a

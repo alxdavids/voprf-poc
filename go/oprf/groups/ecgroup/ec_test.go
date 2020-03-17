@@ -1,7 +1,6 @@
 package ecgroup
 
 import (
-	"crypto/elliptic"
 	"crypto/sha512"
 	"errors"
 	"fmt"
@@ -12,9 +11,7 @@ import (
 
 	"github.com/alxdavids/voprf-poc/go/oerr"
 	gg "github.com/alxdavids/voprf-poc/go/oprf/groups"
-	"github.com/alxdavids/voprf-poc/go/oprf/utils"
 	"github.com/alxdavids/voprf-poc/go/oprf/utils/constants"
-	"github.com/cloudflare/circl/ecc/p384"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,7 +44,7 @@ func TestCiphersuiteFromStringInvalidGroup(t *testing.T) {
 }
 
 func TestGroupCurveEncodingP384(t *testing.T) {
-	curve := CreateNistCurve(p384.P384(), sha512.New(), utils.HKDFExtExp{})
+	curve := initCurve(t, "P-384")
 	_, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +52,7 @@ func TestGroupCurveEncodingP384(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationP384(t *testing.T) {
-	curve := CreateNistCurve(p384.P384(), sha512.New(), utils.HKDFExtExp{})
+	curve := initCurve(t, "P-384")
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +62,7 @@ func TestGroupCurvePointSerializationP384(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationWithCompressionP384(t *testing.T) {
-	curve := CreateNistCurve(p384.P384(), sha512.New(), utils.HKDFExtExp{})
+	curve := initCurve(t, "P-384")
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -76,7 +73,7 @@ func TestGroupCurvePointSerializationWithCompressionP384(t *testing.T) {
 }
 
 func TestGroupCurveEncodingP521(t *testing.T) {
-	curve := CreateNistCurve(elliptic.P521(), sha512.New(), utils.HKDFExtExp{})
+	curve := initCurve(t, "P-521")
 	_, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +81,7 @@ func TestGroupCurveEncodingP521(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationP521(t *testing.T) {
-	curve := CreateNistCurve(elliptic.P521(), sha512.New(), utils.HKDFExtExp{})
+	curve := initCurve(t, "P-521")
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +91,7 @@ func TestGroupCurvePointSerializationP521(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationWithCompressionP521(t *testing.T) {
-	curve := CreateNistCurve(elliptic.P521(), sha512.New(), utils.HKDFExtExp{})
+	curve := initCurve(t, "P-521")
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -104,8 +101,92 @@ func TestGroupCurvePointSerializationWithCompressionP521(t *testing.T) {
 	checkSerialize(curve, P)
 }
 
-func TestPointAddition(t *testing.T) {
-	curve := CreateNistCurve(elliptic.P521(), sha512.New(), utils.HKDFExtExp{})
+func TestGroupCurvePointSerializationC448(t *testing.T) {
+	curve := initCurve(t, "curve-448")
+	P, err := curveEncoding(curve)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	checkSerialize(curve, P)
+}
+
+func TestGroupCurvePointSerializationWithCompressionC448(t *testing.T) {
+	curve := initCurve(t, "curve-448")
+	P, err := curveEncoding(curve)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	P.compress = true
+	checkSerialize(curve, P)
+}
+
+func TestPointAdditionP384(t *testing.T) {
+	checkPointAddition(t, "P-384")
+}
+
+func TestPointAdditionP521(t *testing.T) {
+	checkPointAddition(t, "P-521")
+}
+
+func TestPointEqualityP384(t *testing.T) {
+	checkPointEquality(t, "P-384")
+}
+
+func TestPointEqualityP521(t *testing.T) {
+	checkPointEquality(t, "P-521")
+}
+
+func TestPointEqualityFailsOnBadGroups(t *testing.T) {
+	p384 := initCurve(t, "P-384")
+	P, err := curveEncoding(p384)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p521 := initCurve(t, "P-521")
+	Q, err := curveEncoding(p521)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.False(t, P.Equal(Q))
+}
+
+func TestPointEqualityFailsOnInvalidCallerPoint(t *testing.T) {
+	p384 := initCurve(t, "P-384")
+	P, err := curveEncoding(p384)
+	if err != nil {
+		t.Fatal(err)
+	}
+	P.X = constants.MinusOne
+
+	p521 := initCurve(t, "P-521")
+	Q, err := curveEncoding(p521)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.False(t, P.Equal(Q))
+}
+
+func TestPointEqualityFailsOnInvalidInputPoint(t *testing.T) {
+	p384 := initCurve(t, "P-384")
+	P, err := curveEncoding(p384)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p521 := initCurve(t, "P-521")
+	Q, err := curveEncoding(p521)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Q.X = constants.MinusOne
+	assert.False(t, P.Equal(Q))
+}
+
+func checkPointAddition(t *testing.T, curveName string) {
+	curve := initCurve(t, curveName)
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -145,61 +226,9 @@ func TestPointAddition(t *testing.T) {
 	assert.True(t, xyP.Equal(xP1yP2))
 }
 
-func TestPointEqualityP384(t *testing.T) {
-	checkPointEquality(t, p384.P384())
-}
-
-func TestPointEqualityP521(t *testing.T) {
-	checkPointEquality(t, elliptic.P521())
-}
-
-func TestPointEqualityFailsOnBadGroups(t *testing.T) {
-	p384 := CreateNistCurve(p384.P384(), sha512.New(), utils.HKDFExtExp{})
-	P, err := curveEncoding(p384)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p521 := CreateNistCurve(elliptic.P521(), sha512.New(), utils.HKDFExtExp{})
-	Q, err := curveEncoding(p521)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.False(t, P.Equal(Q))
-}
-
-func TestPointEqualityFailsOnInvalidCallerPoint(t *testing.T) {
-	p384 := CreateNistCurve(p384.P384(), sha512.New(), utils.HKDFExtExp{})
-	P, err := curveEncoding(p384)
-	if err != nil {
-		t.Fatal(err)
-	}
-	P.X = constants.MinusOne
-	p521 := CreateNistCurve(elliptic.P521(), sha512.New(), utils.HKDFExtExp{})
-	Q, err := curveEncoding(p521)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.False(t, P.Equal(Q))
-}
-
-func TestPointEqualityFailsOnInvalidInputPoint(t *testing.T) {
-	p384 := CreateNistCurve(p384.P384(), sha512.New(), utils.HKDFExtExp{})
-	P, err := curveEncoding(p384)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p521 := CreateNistCurve(elliptic.P521(), sha512.New(), utils.HKDFExtExp{})
-	Q, err := curveEncoding(p521)
-	if err != nil {
-		t.Fatal(err)
-	}
-	Q.X = constants.MinusOne
-	assert.False(t, P.Equal(Q))
-}
-
-func checkPointEquality(t *testing.T, curve elliptic.Curve) {
-	nistCurve := CreateNistCurve(curve, sha512.New(), utils.HKDFExtExp{})
-	P, err := curveEncoding(nistCurve)
+func checkPointEquality(t *testing.T, curveName string) {
+	curve := initCurve(t, curveName)
+	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,4 +331,16 @@ func checkSerialize(curve GroupCurve, P Point) error {
 		return errors.New("qPoint and P are not equal points")
 	}
 	return nil
+}
+
+func initCurve(t *testing.T, curveName string) GroupCurve {
+	gg, err := GroupCurve{}.New(curveName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	curve, err := castToCurve(gg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return curve
 }
