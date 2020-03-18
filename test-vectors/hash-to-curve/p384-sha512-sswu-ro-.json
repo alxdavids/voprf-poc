@@ -15,29 +15,29 @@
   "vectors": [
     {
       "P": {
-        "x": "0x6aede0bbf8f498a3eaefa55ff5b619d3006a3911ae3d398c8821e31a248fd85239a83f6c536b77f73e686ed97ecd1111",
-        "y": "0xc27e713458ebfd377bdd81a9a73d800d4f6769b0e8ddf9369ef84a91536aa1f29a60dc7c5a9765a44b56951d91797f13"
+        "x": "0xe25b84fe1105da5084c2ea5855ff45cc25f6fad7012d177745b9e120bfad80a8f5285e12cb39c9d3ce1088dffb4a57f1",
+        "y": "0xf0afd801e4df9cc55ae61bb7ea5abf2f46e886aa048f873ca481087aa8679015da7e2b24ec9d9506d169b3da2277c29f"
       },
       "msg": ""
     },
     {
       "P": {
-        "x": "0x49015966ac2870aa1854378f4ec030458520d38519e61d682586291f9e005de4587acf000a71b44bbe98eb0dd4790ddb",
-        "y": "0x7ed595efc7282bc8c4c1641067a1585b5b20eb9754832025dc76e78856de6ad7d00fa8adca343fcdf37fe5fe6298e4c2"
+        "x": "0x142c4eb59bc36dd7cff9106428aea70180b9bce3656a443c23a20656ae03079d332d4bebb4bdd3bb818e7b3d940723f6",
+        "y": "0x0b09a357caa3ee5662c8414278306cb8a629b44003dea3ddca5ad7903a09862c997d837d872edf9b428cf3e640be1c5c"
       },
       "msg": "abc"
     },
     {
       "P": {
-        "x": "0xd9b4cc421f6998172fad86aa499f530ad7967df6609db6640fcc1b816b4f9acd685ad2c0d3dc1b75160742ecc1eafd08",
-        "y": "0xb5f0e185ad76df45b9cea1e7bd78458b9cb1a23f5cb918a7652d0d716d8bbad95c1a473de3a0180a0c3d496840d2d0a2"
+        "x": "0xba9b0a13f61459216fbc708d289c0f1aa27f6a215f230fd5863d0b5148ae4bccd34762119cee24bc08575ddcacbd0be6",
+        "y": "0x65e767c72b1190725f1b4ab1e32ed19df6d3e6b0c8ca18608f44a78ccba690e610e8c0b82a489bf37e04002204db3254"
       },
       "msg": "abcdef0123456789"
     },
     {
       "P": {
-        "x": "0x481a6d76117ab5eed13d28aa16166d09da3a3e5adc341829247385520fbd42a65132eba21f70887dfb3bbc0a482a1088",
-        "y": "0x969416fd238f3e0c6617f6c89efac5ace2238445ca78349f3bc802d64eb084833dddbee66c703a5de3d44daaa632a8a4"
+        "x": "0x26d18bb915424ad0332605d57ee2f09da9445e470ed5fc76259e6f099159670e00093beebcd876359ddc36772f3ad908",
+        "y": "0x7ed91b95b4d00c84e90cc1054a0eaff998d14383759e63d14333e6e3ee608f60dcacc2b8a6dad66a986caf90f90dbe98"
       },
       "msg": "a512_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
