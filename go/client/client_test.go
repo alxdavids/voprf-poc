@@ -17,6 +17,7 @@ import (
 var (
 	validOPRFP384Ciphersuite = "OPRF-P384-HKDF-SHA512-SSWU-RO"
 	validOPRFP521Ciphersuite = "OPRF-P521-HKDF-SHA512-SSWU-RO"
+	validOPRFC448Ciphersuite = "OPRF-curve448-HKDF-SHA512-ELL2-RO"
 )
 
 func TestCreateConfigP384(t *testing.T) {
@@ -41,6 +42,17 @@ func TestCreateConfigP521(t *testing.T) {
 	assert.Equal(t, cfg.outputPath, "some_file")
 }
 
+func TestCreateConfigC448(t *testing.T) {
+	cfg, err := CreateConfig(validOPRFC448Ciphersuite, ecgroup.GroupCurve{}, 1, "some_file", -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, cfg.ocli.Ciphersuite().POG().Name(), "curve-448")
+	assert.Equal(t, cfg.n, 1)
+	assert.Equal(t, cfg.addr, "http://localhost:3001")
+	assert.Equal(t, cfg.outputPath, "some_file")
+}
+
 func TestInvalidCiphersuite(t *testing.T) {
 	_, err := CreateConfig("OPRF-P256-HKDF-SHA512-SSWU-RO", ecgroup.GroupCurve{}, 1, "", -1)
 	if err != oerr.ErrUnsupportedGroup {
@@ -48,8 +60,20 @@ func TestInvalidCiphersuite(t *testing.T) {
 	}
 }
 
-func TestCreateOPRFRequest(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "", -1)
+func TestCreateOPRFRequestP384(t *testing.T) {
+	CreateOPRFRequest(t, validOPRFP384Ciphersuite)
+}
+
+func TestCreateOPRFRequestP521(t *testing.T) {
+	CreateOPRFRequest(t, validOPRFP521Ciphersuite)
+}
+
+func TestCreateOPRFRequestC448(t *testing.T) {
+	CreateOPRFRequest(t, validOPRFC448Ciphersuite)
+}
+
+func CreateOPRFRequest(t *testing.T, config string) {
+	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,9 +89,9 @@ func TestCreateOPRFRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// compressedrr encoding
+	// compressed encoding
 	pog := cfg.ocli.Ciphersuite().POG()
-	assert.Equal(t, len(buf), pog.ByteLength()+1)
+	assert.Equal(t, pog.ByteLength()+1, len(buf))
 	ge, err := gg.CreateGroupElement(pog).Deserialize(buf)
 	if err != nil {
 		t.Fatal(err)
@@ -88,8 +112,20 @@ func TestCreateOPRFRequest(t *testing.T) {
 	assert.True(t, ge.Equal(blindChk))
 }
 
-func TestCreateOPRFRequestBadN(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, -1, "", -1)
+func TestCreateOPRFRequestBadNP384(t *testing.T) {
+	CreateOPRFRequestBadN(t, validOPRFP384Ciphersuite)
+}
+
+func TestCreateOPRFRequestBadNP521(t *testing.T) {
+	CreateOPRFRequestBadN(t, validOPRFP521Ciphersuite)
+}
+
+func TestCreateOPRFRequestBadNC448(t *testing.T) {
+	CreateOPRFRequestBadN(t, validOPRFC448Ciphersuite)
+}
+
+func CreateOPRFRequestBadN(t *testing.T, config string) {
+	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, -1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,8 +135,20 @@ func TestCreateOPRFRequestBadN(t *testing.T) {
 	}
 }
 
-func TestCreateJSONRPCRequest(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "", -1)
+func TestCreateJSONRPCRequestP384(t *testing.T) {
+	CreateJSONRPCRequest(t, validOPRFP384Ciphersuite)
+}
+
+func TestCreateJSONRPCRequestP521(t *testing.T) {
+	CreateJSONRPCRequest(t, validOPRFP521Ciphersuite)
+}
+
+func TestCreateJSONRPCRequestC448(t *testing.T) {
+	CreateJSONRPCRequest(t, validOPRFC448Ciphersuite)
+}
+
+func CreateJSONRPCRequest(t *testing.T, config string) {
+	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,8 +162,20 @@ func TestCreateJSONRPCRequest(t *testing.T) {
 	assert.Equal(t, jsonrpcReq.ID, 3)
 }
 
-func TestParseJSONRPCResponseSuccess(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "", -1)
+func TestParseJSONRPCResponseSuccessP384(t *testing.T) {
+	ParseJSONRPCResponseSuccess(t, validOPRFP384Ciphersuite)
+}
+
+func TestParseJSONRPCResponseSuccessP521(t *testing.T) {
+	ParseJSONRPCResponseSuccess(t, validOPRFP521Ciphersuite)
+}
+
+func TestParseJSONRPCResponseSuccessC448(t *testing.T) {
+	ParseJSONRPCResponseSuccess(t, validOPRFC448Ciphersuite)
+}
+
+func ParseJSONRPCResponseSuccess(t *testing.T, config string) {
+	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,8 +199,20 @@ func TestParseJSONRPCResponseSuccess(t *testing.T) {
 	assert.Equal(t, results[0], jsonrpcResp.Result.Data[0])
 }
 
-func TestParseJSONRPCResponseError(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "", -1)
+func TestParseJSONRPCResponseErrorP384(t *testing.T) {
+	ParseJSONRPCResponseError(t, validOPRFP384Ciphersuite)
+}
+
+func TestParseJSONRPCResponseErrorP521(t *testing.T) {
+	ParseJSONRPCResponseError(t, validOPRFP521Ciphersuite)
+}
+
+func TestParseJSONRPCResponseErrorC448(t *testing.T) {
+	ParseJSONRPCResponseError(t, validOPRFC448Ciphersuite)
+}
+
+func ParseJSONRPCResponseError(t *testing.T, config string) {
+	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,8 +238,20 @@ func TestParseJSONRPCResponseError(t *testing.T) {
 	assert.Equal(t, err, errors.New(errorMessage))
 }
 
-func TestParseJSONRPCResponseInvalidResult(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "", -1)
+func TestParseJSONRPCResponseInvalidResultP384(t *testing.T) {
+	ParseJSONRPCResponseInvalidResult(t, validOPRFP384Ciphersuite)
+}
+
+func TestParseJSONRPCResponseInvalidResultP521(t *testing.T) {
+	ParseJSONRPCResponseInvalidResult(t, validOPRFP521Ciphersuite)
+}
+
+func TestParseJSONRPCResponseInvalidResultC448(t *testing.T) {
+	ParseJSONRPCResponseInvalidResult(t, validOPRFC448Ciphersuite)
+}
+
+func ParseJSONRPCResponseInvalidResult(t *testing.T, config string) {
+	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,8 +269,20 @@ func TestParseJSONRPCResponseInvalidResult(t *testing.T) {
 	}
 }
 
-func TestParseJSONRPCResponseInvalidField(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "", -1)
+func TestParseJSONRPCResponseInvalidFieldP384(t *testing.T) {
+	ParseJSONRPCResponseInvalidField(t, validOPRFP384Ciphersuite)
+}
+
+func TestParseJSONRPCResponseInvalidFieldP521(t *testing.T) {
+	ParseJSONRPCResponseInvalidField(t, validOPRFP521Ciphersuite)
+}
+
+func TestParseJSONRPCResponseInvalidFieldC448(t *testing.T) {
+	ParseJSONRPCResponseInvalidField(t, validOPRFC448Ciphersuite)
+}
+
+func ParseJSONRPCResponseInvalidField(t *testing.T, config string) {
+	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}

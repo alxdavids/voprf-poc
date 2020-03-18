@@ -28,6 +28,14 @@ func TestValidBatchedDLEQP521(t *testing.T) {
 	validateBatchedDLEQ(t, "P521")
 }
 
+func TestValidDLEQC448(t *testing.T) {
+	validateDLEQ(t, "curve448")
+}
+
+func TestValidBatchedDLEQC448(t *testing.T) {
+	validateBatchedDLEQ(t, "curve448")
+}
+
 func TestBatchedDLEQInvalidLengths(t *testing.T) {
 	pog, h3, h4, h5, sk, pk, batchM, batchZ, proof, err := createBatchedProof("P384", 5)
 	if err != nil {
@@ -181,6 +189,10 @@ func BenchmarkGenerateP521(b *testing.B) {
 	benchGenerate(b, "P521")
 }
 
+func BenchmarkGenerateC448(b *testing.B) {
+	benchGenerate(b, "curve448")
+}
+
 func benchGenerate(b *testing.B, groupName string) {
 	pog, h3, h5, sk, pk, M, Z, _, err := createProof(groupName)
 	if err != nil {
@@ -201,6 +213,10 @@ func BenchmarkVerifyP384(b *testing.B) {
 
 func BenchmarkVerifyP521(b *testing.B) {
 	benchVerify(b, "P521")
+}
+
+func BenchmarkVerifyC448(b *testing.B) {
+	benchVerify(b, "Curve448")
 }
 
 func benchVerify(b *testing.B, groupName string) {
@@ -264,6 +280,30 @@ func BenchmarkGenerateP521_100(b *testing.B) {
 	benchBatchedGenerate(b, "P521", 100)
 }
 
+func BenchmarkGenerateC448_2(b *testing.B) {
+	benchBatchedGenerate(b, "curve448", 2)
+}
+
+func BenchmarkGenerateC448_5(b *testing.B) {
+	benchBatchedGenerate(b, "curve448", 5)
+}
+
+func BenchmarkGenerateC448_10(b *testing.B) {
+	benchBatchedGenerate(b, "curve448", 10)
+}
+
+func BenchmarkGenerateC448_25(b *testing.B) {
+	benchBatchedGenerate(b, "curve448", 25)
+}
+
+func BenchmarkGenerateC448_50(b *testing.B) {
+	benchBatchedGenerate(b, "curve448", 50)
+}
+
+func BenchmarkGenerateC448_100(b *testing.B) {
+	benchBatchedGenerate(b, "curve448", 100)
+}
+
 func benchBatchedGenerate(b *testing.B, groupName string, n int) {
 	pog, h3, h4, h5, sk, pk, batchM, batchZ, _, err := createBatchedProof(groupName, n)
 	if err != nil {
@@ -323,6 +363,30 @@ func BenchmarkVerifyP521_50(b *testing.B) {
 
 func BenchmarkVerifyP521_100(b *testing.B) {
 	benchBatchedVerify(b, "P521", 100)
+}
+
+func BenchmarkVerifyC448_2(b *testing.B) {
+	benchBatchedVerify(b, "curve448", 2)
+}
+
+func BenchmarkVerifyC448_5(b *testing.B) {
+	benchBatchedVerify(b, "curve448", 5)
+}
+
+func BenchmarkVerifyC448_10(b *testing.B) {
+	benchBatchedVerify(b, "curve448", 10)
+}
+
+func BenchmarkVerifyC448_25(b *testing.B) {
+	benchBatchedVerify(b, "curve448", 25)
+}
+
+func BenchmarkVerifyC448_50(b *testing.B) {
+	benchBatchedVerify(b, "curve448", 50)
+}
+
+func BenchmarkVerifyC448_100(b *testing.B) {
+	benchBatchedVerify(b, "curve448", 100)
 }
 
 func benchBatchedVerify(b *testing.B, groupName string, n int) {

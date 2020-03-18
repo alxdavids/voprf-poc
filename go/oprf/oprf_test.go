@@ -14,12 +14,12 @@ import (
 )
 
 var (
-	validOPRFP384Ciphersuite      = "OPRF-P384-HKDF-SHA512-SSWU-RO"
-	validOPRFP521Ciphersuite      = "OPRF-P521-HKDF-SHA512-SSWU-RO"
-	validOPRFCURVE448Ciphersuite  = "OPRF-curve448-HKDF-SHA512-ELL2-RO"
-	validVOPRFP384Ciphersuite     = "VOPRF-P384-HKDF-SHA512-SSWU-RO"
-	validVOPRFP521Ciphersuite     = "VOPRF-P521-HKDF-SHA512-SSWU-RO"
-	validVOPRFCURVE448Ciphersuite = "VOPRF-curve448-HKDF-SHA512-ELL2-RO"
+	validOPRFP384Ciphersuite  = "OPRF-P384-HKDF-SHA512-SSWU-RO"
+	validOPRFP521Ciphersuite  = "OPRF-P521-HKDF-SHA512-SSWU-RO"
+	validOPRFC448Ciphersuite  = "OPRF-curve448-HKDF-SHA512-ELL2-RO"
+	validVOPRFP384Ciphersuite = "VOPRF-P384-HKDF-SHA512-SSWU-RO"
+	validVOPRFP521Ciphersuite = "VOPRF-P521-HKDF-SHA512-SSWU-RO"
+	validVOPRFC448Ciphersuite = "VOPRF-curve448-HKDF-SHA512-ELL2-RO"
 )
 
 func TestFullOPRFP384(t *testing.T) {
@@ -55,19 +55,19 @@ func TestFullVOPRFP521Multiple(t *testing.T) {
 }
 
 func TestFullOPRFCurve448(t *testing.T) {
-	checkFull(t, validOPRFCURVE448Ciphersuite, 1)
+	checkFull(t, validOPRFC448Ciphersuite, 1)
 }
 
 func TestFullOPRFCurve448Multiple(t *testing.T) {
-	checkFull(t, validOPRFCURVE448Ciphersuite, 5)
+	checkFull(t, validOPRFC448Ciphersuite, 5)
 }
 
 func TestFullVOPRFCurve448(t *testing.T) {
-	checkFull(t, validVOPRFCURVE448Ciphersuite, 1)
+	checkFull(t, validVOPRFC448Ciphersuite, 1)
 }
 
 func TestFullVOPRFCurve448Multiple(t *testing.T) {
-	checkFull(t, validVOPRFCURVE448Ciphersuite, 5)
+	checkFull(t, validVOPRFC448Ciphersuite, 5)
 }
 
 func TestServerSetupP384(t *testing.T) {
@@ -79,7 +79,7 @@ func TestServerSetupP521(t *testing.T) {
 }
 
 func TestServerSetupCurve448(t *testing.T) {
-	checkServerSetup(t, validOPRFCURVE448Ciphersuite)
+	checkServerSetup(t, validOPRFC448Ciphersuite)
 }
 
 func TestServerEvalP384(t *testing.T) {
@@ -115,19 +115,19 @@ func TestServerEvalP521VerifiableMultiple(t *testing.T) {
 }
 
 func TestServerEvalCurve448(t *testing.T) {
-	checkServerEval(t, validOPRFCURVE448Ciphersuite, 1)
+	checkServerEval(t, validOPRFC448Ciphersuite, 1)
 }
 
 func TestServerEvalCurve448Multiple(t *testing.T) {
-	checkServerEval(t, validOPRFCURVE448Ciphersuite, 5)
+	checkServerEval(t, validOPRFC448Ciphersuite, 5)
 }
 
 func TestServerEvalCurve448Verifiable(t *testing.T) {
-	checkServerEval(t, validVOPRFCURVE448Ciphersuite, 1)
+	checkServerEval(t, validVOPRFC448Ciphersuite, 1)
 }
 
 func TestServerEvalCurve448VerifiableMultiple(t *testing.T) {
-	checkServerEval(t, validVOPRFCURVE448Ciphersuite, 5)
+	checkServerEval(t, validVOPRFC448Ciphersuite, 5)
 }
 
 func TestServerBlind(t *testing.T) {
@@ -172,7 +172,7 @@ func TestClientSetupP521(t *testing.T) {
 }
 
 func TestClientSetupCurve448(t *testing.T) {
-	checkClientSetup(t, validOPRFCURVE448Ciphersuite)
+	checkClientSetup(t, validOPRFC448Ciphersuite)
 }
 
 func TestClientBlindUnblindP384(t *testing.T) {
@@ -208,19 +208,19 @@ func TestClientBlindUnblindP521VerifiableMultiple(t *testing.T) {
 }
 
 func TestClientBlindUnblindCurve448(t *testing.T) {
-	checkClientBlindUnblind(t, validOPRFCURVE448Ciphersuite, 1)
+	checkClientBlindUnblind(t, validOPRFC448Ciphersuite, 1)
 }
 
 func TestClientBlindUnblindCurve448Multiple(t *testing.T) {
-	checkClientBlindUnblind(t, validOPRFCURVE448Ciphersuite, 5)
+	checkClientBlindUnblind(t, validOPRFC448Ciphersuite, 5)
 }
 
 func TestClientBlindUnblindCurve448Verifiable(t *testing.T) {
-	checkClientBlindUnblind(t, validVOPRFCURVE448Ciphersuite, 1)
+	checkClientBlindUnblind(t, validVOPRFC448Ciphersuite, 1)
 }
 
 func TestClientBlindUnblindCurve448VerifiableMultiple(t *testing.T) {
-	checkClientBlindUnblind(t, validVOPRFCURVE448Ciphersuite, 5)
+	checkClientBlindUnblind(t, validVOPRFC448Ciphersuite, 5)
 }
 
 func TestClientFinalizeP384(t *testing.T) {
@@ -232,7 +232,7 @@ func TestClientFinalizeP521(t *testing.T) {
 }
 
 func TestClientFinalizeCurve448(t *testing.T) {
-	checkClientFinalize(t, validOPRFCURVE448Ciphersuite)
+	checkClientFinalize(t, validOPRFC448Ciphersuite)
 }
 
 func TestClientEval(t *testing.T) {
@@ -558,6 +558,14 @@ func BenchmarkServerVOPRFSetupP521(b *testing.B) {
 	benchServerSetup(b, validVOPRFP521Ciphersuite)
 }
 
+func BenchmarkServerOPRFSetupC448(b *testing.B) {
+	benchServerSetup(b, validOPRFC448Ciphersuite)
+}
+
+func BenchmarkServerVOPRFSetupC448(b *testing.B) {
+	benchServerSetup(b, validVOPRFC448Ciphersuite)
+}
+
 func benchServerSetup(b *testing.B, validCiphersuite string) {
 	for i := 0; i < b.N; i++ {
 		_, err := serverSetup(validCiphersuite)
@@ -661,6 +669,54 @@ func BenchmarkServerVOPRFEvalP521_50(b *testing.B) {
 
 func BenchmarkServerVOPRFEvalP521_100(b *testing.B) {
 	benchServerEval(b, validVOPRFP521Ciphersuite, 100)
+}
+
+func BenchmarkServerOPRFEvalC448_1(b *testing.B) {
+	benchServerEval(b, validOPRFC448Ciphersuite, 1)
+}
+
+func BenchmarkServerOPRFEvalC448_5(b *testing.B) {
+	benchServerEval(b, validOPRFC448Ciphersuite, 5)
+}
+
+func BenchmarkServerOPRFEvalC448_10(b *testing.B) {
+	benchServerEval(b, validOPRFC448Ciphersuite, 10)
+}
+
+func BenchmarkServerOPRFEvalC448_25(b *testing.B) {
+	benchServerEval(b, validOPRFC448Ciphersuite, 25)
+}
+
+func BenchmarkServerOPRFEvalC448_50(b *testing.B) {
+	benchServerEval(b, validOPRFC448Ciphersuite, 50)
+}
+
+func BenchmarkServerOPRFEvalC448_100(b *testing.B) {
+	benchServerEval(b, validOPRFC448Ciphersuite, 100)
+}
+
+func BenchmarkServerVOPRFEvalC448_1(b *testing.B) {
+	benchServerEval(b, validVOPRFC448Ciphersuite, 1)
+}
+
+func BenchmarkServerVOPRFEvalC448_5(b *testing.B) {
+	benchServerEval(b, validVOPRFC448Ciphersuite, 5)
+}
+
+func BenchmarkServerVOPRFEvalC448_10(b *testing.B) {
+	benchServerEval(b, validVOPRFC448Ciphersuite, 10)
+}
+
+func BenchmarkServerVOPRFEvalC448_25(b *testing.B) {
+	benchServerEval(b, validVOPRFC448Ciphersuite, 25)
+}
+
+func BenchmarkServerVOPRFEvalC448_50(b *testing.B) {
+	benchServerEval(b, validVOPRFC448Ciphersuite, 50)
+}
+
+func BenchmarkServerVOPRFEvalC448_100(b *testing.B) {
+	benchServerEval(b, validVOPRFC448Ciphersuite, 100)
 }
 
 func benchServerEval(b *testing.B, validCiphersuite string, n int) {
@@ -800,6 +856,54 @@ func BenchmarkClientVOPRFUnblindP521_100(b *testing.B) {
 	benchClientUnblind(b, validVOPRFP521Ciphersuite, 100)
 }
 
+func BenchmarkClientOPRFUnblindC448_1(b *testing.B) {
+	benchClientUnblind(b, validOPRFC448Ciphersuite, 1)
+}
+
+func BenchmarkClientOPRFUnblindC448_5(b *testing.B) {
+	benchClientUnblind(b, validOPRFC448Ciphersuite, 5)
+}
+
+func BenchmarkClientOPRFUnblindC448_10(b *testing.B) {
+	benchClientUnblind(b, validOPRFC448Ciphersuite, 10)
+}
+
+func BenchmarkClientOPRFUnblindC448_25(b *testing.B) {
+	benchClientUnblind(b, validOPRFC448Ciphersuite, 25)
+}
+
+func BenchmarkClientOPRFUnblindC448_50(b *testing.B) {
+	benchClientUnblind(b, validOPRFC448Ciphersuite, 50)
+}
+
+func BenchmarkClientOPRFUnblindC448_100(b *testing.B) {
+	benchClientUnblind(b, validOPRFC448Ciphersuite, 100)
+}
+
+func BenchmarkClientVOPRFUnblindC448_1(b *testing.B) {
+	benchClientUnblind(b, validVOPRFC448Ciphersuite, 1)
+}
+
+func BenchmarkClientVOPRFUnblindC448_5(b *testing.B) {
+	benchClientUnblind(b, validVOPRFC448Ciphersuite, 5)
+}
+
+func BenchmarkClientVOPRFUnblindC448_10(b *testing.B) {
+	benchClientUnblind(b, validVOPRFC448Ciphersuite, 10)
+}
+
+func BenchmarkClientVOPRFUnblindC448_25(b *testing.B) {
+	benchClientUnblind(b, validVOPRFC448Ciphersuite, 25)
+}
+
+func BenchmarkClientVOPRFUnblindC448_50(b *testing.B) {
+	benchClientUnblind(b, validVOPRFC448Ciphersuite, 50)
+}
+
+func BenchmarkClientVOPRFUnblindC448_100(b *testing.B) {
+	benchClientUnblind(b, validVOPRFC448Ciphersuite, 100)
+}
+
 func benchClientUnblind(b *testing.B, validCiphersuite string, n int) {
 	c, eval, _, eles, blinds, _, err := clientSetupUnblind(validCiphersuite, n)
 	if err != nil {
@@ -821,6 +925,10 @@ func BenchmarkClientFinalizeP384(b *testing.B) {
 
 func BenchmarkClientFinalizeP521(b *testing.B) {
 	benchClientFinalize(b, validOPRFP521Ciphersuite)
+}
+
+func BenchmarkClientFinalizeC448(b *testing.B) {
+	benchClientFinalize(b, validOPRFC448Ciphersuite)
 }
 
 func benchClientFinalize(b *testing.B, validCiphersuite string) {

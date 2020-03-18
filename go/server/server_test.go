@@ -15,6 +15,7 @@ import (
 var (
 	validOPRFP384Ciphersuite = "OPRF-P384-HKDF-SHA512-SSWU-RO"
 	validOPRFP521Ciphersuite = "OPRF-P521-HKDF-SHA512-SSWU-RO"
+	validOPRFC448Ciphersuite = "OPRF-curve448-HKDF-SHA512-ELL2-RO"
 )
 
 func TestProcessEvalP384(t *testing.T) {
@@ -23,6 +24,10 @@ func TestProcessEvalP384(t *testing.T) {
 
 func TestProcessEvalP521(t *testing.T) {
 	processOPRFEval(t, validOPRFP521Ciphersuite, 5)
+}
+
+func TestProcessEvalC448(t *testing.T) {
+	processOPRFEval(t, validOPRFC448Ciphersuite, 5)
 }
 
 func TestProcessEvalMaxError(t *testing.T) {
@@ -65,6 +70,14 @@ func TestCreateConfigP521(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), "P-521")
+}
+
+func TestCreateConfigC448(t *testing.T) {
+	cfg, err := CreateConfig(validOPRFC448Ciphersuite, ecgroup.GroupCurve{}, 5, false, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), "curve-448")
 }
 
 func TestCreateConfigBadCiph(t *testing.T) {
