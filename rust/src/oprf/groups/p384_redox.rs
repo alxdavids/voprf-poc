@@ -1,18 +1,19 @@
-//! redox-ecc module
+//! p384-redox module
 use super::PrimeOrderGroup;
 use super::super::super::utils::copy_into;
 use hkdf_sha512::Hkdf;
 
-use h2c_rust_ref::{HashToCurve,P384_SHA512_SSWU_RO_};
+use h2c_rust_ref::{HashToCurve, P384_SHA512_SSWU_RO_};
 use h2c_rust_ref::redox_ecc::weierstrass;
 use h2c_rust_ref::redox_ecc::weierstrass::Scalar;
 use h2c_rust_ref::redox_ecc::field::Field;
-use h2c_rust_ref::redox_ecc::ellipticcurve::{EllipticCurve,EcPoint};
+use h2c_rust_ref::redox_ecc::ellipticcurve::EllipticCurve;
 use h2c_rust_ref::redox_ecc::instances::{GetCurve, P384};
+use h2c_rust_ref::redox_ecc::ops::{Serialize, Deserialize};
 
 use sha2::Sha512;
 use sha2::Digest;
-use num_bigint::{BigInt,BigUint,Sign};
+use num_bigint::{BigInt, BigUint, Sign};
 use byteorder::{BigEndian, WriteBytesExt};
 use rand_core::OsRng;
 use rand_core::RngCore;
@@ -39,7 +40,7 @@ impl PrimeOrderGroup<RedoxPoint,Sha512> {
             generator: P384.get().get_generator(),
             byte_length: P384_BYTE_LENGTH,
             hash: || p384_hash(),
-            deserialize: |buf: &[u8]| P384.get().deserialize(buf),
+            deserialize: |buf: &[u8]| P384.get().from_bytes_be(buf),
             encode_to_group: |buf: &[u8]| hash_to_curve(buf),
             is_valid: |p: &RedoxPoint| P384.get().is_on_curve(p),
             is_equal: |p1: &RedoxPoint, p2: &RedoxPoint| p1 == p2,
@@ -99,7 +100,9 @@ impl PrimeOrderGroup<RedoxPoint,Sha512> {
 
 // serialize the NIST curve point
 fn nist_serialize(p: &RedoxPoint, compress: bool, out: &mut Vec<u8>) {
-    let bytes = p.serialize(compress);
+    let mut p_clone = p.clone();
+    p_clone.set_compression(compress);
+    let bytes = p.to_bytes_be();
     copy_into(&bytes, out);
 }
 
@@ -175,7 +178,7 @@ fn p384_dleq_hash(to_hash: &[&RedoxPoint], out: &mut Vec<u8>) {
     copy_into(&hash.result(), out);
 }
 
-// computes composite ristretto255 points that are used in batch DLEQ
+// computes composite curve points that are used in batch DLEQ
 // proofs TODO: add these to the impl of some utility struct?
 fn p384_compute_composites(seed: &[u8], inputs: &[RedoxPoint], evals: &[RedoxPoint]) -> [RedoxPoint; 2] {
     // init these with dummy values
@@ -217,8 +220,8 @@ fn p384_compute_composites(seed: &[u8], inputs: &[RedoxPoint], evals: &[RedoxPoi
 }
 
 // generates a seed for deriving coefficients that are used to construct
-// the composite `RistrettoPoint` objects used in batch DLEQ proofs,
-// moves the result into the provided output buffer
+// the composite point objects used in batch DLEQ proofs, moves the
+// result into the provided output buffer
 fn p384_batch_dleq_seed(y: &RedoxPoint, m: &[RedoxPoint], z: &[RedoxPoint], out: &mut Vec<u8>) {
     let mut inputs: Vec<&RedoxPoint> = Vec::new();
     inputs.push(y);

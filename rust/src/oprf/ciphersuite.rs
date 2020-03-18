@@ -14,6 +14,7 @@ use sha2::Sha512;
 use super::groups::PrimeOrderGroup;
 use curve25519_dalek::ristretto::RistrettoPoint;
 use super::groups::p384::NistPoint;
+use super::groups::p384_redox::RedoxPoint;
 use hkdf_sha512::Hkdf;
 use super::super::utils::copy_into;
 
@@ -39,6 +40,12 @@ impl Supported for PrimeOrderGroup<RistrettoPoint,Sha512> {
 impl Supported for PrimeOrderGroup<NistPoint,Sha512> {
     fn name(&self) -> String {
         String::from("P384-HKDF-SHA512-SSWU-RO")
+    }
+}
+
+impl Supported for PrimeOrderGroup<RedoxPoint,Sha512> {
+    fn name(&self) -> String {
+        String::from("P384_redox-HKDF-SHA512-SSWU-RO")
     }
 }
 
@@ -249,6 +256,39 @@ mod tests {
     #[test]
     fn p384_h3_h4() {
         let ciph = Ciphersuite::new(PrimeOrderGroup::p384(), true);
+        let mut h3_res: Vec<u8> = Vec::new();
+        let mut h4_res: Vec<u8> = Vec::new();
+        ciph.h3(&[0; 32], &mut h3_res);
+        ciph.h4(&[0; 32], &mut h4_res);
+        // should be equal as both functions use the same hash
+        assert_eq!(h3_res, h4_res);
+    }
+
+    #[test]
+    fn p384_redox_oprf_ciphersuite() {
+        let ciph = Ciphersuite::new(PrimeOrderGroup::p384_redox(), false);
+        assert_eq!(ciph.name, String::from("OPRF-P384_redox-HKDF-SHA512-SSWU-RO"));
+        assert_eq!(ciph.verifiable, false);
+    }
+
+    #[test]
+    fn p384_redox_voprf_ciphersuite() {
+        let ciph = Ciphersuite::new(PrimeOrderGroup::p384_redox(), true);
+        assert_eq!(ciph.name, String::from("VOPRF-P384_redox-HKDF-SHA512-SSWU-RO"));
+        assert_eq!(ciph.verifiable, true);
+    }
+
+    #[test]
+    fn p384_redox_h1() {
+        let pog = PrimeOrderGroup::p384_redox();
+        let ciph = Ciphersuite::new(pog.clone(), true);
+        let ge = ciph.h1(&[0; 32]);
+        assert_eq!((pog.is_valid)(&ge), true);
+    }
+
+    #[test]
+    fn p384_redox_h3_h4() {
+        let ciph = Ciphersuite::new(PrimeOrderGroup::p384_redox(), true);
         let mut h3_res: Vec<u8> = Vec::new();
         let mut h4_res: Vec<u8> = Vec::new();
         ciph.h3(&[0; 32], &mut h3_res);

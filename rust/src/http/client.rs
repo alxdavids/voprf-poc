@@ -8,6 +8,7 @@ use crate::oprf;
 use oprf::ciphersuite::{Ciphersuite,Supported};
 use oprf::groups::PrimeOrderGroup;
 use oprf::groups::p384::NistPoint;
+use oprf::groups::p384_redox::RedoxPoint;
 use curve25519_dalek::ristretto::RistrettoPoint;
 use sha2::Sha512;
 
@@ -92,6 +93,14 @@ impl Config<RistrettoPoint,Sha512> {
     fn ristretto_255(host: String, port: String, out_path: Option<String>,
             pub_key: Option<String>, n_evals: u16, verifiable: bool, test_idx: i16) -> Self {
         let pog = PrimeOrderGroup::ristretto_255();
+        Config::init(pog, host, port, out_path, pub_key, n_evals, verifiable, test_idx)
+    }
+}
+
+impl Config<RedoxPoint,Sha512> {
+    fn p384_redox(host: String, port: String, out_path: Option<String>,
+            pub_key: Option<String>, n_evals: u16, verifiable: bool, test_idx: i16) -> Self {
+        let pog = PrimeOrderGroup::p384_redox();
         Config::init(pog, host, port, out_path, pub_key, n_evals, verifiable, test_idx)
     }
 }

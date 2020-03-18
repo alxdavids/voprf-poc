@@ -29,6 +29,7 @@ use oprf::ciphersuite::{Ciphersuite,Supported};
 use oprf::groups::PrimeOrderGroup;
 use oprf::Evaluation;
 use oprf::groups::p384::NistPoint;
+use oprf::groups::p384_redox::RedoxPoint;
 use curve25519_dalek::ristretto::RistrettoPoint;
 
 use sha2::Sha512;
@@ -101,11 +102,22 @@ impl Config<RistrettoPoint,Sha512> {
     }
 }
 
+impl Config<RedoxPoint,Sha512> {
+    fn p384_redox(host: String, port: String, max_evals: u16, verifiable: bool, test_idx: i16) -> Self {
+        let pog = PrimeOrderGroup::p384_redox();
+        Config::init(pog, host, port, max_evals, verifiable, test_idx)
+    }
+}
+
 /// Starts the HTTP server for processing VOPRF requests
 pub fn start_server(group_name: String, host: String, port: String, max_evals: u16, verifiable: bool, test_index: i16) {
     match group_name.as_str() {
         "P384" => {
             let cfg = Config::p384(host, port, max_evals, verifiable, test_index);
+            run(cfg);
+        },
+        "P384_redox" => {
+            let cfg = Config::p384_redox(host, port, max_evals, verifiable, test_index);
             run(cfg);
         },
         "ristretto255" => {
@@ -271,6 +283,7 @@ mod tests {
     use crate::oprf::ciphersuite::Supported;
     use curve25519_dalek::ristretto::RistrettoPoint;
     use crate::oprf::groups::p384::NistPoint;
+    use crate::oprf::groups::p384_redox::RedoxPoint;
     use sha2::Sha512;
 
     #[test]
@@ -286,6 +299,12 @@ mod tests {
     }
 
     #[test]
+    fn init_oprf_p384_redox() {
+        let pog = PrimeOrderGroup::<RedoxPoint,Sha512>::p384_redox();
+        init(pog, "OPRF-P384-HKDF-SHA512-SSWU-RO", false, -1);
+    }
+
+    #[test]
     fn init_voprf_ristretto() {
         let pog = PrimeOrderGroup::<RistrettoPoint,Sha512>::ristretto_255();
         init(pog, "VOPRF-ristretto255-HKDF-SHA512-ELL2-RO", true, -1);
@@ -294,6 +313,12 @@ mod tests {
     #[test]
     fn init_voprf_p384() {
         let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384();
+        init(pog, "VOPRF-P384-HKDF-SHA512-SSWU-RO", true, -1);
+    }
+
+    #[test]
+    fn init_voprf_p_redox384() {
+        let pog = PrimeOrderGroup::<RedoxPoint,Sha512>::p384_redox();
         init(pog, "VOPRF-P384-HKDF-SHA512-SSWU-RO", true, -1);
     }
 
@@ -312,6 +337,12 @@ mod tests {
     }
 
     #[test]
+    fn init_oprf_p384_redox_tv() {
+        let pog = PrimeOrderGroup::<RedoxPoint,Sha512>::p384_redox();
+        init(pog, "OPRF-P384-HKDF-SHA512-SSWU-RO", false, 1);
+    }
+
+    #[test]
     #[should_panic(expected = "No such file or directory")]
     fn init_voprf_ristretto_tv() {
         let pog = PrimeOrderGroup::<RistrettoPoint,Sha512>::ristretto_255();
@@ -321,6 +352,12 @@ mod tests {
     #[test]
     fn init_voprf_p384_tv() {
         let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384();
+        init(pog, "VOPRF-P384-HKDF-SHA512-SSWU-RO", true, 1);
+    }
+
+    #[test]
+    fn init_voprf_p384_redox_tv() {
+        let pog = PrimeOrderGroup::<RedoxPoint,Sha512>::p384_redox();
         init(pog, "VOPRF-P384-HKDF-SHA512-SSWU-RO", true, 1);
     }
 
