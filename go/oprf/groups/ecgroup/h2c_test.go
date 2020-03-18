@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
-	"os"
 	"strings"
 	"testing"
 )
@@ -46,9 +45,24 @@ func TestHashToCurveP384(t *testing.T) {
 
 func TestHashToCurveP521(t *testing.T) {
 	curve := initCurve(t, "P-521")
-	dir, _ := os.Getwd()
-	fmt.Println(dir)
 	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/p521-sha512-sswu-ro-.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	testVectors := hashToCurveTestVectors{}
+	err = json.Unmarshal(buf, &testVectors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = performHashToCurve(curve, testVectors)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestHashToCurve448(t *testing.T) {
+	curve := initCurve(t, "curve-448")
+	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/curve448-sha512-ell2-ro-.json")
 	if err != nil {
 		t.Fatal(err)
 	}
