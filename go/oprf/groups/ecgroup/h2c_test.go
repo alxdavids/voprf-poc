@@ -97,10 +97,10 @@ func performHashToCurve(curve GroupCurve, testVectors hashToCurveTestVectors) er
 		}
 		chkR := Point{X: new(big.Int).SetBytes(expectedX), Y: new(big.Int).SetBytes(expectedY), pog: curve, compress: true}
 		if !R.Equal(chkR) {
-			fmt.Println(x)
-			fmt.Println(y)
-			fmt.Println(hex.EncodeToString(R.X.Bytes()))
-			fmt.Println(hex.EncodeToString(R.Y.Bytes()))
+			fmt.Printf("\n expected X in hex %x \n", x)
+			fmt.Printf("\n expected Y in hex %x \n", y)
+			fmt.Printf("\n X in hex %x \n", hex.EncodeToString(R.X.Bytes()))
+			fmt.Printf("\n Y in hex %x \n", hex.EncodeToString(R.Y.Bytes()))
 			return errors.New("Points are not equal")
 		}
 	}
