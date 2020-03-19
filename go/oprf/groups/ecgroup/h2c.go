@@ -17,7 +17,7 @@ type hasher2point struct {
 }
 
 func (h hasher2point) Hash(msg []byte) (Point, error) {
-	Q := h.HashToPoint.Hash(msg, h.dst)
+	Q := h.HashToPoint.Hash(msg)
 	P := Point{}.New(h.GroupCurve).(Point)
 	X := Q.X().Polynomial()
 	Y := Q.Y().Polynomial()
@@ -36,16 +36,16 @@ func getH2CSuite(gc GroupCurve) (HashToPoint, error) {
 	var err error
 	switch gc.Name() {
 	case "P-384":
-		suite = h2c.P384_SHA512_SSWU_RO_
+		suite = h2c.P384_XMDSHA512_SSWU_RO_
 	case "P-521":
-		suite = h2c.P521_SHA512_SSWU_RO_
+		suite = h2c.P521_XMDSHA512_SSWU_RO_
 	case "curve-448":
-		suite = h2c.Curve448_SHA512_ELL2_RO_
+		suite = h2c.Curve448_XMDSHA512_ELL2_RO_
 	default:
 		return nil, oerr.ErrUnsupportedGroup
 	}
 	dst := append([]byte("RFCXXXX-VOPRF-"), suite...)
-	hasher, err := suite.Get()
+	hasher, err := suite.Get(dst)
 	if err != nil {
 		return nil, err
 	}

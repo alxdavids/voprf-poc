@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
-	"os"
 	"strings"
 	"testing"
 )
@@ -46,9 +45,24 @@ func TestHashToCurveP384(t *testing.T) {
 
 func TestHashToCurveP521(t *testing.T) {
 	curve := initCurve(t, "P-521")
-	dir, _ := os.Getwd()
-	fmt.Println(dir)
 	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/p521-sha512-sswu-ro-.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	testVectors := hashToCurveTestVectors{}
+	err = json.Unmarshal(buf, &testVectors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = performHashToCurve(curve, testVectors)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestHashToCurve448(t *testing.T) {
+	curve := initCurve(t, "curve-448")
+	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/curve448-sha512-ell2-ro-.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +85,6 @@ func performHashToCurve(curve GroupCurve, testVectors hashToCurveTestVectors) er
 		return err
 	}
 	hasherMod := hasher.(hasher2point)
-	hasherMod.dst = []byte("QUUX-V01-CS02")
 	for _, v := range testVectors.Vectors {
 		R, err := hasherMod.Hash([]byte(v.Msg))
 		if err != nil {
@@ -97,10 +110,10 @@ func performHashToCurve(curve GroupCurve, testVectors hashToCurveTestVectors) er
 		}
 		chkR := Point{X: new(big.Int).SetBytes(expectedX), Y: new(big.Int).SetBytes(expectedY), pog: curve, compress: true}
 		if !R.Equal(chkR) {
-			fmt.Println(x)
-			fmt.Println(y)
-			fmt.Println(hex.EncodeToString(R.X.Bytes()))
-			fmt.Println(hex.EncodeToString(R.Y.Bytes()))
+			fmt.Printf("\n expected X in hex %x \n", x)
+			fmt.Printf("\n expected Y in hex %x \n", y)
+			fmt.Printf("\n X in hex %x \n", hex.EncodeToString(R.X.Bytes()))
+			fmt.Printf("\n Y in hex %x \n", hex.EncodeToString(R.Y.Bytes()))
 			return errors.New("Points are not equal")
 		}
 	}
