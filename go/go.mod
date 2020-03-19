@@ -3,7 +3,7 @@ module github.com/alxdavids/voprf-poc/go
 go 1.13
 
 require (
-	github.com/armfazh/h2c-go-ref v0.0.0-20200317222234-b24dd5d7365d
+	github.com/armfazh/h2c-go-ref v0.0.0-20200318224313-763912060962
 	github.com/cloudflare/circl v1.0.0
 	github.com/otrv4/ed448 v0.0.0-20200313043504-efc4accd8117
 	github.com/stretchr/testify v1.4.0

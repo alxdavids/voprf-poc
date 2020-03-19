@@ -85,7 +85,6 @@ func performHashToCurve(curve GroupCurve, testVectors hashToCurveTestVectors) er
 		return err
 	}
 	hasherMod := hasher.(hasher2point)
-	hasherMod.dst = []byte("QUUX-V01-CS02")
 	for _, v := range testVectors.Vectors {
 		R, err := hasherMod.Hash([]byte(v.Msg))
 		if err != nil {
