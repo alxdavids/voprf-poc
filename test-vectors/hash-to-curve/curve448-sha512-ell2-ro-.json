@@ -1,7 +1,6 @@
 {
   "ciphersuite": "curve448-SHA512-ELL2-RO-",
   "curve": "curve448",
-  "dst": "QUUX-V01-CS02",
   "field": {
     "m": "0x1",
     "p": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffffffffffffffffffffffffffffffffffffffffffffffffffff"

@@ -1,7 +1,6 @@
 {
   "ciphersuite": "P384-SHA512-SSWU-RO-",
   "curve": "P384",
-  "dst": "QUUX-V01-CS02",
   "field": {
     "m": "0x1",
     "p": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff"
