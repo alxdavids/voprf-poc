@@ -11,9 +11,10 @@ use digest::Digest;
 
 // supported primitives
 use sha2::Sha512;
-use super::groups::PrimeOrderGroup;
+use super::groups::{PrimeOrderGroup,GroupID};
 use curve25519_dalek::ristretto::RistrettoPoint;
 use super::groups::p384::NistPoint;
+use super::groups::redox_ecc::{WPoint,MPoint};
 use hkdf_sha512::Hkdf;
 use super::super::utils::copy_into;
 
@@ -39,6 +40,25 @@ impl Supported for PrimeOrderGroup<RistrettoPoint,Sha512> {
 impl Supported for PrimeOrderGroup<NistPoint,Sha512> {
     fn name(&self) -> String {
         String::from("P384-HKDF-SHA512-SSWU-RO")
+    }
+}
+
+impl Supported for PrimeOrderGroup<WPoint,Sha512> {
+    fn name(&self) -> String {
+        match &self.group_id {
+            GroupID::P384 => String::from("P384-HKDF-SHA512-SSWU-RO"),
+            GroupID::P521 => String::from("P521-HKDF-SHA512-SSWU-RO"),
+            _ => panic!("Unsupported group"),
+        }
+    }
+}
+
+impl Supported for PrimeOrderGroup<MPoint,Sha512> {
+    fn name(&self) -> String {
+        match &self.group_id {
+            GroupID::Curve448 => String::from("curve448-HKDF-SHA512-ELL2-RO"),
+            _ => panic!("Unsupported group"),
+        }
     }
 }
 
@@ -225,6 +245,39 @@ mod tests {
     }
 
     #[test]
+    fn p384_old_oprf_ciphersuite() {
+        let ciph = Ciphersuite::new(PrimeOrderGroup::p384_old(), false);
+        assert_eq!(ciph.name, String::from("OPRF-P384-HKDF-SHA512-SSWU-RO"));
+        assert_eq!(ciph.verifiable, false);
+    }
+
+    #[test]
+    fn p384_old_voprf_ciphersuite() {
+        let ciph = Ciphersuite::new(PrimeOrderGroup::p384_old(), true);
+        assert_eq!(ciph.name, String::from("VOPRF-P384-HKDF-SHA512-SSWU-RO"));
+        assert_eq!(ciph.verifiable, true);
+    }
+
+    #[test]
+    fn p384_old_h1() {
+        let pog = PrimeOrderGroup::p384_old();
+        let ciph = Ciphersuite::new(pog.clone(), true);
+        let ge = ciph.h1(&[0; 32]);
+        assert_eq!((pog.is_valid)(&ge), true);
+    }
+
+    #[test]
+    fn p384_old_h3_h4() {
+        let ciph = Ciphersuite::new(PrimeOrderGroup::p384_old(), true);
+        let mut h3_res: Vec<u8> = Vec::new();
+        let mut h4_res: Vec<u8> = Vec::new();
+        ciph.h3(&[0; 32], &mut h3_res);
+        ciph.h4(&[0; 32], &mut h4_res);
+        // should be equal as both functions use the same hash
+        assert_eq!(h3_res, h4_res);
+    }
+
+    #[test]
     fn p384_oprf_ciphersuite() {
         let ciph = Ciphersuite::new(PrimeOrderGroup::p384(), false);
         assert_eq!(ciph.name, String::from("OPRF-P384-HKDF-SHA512-SSWU-RO"));
@@ -249,6 +302,72 @@ mod tests {
     #[test]
     fn p384_h3_h4() {
         let ciph = Ciphersuite::new(PrimeOrderGroup::p384(), true);
+        let mut h3_res: Vec<u8> = Vec::new();
+        let mut h4_res: Vec<u8> = Vec::new();
+        ciph.h3(&[0; 32], &mut h3_res);
+        ciph.h4(&[0; 32], &mut h4_res);
+        // should be equal as both functions use the same hash
+        assert_eq!(h3_res, h4_res);
+    }
+
+    #[test]
+    fn p521_oprf_ciphersuite() {
+        let ciph = Ciphersuite::new(PrimeOrderGroup::p521(), false);
+        assert_eq!(ciph.name, String::from("OPRF-P521-HKDF-SHA512-SSWU-RO"));
+        assert_eq!(ciph.verifiable, false);
+    }
+
+    #[test]
+    fn p521_voprf_ciphersuite() {
+        let ciph = Ciphersuite::new(PrimeOrderGroup::p521(), true);
+        assert_eq!(ciph.name, String::from("VOPRF-P521-HKDF-SHA512-SSWU-RO"));
+        assert_eq!(ciph.verifiable, true);
+    }
+
+    #[test]
+    fn p521_h1() {
+        let pog = PrimeOrderGroup::p521();
+        let ciph = Ciphersuite::new(pog.clone(), true);
+        let ge = ciph.h1(&[0; 32]);
+        assert_eq!((pog.is_valid)(&ge), true);
+    }
+
+    #[test]
+    fn p521_h3_h4() {
+        let ciph = Ciphersuite::new(PrimeOrderGroup::p521(), true);
+        let mut h3_res: Vec<u8> = Vec::new();
+        let mut h4_res: Vec<u8> = Vec::new();
+        ciph.h3(&[0; 32], &mut h3_res);
+        ciph.h4(&[0; 32], &mut h4_res);
+        // should be equal as both functions use the same hash
+        assert_eq!(h3_res, h4_res);
+    }
+
+    #[test]
+    fn c448_oprf_ciphersuite() {
+        let ciph = Ciphersuite::new(PrimeOrderGroup::c448(), false);
+        assert_eq!(ciph.name, String::from("OPRF-curve448-HKDF-SHA512-ELL2-RO"));
+        assert_eq!(ciph.verifiable, false);
+    }
+
+    #[test]
+    fn c448_voprf_ciphersuite() {
+        let ciph = Ciphersuite::new(PrimeOrderGroup::c448(), true);
+        assert_eq!(ciph.name, String::from("VOPRF-curve448-HKDF-SHA512-ELL2-RO"));
+        assert_eq!(ciph.verifiable, true);
+    }
+
+    #[test]
+    fn c448_h1() {
+        let pog = PrimeOrderGroup::c448();
+        let ciph = Ciphersuite::new(pog.clone(), true);
+        let ge = ciph.h1(&[0; 32]);
+        assert_eq!((pog.is_valid)(&ge), true);
+    }
+
+    #[test]
+    fn c448_h3_h4() {
+        let ciph = Ciphersuite::new(PrimeOrderGroup::c448(), true);
         let mut h3_res: Vec<u8> = Vec::new();
         let mut h4_res: Vec<u8> = Vec::new();
         ciph.h3(&[0; 32], &mut h3_res);

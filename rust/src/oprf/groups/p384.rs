@@ -1,14 +1,14 @@
-//! The `p384` module allows creating a `PrimeOrederGroup` object using the NIST
+//! The `p384` module allows creating a `PrimeOrderGroup` object using the NIST
 //! P-384 elliptic curve.
 //!
 //! # Example
 //!
 //! ```
 //! use voprf_rs::oprf::groups::PrimeOrderGroup;
-//! let pog = PrimeOrderGroup::p384();
+//! let pog = PrimeOrderGroup::p384_old();
 //! ```
 
-use super::PrimeOrderGroup;
+use super::{PrimeOrderGroup,GroupID};
 use super::super::super::utils::copy_into;
 use hkdf_sha512::Hkdf;
 
@@ -37,10 +37,11 @@ impl PrimeOrderGroup<NistPoint,Sha512> {
     ///
     /// ```
     /// use voprf_rs::oprf::groups::PrimeOrderGroup;
-    /// let pog = PrimeOrderGroup::p384();
+    /// let pog = PrimeOrderGroup::p384_old();
     /// ```
-    pub fn p384() -> PrimeOrderGroup<NistPoint,Sha512> {
+    pub fn p384_old() -> PrimeOrderGroup<NistPoint,Sha512> {
         PrimeOrderGroup{
+            group_id: GroupID::P384Old,
             generator: NistPoint::get_generator(P384).unwrap(),
             byte_length: P384_BYTE_LENGTH,
             hash: || p384_hash(),
@@ -253,7 +254,7 @@ mod tests {
 
     #[test]
     fn p384_serialization() {
-        let pog = PrimeOrderGroup::p384();
+        let pog = PrimeOrderGroup::p384_old();
         let p = (pog.random_element)();
         let mut ser: Vec<u8> = Vec::new();
         (pog.serialize)(&p, true, &mut ser);
@@ -266,7 +267,7 @@ mod tests {
     #[should_panic]
     fn p384_err_ser() {
         // trigger error if buffer is malformed
-        let pog = PrimeOrderGroup::p384();
+        let pog = PrimeOrderGroup::p384_old();
         let mut ser: Vec<u8> = Vec::new();
         (pog.serialize)(&(pog.random_element)(), true, &mut ser);
         // modify the buffer
@@ -282,7 +283,7 @@ mod tests {
 
     #[test]
     fn p384_point_mult() {
-        let pog = PrimeOrderGroup::p384();
+        let pog = PrimeOrderGroup::p384_old();
         let p = (pog.random_element)();
         let mut r1: Vec<u8> = Vec::new();
         let mut r2: Vec<u8> = Vec::new();
@@ -300,24 +301,24 @@ mod tests {
 
     #[test]
     fn p384_encode_to_group() {
-        let pog = PrimeOrderGroup::p384();
+        let pog = PrimeOrderGroup::p384_old();
         let buf: [u8; 32] = [0; 32];
         let p = (pog.encode_to_group)(&buf);
         let mut ser: Vec<u8> = Vec::new();
         (pog.serialize)(&p, true, &mut ser);
         // TODO: use official test vector
         let test_arr: [u8; 1+P384_BYTE_LENGTH] = [
-            3, 71, 200, 194, 66, 217, 162, 108, 160, 125, 77, 19, 159, 198, 168,
-            53, 78, 216, 108, 129, 84, 67, 119, 32, 221, 107, 28, 72, 61, 140,
-            154, 6, 34, 23, 98, 185, 185, 126, 14, 208, 77, 63, 13, 237, 235,
-            166, 220, 134, 81
+            3, 51, 64, 101, 130, 28, 15, 150, 165, 237, 149, 238, 250,
+            119, 10, 66, 138, 184, 105, 79, 130, 49, 134, 39, 251, 135,
+            93, 198, 174, 115, 240, 73, 218, 116, 76, 210, 232, 7, 41,
+            173, 220, 224, 221, 156, 121, 28, 214, 145, 61
         ];
         assert_eq!(ser, test_arr.to_vec())
     }
 
     #[test]
     fn p384_rand_bytes() {
-        let pog = PrimeOrderGroup::p384();
+        let pog = PrimeOrderGroup::p384_old();
         let mut r: Vec<u8> = Vec::new();
         (pog.uniform_bytes)(&mut r);
         assert_eq!(r.len(), pog.byte_length);
@@ -330,7 +331,7 @@ mod tests {
 
     #[test]
     fn p384_inverse_mult() {
-        let pog = PrimeOrderGroup::p384();
+        let pog = PrimeOrderGroup::p384_old();
         let mut r: Vec<u8> = Vec::new();
         (pog.uniform_bytes)(&mut r);
         let p = (pog.random_element)();
@@ -341,7 +342,7 @@ mod tests {
 
     #[test]
     fn p384_dleq() {
-        let pog = PrimeOrderGroup::p384();
+        let pog = PrimeOrderGroup::p384_old();
 
         // mimic oprf operations
         let mut key: Vec<u8> = Vec::new();
@@ -360,7 +361,7 @@ mod tests {
 
     #[test]
     fn p384_batch_dleq() {
-        let pog = PrimeOrderGroup::p384();
+        let pog = PrimeOrderGroup::p384_old();
 
         // mimic oprf operations
         let mut key: Vec<u8> = Vec::new();
@@ -385,7 +386,7 @@ mod tests {
 
     #[test]
     fn p384_dleq_fail() {
-        let pog = PrimeOrderGroup::p384();
+        let pog = PrimeOrderGroup::p384_old();
 
         // mimic oprf operations
         let mut key_1: Vec<u8> = Vec::new();
@@ -415,7 +416,7 @@ mod tests {
 
     #[test]
     fn p384_batch_dleq_fail_bad_batch() {
-        let pog = PrimeOrderGroup::p384();
+        let pog = PrimeOrderGroup::p384_old();
 
         // mimic oprf operations
         let mut key: Vec<u8> = Vec::new();

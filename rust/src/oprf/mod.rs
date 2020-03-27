@@ -529,8 +529,8 @@ mod tests {
     }
 
     #[test]
-    fn end_to_end_oprf_p384() {
-        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384();
+    fn end_to_end_oprf_p384_old() {
+        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384_old();
         let ciph = Ciphersuite::<NistPoint,Sha512>::new(pog.clone(), false);
         let srv = Server::<NistPoint,Sha512>::setup(ciph.clone());
         let cli = match Client::<NistPoint,Sha512>::setup(ciph.clone(), None) {
@@ -542,8 +542,8 @@ mod tests {
     }
 
     #[test]
-    fn end_to_end_voprf_p384() {
-        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384();
+    fn end_to_end_voprf_p384_old() {
+        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384_old();
         let ciph = Ciphersuite::<NistPoint,Sha512>::new(pog.clone(), true);
         let srv = Server::<NistPoint,Sha512>::setup(ciph.clone());
         let cli = match Client::<NistPoint,Sha512>::setup(ciph.clone(), Some(srv.key.pub_key(&pog))) {
@@ -555,8 +555,8 @@ mod tests {
     }
 
     #[test]
-    fn end_to_end_batch_oprf_p384() {
-        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384();
+    fn end_to_end_batch_oprf_p384_old() {
+        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384_old();
         let ciph = Ciphersuite::<NistPoint,Sha512>::new(pog.clone(), false);
         let srv = Server::<NistPoint,Sha512>::setup(ciph.clone());
         let cli = match Client::<NistPoint,Sha512>::setup(ciph.clone(), None) {
@@ -568,8 +568,8 @@ mod tests {
     }
 
     #[test]
-    fn end_to_end_batch_voprf_p384() {
-        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384();
+    fn end_to_end_batch_voprf_p384_old() {
+        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384_old();
         let ciph = Ciphersuite::<NistPoint,Sha512>::new(pog.clone(), true);
         let srv = Server::<NistPoint,Sha512>::setup(ciph.clone());
         let cli = match Client::<NistPoint,Sha512>::setup(ciph.clone(), Some(srv.key.pub_key(&pog))) {

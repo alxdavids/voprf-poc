@@ -1,5 +1,6 @@
 //! client module
 use std::fs;
+use std::time::Duration;
 
 use reqwest;
 
@@ -8,6 +9,7 @@ use crate::oprf;
 use oprf::ciphersuite::{Ciphersuite,Supported};
 use oprf::groups::PrimeOrderGroup;
 use oprf::groups::p384::NistPoint;
+use oprf::groups::redox_ecc::{WPoint,MPoint};
 use curve25519_dalek::ristretto::RistrettoPoint;
 use sha2::Sha512;
 
@@ -81,9 +83,9 @@ impl<T,H> Config<T,H>
 }
 
 impl Config<NistPoint,Sha512> {
-    fn p384(host: String, port: String, out_path: Option<String>,
+    fn p384_old(host: String, port: String, out_path: Option<String>,
             pub_key: Option<String>, n_evals: u16, verifiable: bool, test_idx: i16) -> Self {
-        let pog = PrimeOrderGroup::p384();
+        let pog = PrimeOrderGroup::p384_old();
         Config::init(pog, host, port, out_path, pub_key, n_evals, verifiable, test_idx)
     }
 }
@@ -96,20 +98,53 @@ impl Config<RistrettoPoint,Sha512> {
     }
 }
 
+impl Config<WPoint,Sha512> {
+    fn p384(host: String, port: String, out_path: Option<String>,
+            pub_key: Option<String>, n_evals: u16, verifiable: bool, test_idx: i16) -> Self {
+        let pog = PrimeOrderGroup::p384();
+        Config::init(pog, host, port, out_path, pub_key, n_evals, verifiable, test_idx)
+    }
+    fn p521(host: String, port: String, out_path: Option<String>,
+        pub_key: Option<String>, n_evals: u16, verifiable: bool, test_idx: i16) -> Self {
+        let pog = PrimeOrderGroup::p521();
+        Config::init(pog, host, port, out_path, pub_key, n_evals, verifiable, test_idx)
+    }
+}
+
+impl Config<MPoint,Sha512> {
+    fn c448(host: String, port: String, out_path: Option<String>,
+            pub_key: Option<String>, n_evals: u16, verifiable: bool, test_idx: i16) -> Self {
+        let pog = PrimeOrderGroup::c448();
+        Config::init(pog, host, port, out_path, pub_key, n_evals, verifiable, test_idx)
+    }
+}
+
 /// Starts the HTTP client for sending VOPRF messages
 pub fn start_client(group_name: String, host: String, port: String,
         out_path: Option<String>, pub_key: Option<String>, n_evals: u16,
         verifiable: bool, test_idx: i16) {
     match group_name.as_str() {
+        "P384Old" => {
+            let cfg = Config::p384_old(host, port, out_path, pub_key, n_evals, verifiable, test_idx);
+            run(cfg);
+        },
         "P384" => {
             let cfg = Config::p384(host, port, out_path, pub_key, n_evals, verifiable, test_idx);
+            run(cfg);
+        },
+        "P521" => {
+            let cfg = Config::p521(host, port, out_path, pub_key, n_evals, verifiable, test_idx);
+            run(cfg);
+        },
+        "curve448" => {
+            let cfg = Config::c448(host, port, out_path, pub_key, n_evals, verifiable, test_idx);
             run(cfg);
         },
         "ristretto255" => {
             let cfg = Config::ristretto_255(host, port, out_path, pub_key, n_evals, verifiable, test_idx);
             run(cfg);
         },
-        _ => panic!("Unsupported group requested, supported groups are: 'P384', 'ristretto255'")
+        _ => panic!("Unsupported group requested, supported groups are: 'P384Old', 'P384', 'P521', 'ristretto255'")
     }
 }
 
@@ -147,7 +182,9 @@ fn run<T,H>(cfg: Config<T,H>)
     let req_data = serde_json::to_string(&req).unwrap();
 
     // Send post request
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+                    .timeout(Duration::from_secs(100))
+                    .build().unwrap();
     let resp = client.post(target.as_str()).body(req_data).send().unwrap();
     let (final_outs, srv_data, srv_proof) = process_resp(&cfg, resp, &oprf_inputs);
     write_outputs(&cfg, &oprf_inputs, &srv_data, &srv_proof, &final_outs);
@@ -299,11 +336,12 @@ struct TestVector {
 #[cfg(test)]
 mod tests {
     use super::Config;
-    use crate::oprf::groups::PrimeOrderGroup;
+    use crate::oprf::groups::{PrimeOrderGroup,GroupID};
     use crate::oprf::{Client,Input,Evaluation};
     use crate::oprf::ciphersuite::Supported;
     use curve25519_dalek::ristretto::RistrettoPoint;
     use crate::oprf::groups::p384::NistPoint;
+    use crate::oprf::groups::redox_ecc::{WPoint,MPoint};
     use sha2::Sha512;
 
     #[test]
@@ -313,9 +351,27 @@ mod tests {
     }
 
     #[test]
-    fn init_oprf_p384() {
-        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384();
+    fn init_oprf_p384_old() {
+        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384_old();
         init(pog, "OPRF-P384-HKDF-SHA512-SSWU-RO", None, false, -1);
+    }
+
+    #[test]
+    fn init_oprf_p384() {
+        let pog = PrimeOrderGroup::<WPoint,Sha512>::p384();
+        init(pog, "OPRF-P384-HKDF-SHA512-SSWU-RO", None, false, -1);
+    }
+
+    #[test]
+    fn init_oprf_p521() {
+        let pog = PrimeOrderGroup::<WPoint,Sha512>::p521();
+        init(pog, "OPRF-P521-HKDF-SHA512-SSWU-RO", None, false, -1);
+    }
+
+    #[test]
+    fn init_oprf_c448() {
+        let pog = PrimeOrderGroup::<MPoint,Sha512>::c448();
+        init(pog, "OPRF-curve448-HKDF-SHA512-ELL2-RO", None, false, -1);
     }
 
     #[test]
@@ -327,9 +383,30 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "No public key found")]
-    fn init_voprf_p384_no_pub_key() {
-        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384();
+    fn init_voprf_p384_old_no_pub_key() {
+        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384_old();
         init(pog, "VOPRF-P384-HKDF-SHA512-SSWU-RO", None, true, -1);
+    }
+
+    #[test]
+    #[should_panic(expected = "No public key found")]
+    fn init_voprf_p384_no_pub_key() {
+        let pog = PrimeOrderGroup::<WPoint,Sha512>::p384();
+        init(pog, "VOPRF-P384-HKDF-SHA512-SSWU-RO", None, true, -1);
+    }
+
+    #[test]
+    #[should_panic(expected = "No public key found")]
+    fn init_voprf_p521_no_pub_key() {
+        let pog = PrimeOrderGroup::<WPoint,Sha512>::p521();
+        init(pog, "VOPRF-P521-HKDF-SHA512-SSWU-RO", None, true, -1);
+    }
+
+    #[test]
+    #[should_panic(expected = "No public key found")]
+    fn init_voprf_c448_no_pub_key() {
+        let pog = PrimeOrderGroup::<MPoint,Sha512>::c448();
+        init(pog, "VOPRF-curve448-HKDF-SHA512-ELL2-RO", None, true, -1);
     }
 
     #[test]
@@ -339,9 +416,27 @@ mod tests {
     }
 
     #[test]
-    fn init_voprf_p384() {
-        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384();
+    fn init_voprf_p384_old() {
+        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384_old();
         init(pog, "VOPRF-P384-HKDF-SHA512-SSWU-RO", Some("025f59ac8471663cc47be651b3e4315467aff9ec595a82d65fb7b11c33ca0e387c0238299040e2c7ae852795b0696d987c".to_string()), true, -1);
+    }
+
+    #[test]
+    fn init_voprf_p384() {
+        let pog = PrimeOrderGroup::<WPoint,Sha512>::p384();
+        init(pog, "VOPRF-P384-HKDF-SHA512-SSWU-RO", Some("025f59ac8471663cc47be651b3e4315467aff9ec595a82d65fb7b11c33ca0e387c0238299040e2c7ae852795b0696d987c".to_string()), true, -1);
+    }
+
+    #[test]
+    fn init_voprf_p521() {
+        let pog = PrimeOrderGroup::<WPoint,Sha512>::p521();
+        init(pog, "VOPRF-P521-HKDF-SHA512-SSWU-RO", Some("0301db545d062e94ec4aa01b47995cef156aee789484a5cf45ba409566e994315130854be68e0699bc2d4073ec11188535f295623361fa7ddd681e784c6c3aee2bc886".to_string()), true, -1);
+    }
+
+    #[test]
+    fn init_voprf_c448() {
+        let pog = PrimeOrderGroup::<MPoint,Sha512>::c448();
+        init(pog, "VOPRF-curve448-HKDF-SHA512-ELL2-RO", Some("03f143e169f9b57cda4adf33ffd8db9b4c28e7ffef5f2ae5608b291d415d55eaf2d10d0d01ce806a83f26c1cab7e36fbaf6e869fb72c92c033".to_string()), true, -1);
     }
 
     #[test]
@@ -353,9 +448,30 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "No such file or directory")]
-    fn init_oprf_p384_tv() {
-        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384();
+    fn init_oprf_p384_old_tv() {
+        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384_old();
         init(pog, "OPRF-P384-HKDF-SHA512-SSWU-RO", None, false, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "No such file or directory")]
+    fn init_oprf_p384_tv() {
+        let pog = PrimeOrderGroup::<WPoint,Sha512>::p384();
+        init(pog, "OPRF-P384-HKDF-SHA512-SSWU-RO", None, false, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "No such file or directory")]
+    fn init_oprf_p521_tv() {
+        let pog = PrimeOrderGroup::<WPoint,Sha512>::p521();
+        init(pog, "OPRF-P521-HKDF-SHA512-SSWU-RO", None, false, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "No such file or directory")]
+    fn init_oprf_c448_tv() {
+        let pog = PrimeOrderGroup::<MPoint,Sha512>::c448();
+        init(pog, "OPRF-curve448-HKDF-SHA512-ELL2-RO", None, false, 1);
     }
 
     #[test]
@@ -366,9 +482,28 @@ mod tests {
     }
 
     #[test]
-    fn init_voprf_p384_tv() {
-        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384();
+    fn init_voprf_p384_old_tv() {
+        let pog = PrimeOrderGroup::<NistPoint,Sha512>::p384_old();
         init(pog, "VOPRF-P384-HKDF-SHA512-SSWU-RO", None, true, 1);
+    }
+
+    #[test]
+    fn init_voprf_p384_tv() {
+        let pog = PrimeOrderGroup::<WPoint,Sha512>::p384();
+        init(pog, "VOPRF-P384-HKDF-SHA512-SSWU-RO", None, true, 1);
+    }
+
+    #[test]
+    fn init_voprf_p521_tv() {
+        let pog = PrimeOrderGroup::<WPoint,Sha512>::p521();
+        init(pog, "VOPRF-P521-HKDF-SHA512-SSWU-RO", None, true, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "No such file or directory")]
+    fn init_voprf_c448_tv() {
+        let pog = PrimeOrderGroup::<MPoint,Sha512>::c448();
+        init(pog, "VOPRF-curve448-HKDF-SHA512-ELL2-RO", None, true, 1);
     }
 
     fn init<T,H>(pog: PrimeOrderGroup<T,H>, expected_name: &str, pub_key: Option<String>, verifiable: bool, test_idx: i16)
@@ -411,9 +546,17 @@ mod tests {
                 if let None = cfg.tv {
                     panic!("Test vectors should be being used");
                 } else if let Some(tv) = cfg.tv {
-                    assert_eq!(tv.pub_key, "030f290e5d9ec013f30968a4db66f36c20fd204a06bb8edf805a1936af744acde2f906f7190f2c206516fc49d23c65a424".to_string());
                     assert_eq!(tv.inputs.len(), 8);
                     assert_eq!(tv.blinds.len(), 8);
+                    match &pog.group_id {
+                        GroupID::P384Old | GroupID::P384 => {
+                            assert_eq!(tv.pub_key, "030f290e5d9ec013f30968a4db66f36c20fd204a06bb8edf805a1936af744acde2f906f7190f2c206516fc49d23c65a424".to_string());
+                        },
+                        GroupID::P521 => {
+                            assert_eq!(tv.pub_key, "03013c276714a1b26b857a61c066246d8ae155b29b98c66ab6c10996e23199272a132ceb0bdba4d1423792720d9c67f9fff86a22f613e7eba65b04ce6911513d2252ec".to_string());
+                        },
+                        _ => panic!("Unsupported group")
+                    }
                 }
             }
         }

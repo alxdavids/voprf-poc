@@ -13,7 +13,7 @@ use curve25519_dalek::ristretto::{RistrettoPoint, CompressedRistretto};
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::scalar::Scalar;
 
-use super::PrimeOrderGroup;
+use super::{PrimeOrderGroup,GroupID};
 use super::super::super::utils::{rand_bytes,copy_into};
 use hkdf_sha512::Hkdf;
 use super::super::super::errors::err_deserialization;
@@ -47,6 +47,7 @@ impl PrimeOrderGroup<RistrettoPoint,Sha512> {
     /// ```
     pub fn ristretto_255() -> PrimeOrderGroup<RistrettoPoint,Sha512> {
         PrimeOrderGroup{
+            group_id: GroupID::Ristretto255,
             generator: RISTRETTO_BASEPOINT_POINT,
             byte_length: RISTRETTO_BYTE_LENGTH,
             hash: || ristretto_hash(),
@@ -262,7 +263,7 @@ mod tests {
         let mut ser: Vec<u8> = Vec::new();
         (pog.serialize)(&(pog.random_element)(), true, &mut ser);
         // modify the buffer
-        ser[0] = ser[0]+1;
+        ser[0] = ser[0]+2;
         ser[1] = ser[1]+1;
         ser[2] = ser[2]+1;
         ser[3] = ser[3]+1;

@@ -79,8 +79,8 @@ func (c GroupCurve) Order() *big.Int {
 	return c.ops.Params().N
 }
 
-// P returns the order of the underlying field for the elliptic curve that is
-// used
+// P returns the order of the underlying field for the elliptic curve
+// that is used
 func (c GroupCurve) P() *big.Int {
 	return c.ops.Params().P
 }
