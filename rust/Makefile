@@ -1,0 +1,52 @@
+RUST_BACKTRACE_ON=RUST_BACKTRACE=1
+CARGO_COMMAND=$(RUST_BACKTRACE_ON) cargo
+COMPILED_COMMAND=$(RUST_BACKTRACE_ON) ./target/debug/main
+
+GROUP=P384
+MAX_EVALS=10
+N=3
+
+GROUP_ARG=--group=$(GROUP)
+N_ARG=--n=$(N)
+MAX_EVALS_ARG=--max_evals=$(MAX_EVALS)
+VERIFIABLE_ARG=--verifiable=true
+CLIENT_MODE=--mode=client
+SERVER_MODE=--mode=server
+
+CLIENT_ARGS=$(GROUP_ARG) $(CLIENT_MODE) $(N_ARG)
+SERVER_ARGS=$(GROUP_ARG) $(SERVER_MODE) $(MAX_EVALS_ARG)
+
+ifdef VERIFIABLE
+CLIENT_ARGS+=$(VERIFIABLE_ARG) --pk=$(PUBLIC_KEY)
+SERVER_ARGS+=$(VERIFIABLE_ARG)
+endif
+
+ifdef TEST
+TEST_ARG=--test=$(TEST)
+CLIENT_ARGS=$(GROUP_ARG) $(CLIENT_MODE) $(VERIFIABLE_ARG) $(TEST_ARG)
+SERVER_ARGS=$(GROUP_ARG) $(SERVER_MODE) $(VERIFIABLE_ARG) $(TEST_ARG)
+endif
+
+.PHONY: build
+build:
+	$(CARGO_COMMAND) build
+
+.PHONY: test
+test:
+	$(CARGO_COMMAND) test
+
+.PHONY: bench
+bench:
+	$(CARGO_COMMAND) bench
+
+.PHONY: docs
+docs:
+	$(CARGO_COMMAND) doc --lib --open
+
+.PHONY: server
+server: build
+	$(COMPILED_COMMAND) $(SERVER_ARGS)
+
+.PHONY: client
+client: build
+	$(COMPILED_COMMAND) $(CLIENT_ARGS)

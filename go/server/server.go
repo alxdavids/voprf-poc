@@ -133,6 +133,8 @@ func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) (map[string][
 	// if the ciphersuite is empty then just attempt to evaluate
 	ciph := params.Ciphersuite
 	if ciph != cfg.osrv.Ciphersuite().Name() {
+		fmt.Println(ciph)
+		fmt.Println(cfg.osrv.Ciphersuite().Name())
 		return nil, oerr.ErrJSONRPCInvalidMethodParams
 	}
 

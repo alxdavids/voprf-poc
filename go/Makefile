@@ -1,46 +1,51 @@
 TEST_FLAGS=./... -cover -count=1
 BENCH_FLAGS=$(TEST_FLAGS) -bench=.
-RUN_COMMAND=run main.go
+COMPILED=voprf-go
+BUILD_FLAGS=-o $(COMPILED)
 
-VERIFIABLE=false
-CURVE=P384
-SUFFIX=$(CURVE)-HKDF-SHA512-SSWU-RO
+# defaults
+GROUP=P384
+H2C=SSWU-RO
+ifeq ($(GROUP),curve448)
+H2C=ELL2-RO
+endif
+SUFFIX=$(GROUP)-HKDF-SHA512-$(H2C)
+MAX_EVALS=10
+N=3
 
-CIPHERSUITE=OPRF-$(SUFFIX)
+# check verifiability
+PREFIX=VOPRF
+ifndef VERIFIABLE
+ifndef TEST
+PREFIX=OPRF
+endif
+endif
+CIPHERSUITE=$(PREFIX)-$(SUFFIX)
 
-# client args
-N_EVALS=3
-OPRF_CLIENT_ARGS=--mode=client --n=$(N_EVALS) --ciph=$(CIPHERSUITE)
-CLIENT_ARGS=$(OPRF_CLIENT_ARGS)
+# args
+CIPHERSUITE_ARG=--ciph=$(CIPHERSUITE)
+MAX_EVALS_ARG=--max_evals=$(MAX_EVALS)
+N_ARG=--n=$(N)
+PK_ARG=--pk=$(PUBLIC_KEY)
+CLIENT_MODE=--mode=client
+SERVER_MODE=--mode=server
 
-# VOPRF args
-ifeq ($(VERIFIABLE),true)
-CIPHERSUITE=VOPRF-$(SUFFIX)
-CLIENT_ARGS+=--pk=$(PUBLIC_KEY)
+CLIENT_ARGS=$(CLIENT_MODE) $(N_ARG) $(CIPHERSUITE_ARG)
+SERVER_ARGS=$(SERVER_MODE) $(MAX_EVALS_ARG) $(CIPHERSUITE_ARG)
+
+ifdef VERIFIABLE
+CLIENT_ARGS+=$(PK_ARG)
 endif
 
-# server args
-MAX_EVALS=10
-SERVER_ARGS=--mode=server --max_evals=$(MAX_EVALS) --ciph=$(CIPHERSUITE)
+ifdef TEST
+TEST_ARG=--test=$(TEST)
+CLIENT_ARGS=$(CLIENT_MODE) $(CIPHERSUITE_ARG) $(TEST_ARG)
+SERVER_ARGS=$(SERVER_MODE) $(CIPHERSUITE_ARG) $(TEST_ARG)
+endif
 
-CLIENT_TV_ARGS=--mode=client --ciph=$(CIPHERSUITE) --test=$(TV_IDX)
-SERVER_TV_ARGS=--mode=server --max_evals=10 --ciph=$(CIPHERSUITE) --test=$(TV_IDX)
-
-.PHONY: server
-server:
-	go $(RUN_COMMAND) $(SERVER_ARGS)
-
-.PHONY: client
-client:
-	go $(RUN_COMMAND) $(CLIENT_ARGS)
-
-.PHONY: server-tv
-server-tv:
-	go $(RUN_COMMAND) $(SERVER_TV_ARGS)
-
-.PHONY: client-tv
-client-tv:
-	go $(RUN_COMMAND) $(CLIENT_TV_ARGS)
+.PHONY: build
+build:
+	go build $(BUILD_FLAGS)
 
 .PHONY: test
 test:
@@ -49,3 +54,15 @@ test:
 .PHONY: bench
 bench:
 	go test $(BENCH_FLAGS)
+
+.PHONY: docs
+docs:
+	./docs.sh
+
+.PHONY: server
+server: build
+	./$(COMPILED) $(SERVER_ARGS)
+
+.PHONY: client
+client: build
+	./$(COMPILED) $(CLIENT_ARGS)

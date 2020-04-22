@@ -22,7 +22,7 @@ func main() {
 	flag.StringVar(&mode, "mode", "", "Specifies which mode to run in, options: (client|server).")
 	flag.StringVar(&ciphersuite, "ciph", validP384Ciphersuite, "Specifies the VOPRF ciphersuite to use.")
 	flag.StringVar(&clientOutFolder, "out_folder", "", "Specifies an output folder to write files containing the client's stored variables after invocation. If left empty, output is written to console.")
-	flag.IntVar(&max, "max_evals", 1, "Specifies the maximum number of OPRF evaluations that are permitted by the server")
+	flag.IntVar(&max, "max_evals", 10, "Specifies the maximum number of OPRF evaluations that are permitted by the server")
 	flag.IntVar(&n, "n", 1, "Specifies the number of OPRF evaluations to be attempted by the client")
 	flag.StringVar(&pk, "pk", "not_set", "Specifies a hex-encoded public key for use by the client when verifying server messages (client)")
 	flag.IntVar(&test, "test", -1, "This flag specifies a client running mode that uses fixed test vector input from testdata/test-vectors.json. The int value provided corresponds to the index of the vector that is used.")
