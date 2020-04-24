@@ -193,6 +193,9 @@ type PrimeOrderGroup interface {
 	// Samples a random scalar value from the field of scalars defined by the
 	// group order.
 	UniformFieldElement() (*big.Int, error)
+
+	// Casts a scalar for the given group to the correct number of bytes
+	ScalarToBytes(*big.Int) []byte
 }
 
 // GroupElement is the interface that represents group elements in a given

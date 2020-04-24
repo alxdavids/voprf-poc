@@ -41,7 +41,6 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 		gc.ops = p384.P384()
 		curve := gc.ops
 		gc.encoding = "weier"
-		gc.byteLength = (curve.Params().BitSize + 7) / 8
 		gc.consts.a = constants.MinusThree
 		gc.consts.b = curve.Params().B
 		gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Two, curve.Params().P)), curve.Params().P)
@@ -50,7 +49,6 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 		gc.ops = elliptic.P521()
 		curve := gc.ops
 		gc.encoding = "weier"
-		gc.byteLength = (curve.Params().BitSize + 7) / 8
 		gc.consts.a = constants.MinusThree
 		gc.consts.b = curve.Params().B
 		gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Two, curve.Params().P)), curve.Params().P)
@@ -59,7 +57,6 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 		gc.ops = p448.Curve448()
 		curve := gc.ops
 		gc.encoding = "mont"
-		gc.byteLength = (curve.Params().BitSize + 7) / 8
 		gc.consts.a = curve.Params().B // Alex: p448 implementation mis-uses this const
 		gc.consts.b = constants.One
 		gc.consts.isSqExp = new(big.Int).Rsh(new(big.Int).Sub(curve.Params().P, constants.One), 1)
@@ -67,6 +64,7 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 	default:
 		return nil, oerr.ErrUnsupportedGroup
 	}
+	gc.byteLength = (gc.ops.Params().BitSize + 7) / 8
 	gc.name = name
 	gc.hash = sha512.New()
 	gc.ee = utils.HKDFExtExp{}
@@ -150,6 +148,19 @@ func (c GroupCurve) UniformFieldElement() (*big.Int, error) {
 	}
 
 	return new(big.Int).SetBytes(buf), nil
+}
+
+// ScalarToBytes takes a valid scalar representation and transforms it
+// into a sequence of bytes of the correct length for the curve
+// implementing the group.
+func (c GroupCurve) ScalarToBytes(x *big.Int) []byte {
+	length := c.ByteLength()
+	bytes := x.Bytes()
+	if len(bytes) < length {
+		arr := make([]byte, length-len(bytes))
+		bytes = append(arr, bytes...)
+	}
+	return bytes
 }
 
 // Name returns the name of the elliptic curve that is being used (e.g. P384).
@@ -238,7 +249,7 @@ func (p Point) ScalarMult(k *big.Int) (gg.GroupElement, error) {
 		return nil, oerr.ErrInvalidGroupElement
 	}
 
-	p.X, p.Y = curve.ops.ScalarMult(p.X, p.Y, k.Bytes())
+	p.X, p.Y = curve.ops.ScalarMult(p.X, p.Y, p.pog.ScalarToBytes(k))
 	return p, nil
 }
 

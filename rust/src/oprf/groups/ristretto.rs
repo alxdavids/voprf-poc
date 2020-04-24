@@ -263,7 +263,7 @@ mod tests {
         let mut ser: Vec<u8> = Vec::new();
         (pog.serialize)(&(pog.random_element)(), true, &mut ser);
         // modify the buffer
-        ser[0] = ser[0]+2;
+        ser[0] = ser[0]+3;
         ser[1] = ser[1]+1;
         ser[2] = ser[2]+1;
         ser[3] = ser[3]+1;
