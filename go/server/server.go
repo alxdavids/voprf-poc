@@ -91,7 +91,7 @@ func (cfg *Config) ListenAndServe() error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Secret key: %s\n", hex.EncodeToString(sk.K.Bytes()))
+	fmt.Printf("Secret key: %s\n", hex.EncodeToString(cfg.osrv.Ciphersuite().POG().ScalarToBytes(sk.K)))
 	fmt.Printf("Public key: %s\n", hex.EncodeToString(ser))
 	// run server
 	for {
@@ -207,7 +207,7 @@ func (cfg *Config) processEval(params []string) (map[string][][]byte, error) {
 		c := eval.Proof.C
 		s := eval.Proof.S
 		t := new(big.Int).Mod(new(big.Int).Add(s, new(big.Int).Mul(c, k)), pog.Order())
-		fmt.Println("DLEQ scalar t:", hex.EncodeToString(t.Bytes()))
+		fmt.Println("DLEQ scalar t:", hex.EncodeToString(pog.ScalarToBytes(t)))
 	}
 
 	// serialize output group elements

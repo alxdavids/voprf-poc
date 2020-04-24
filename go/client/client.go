@@ -210,7 +210,8 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 		if err != nil {
 			return nil, oprf.Evaluation{}, err
 		}
-		ev.Proof = dleq.Proof{C: new(big.Int).SetBytes(cBytes), S: new(big.Int).SetBytes(sBytes)}
+		var proofBytes = [][]byte{cBytes, sBytes}
+		ev.Proof = dleq.Proof{}.Deserialize(pog, proofBytes)
 	}
 
 	// run the unblinding steps
@@ -296,7 +297,7 @@ func (cfg *Config) SetPublicKey(pk string) error {
 func (cfg *Config) PrintStorage() error {
 	var bufBlinds [][]byte
 	for _, v := range storedBlinds {
-		bufBlinds = append(bufBlinds, v.Bytes())
+		bufBlinds = append(bufBlinds, cfg.ocli.Ciphersuite().POG().ScalarToBytes(v))
 	}
 
 	// construct output strings

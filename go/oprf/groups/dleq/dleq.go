@@ -13,6 +13,7 @@ import (
 // Proof corresponds to the DLEQ proof object that is used to prove that the
 // server has correctly evaluated the random function during VOPRF evaluation
 type Proof struct {
+	pog  gg.PrimeOrderGroup
 	C, S *big.Int
 }
 
@@ -50,7 +51,7 @@ func FixedGenerate(pog gg.PrimeOrderGroup, h3 hash.Hash, h5 utils.ExtractorExpan
 	n := pog.(ecgroup.GroupCurve).Order()
 	s := new(big.Int).Sub(t, ck)
 
-	return Proof{C: c.Mod(c, n), S: s.Mod(s, n)}, nil
+	return Proof{pog: pog, C: c.Mod(c, n), S: s.Mod(s, n)}, nil
 }
 
 // BatchGenerate generates a batched DLEQ proof evaluated over multiple values
@@ -136,13 +137,13 @@ func (proof Proof) BatchVerify(pog gg.PrimeOrderGroup, h3, h4 hash.Hash, h5 util
 
 // Serialize takes the values of the proof object and converts them into bytes
 func (proof Proof) Serialize() [][]byte {
-	return [][]byte{proof.C.Bytes(), proof.S.Bytes()}
+	return [][]byte{proof.pog.ScalarToBytes(proof.C), proof.pog.ScalarToBytes(proof.S)}
 }
 
 // Deserialize takes the provided bytes and converts them into a valid Proof
 // object
-func (proof Proof) Deserialize(proofBytes [][]byte) Proof {
-	return Proof{C: new(big.Int).SetBytes(proofBytes[0]), S: new(big.Int).SetBytes(proofBytes[1])}
+func (proof Proof) Deserialize(pog gg.PrimeOrderGroup, proofBytes [][]byte) Proof {
+	return Proof{pog: pog, C: new(big.Int).SetBytes(proofBytes[0]), S: new(big.Int).SetBytes(proofBytes[1])}
 }
 
 // computeSeed constructs the initial seed that is used for constructing and
