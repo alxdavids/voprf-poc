@@ -25,9 +25,8 @@ We support some subset of the available VOPRF functionality in the
 following languages:
 
 - [go](go/): A golang v1.12 implementation
-- [rust](rust/): A rust 1.40.0 implementation based on a fork of
-  [*ring*](https://github.com/alxdavids/ring-ecc/) for performing ECC
-  operations.
+- [rust](rust/): A rust 1.40.0 implementation based on the 
+  [redox-ecc](https://github.com/armfazh/redox-ecc/) crate.
 
 All available VOPRF implementations provide interoperable HTTP server &
 client binaries that can be used to perform the (V)OPRF protocol in the
