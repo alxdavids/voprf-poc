@@ -12,6 +12,16 @@ A [rust](https://www.rust-lang.org/) implementation of the VOPRF protocol in
   - [Generate test vectors](#generate-test-vectors)
   - [Supported ciphersuites](#supported-ciphersuites)
 
+## Clone
+
+Run:
+
+```
+git clone git@github.com:alxdavids/voprf-poc.git
+git submodule init --update --recursive
+cf voprf-poc/rust
+```
+
 ## Build
 
 Run:
