@@ -18,8 +18,8 @@ Run:
 
 ```
 git clone git@github.com:alxdavids/voprf-poc.git
-git submodule init --update --recursive
-cf voprf-poc/rust
+cd voprf-poc/rust
+git submodule update --init --recursive
 ```
 
 ## Build
