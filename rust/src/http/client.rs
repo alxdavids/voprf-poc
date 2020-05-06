@@ -500,7 +500,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "No such file or directory")]
     fn init_voprf_c448_tv() {
         let pog = PrimeOrderGroup::<MPoint,Sha512>::c448();
         init(pog, "VOPRF-curve448-HKDF-SHA512-ELL2-RO", None, true, 1);
@@ -554,6 +553,9 @@ mod tests {
                         },
                         GroupID::P521 => {
                             assert_eq!(tv.pub_key, "03013c276714a1b26b857a61c066246d8ae155b29b98c66ab6c10996e23199272a132ceb0bdba4d1423792720d9c67f9fff86a22f613e7eba65b04ce6911513d2252ec".to_string());
+                        },
+                        GroupID::Curve448 => {
+                            assert_eq!(tv.pub_key, "0217cfd936ef2011354cc81fbd62dc3423cf0a5fa8eafe859f29f20a57f715b5d9e02d0ca11979b8acbfcf2f1488e7b12dd89ca77e45dd92f5".to_string());
                         },
                         _ => panic!("Unsupported group")
                     }

@@ -426,7 +426,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "No such file or directory")]
     fn init_voprf_c448_tv() {
         let pog = PrimeOrderGroup::<MPoint,Sha512>::c448();
         init(pog, "VOPRF-curve448-HKDF-SHA512-ELL2-RO", true, 1);
@@ -466,6 +465,11 @@ mod tests {
                             assert_eq!(tv.key, "c158c753df6d52138f2dc5e64f97e5c7fe79cc8d7221fd902e3985eecc3c088c8361fa828b857253bfdbff493aaa0ba9f778e8d7c61df6f322da2bae44693c17d2".to_string());
                             assert_eq!(tv.pub_key, "03013c276714a1b26b857a61c066246d8ae155b29b98c66ab6c10996e23199272a132ceb0bdba4d1423792720d9c67f9fff86a22f613e7eba65b04ce6911513d2252ec".to_string());
                             assert_eq!(tv.dleq_scalar, "01dd8eaa7063373873017281198537cf59b3bcbc4738e35d124a09ddd7ca2929af0bad76d1ee3e826030b93b411abe238ff2d8dfff777db422233ff5731b8dc14500".to_string());
+                        },
+                        GroupID::Curve448 => {
+                            assert_eq!(tv.key, "0838e8b863565e915fad2bc3842a50b9aa012b0015b4ae69f8c1acc46b0d70381dd70a73a886b5047da228e55db4f61aca1ba87d45b22dd7".to_string());
+                            assert_eq!(tv.pub_key, "0217cfd936ef2011354cc81fbd62dc3423cf0a5fa8eafe859f29f20a57f715b5d9e02d0ca11979b8acbfcf2f1488e7b12dd89ca77e45dd92f5".to_string());
+                            assert_eq!(tv.dleq_scalar, "1773c846d68b49a8dc81ba9fe52332f7fe7153df5c51ed423b2f6b9941db941feb0c4d1088deb025f78acfc4e43be8922b582225f21cab99".to_string());
                         },
                         _ => panic!("Unsupported group")
                     }
