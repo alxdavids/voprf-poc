@@ -142,7 +142,7 @@ Starts a client that communicates with a running (V)OPRF server (default port 30
 - Run client (VOPRF):
 
     ```
-    cargo run -- --group=<group_name> --mode=client --verifiable --pk=<public_key>
+    make client GROUP=<group> VERIFIABLE=1
     ```
 
   - Expected output (VOPRF):
@@ -180,7 +180,7 @@ Starts a client that communicates with a running (V)OPRF server (default port 30
       ***********
       ```
 
-## Generate test vectors
+## Running test vectors
 
 Run the server & client above, with an additional flag `TEST=<value>`
 where `<value>` corresponds to the index of the test vector that is
