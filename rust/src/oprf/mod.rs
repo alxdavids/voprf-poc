@@ -475,6 +475,9 @@ mod tests {
     use curve25519_dalek::ristretto::RistrettoPoint;
     use super::groups::p384::NistPoint;
     use sha2::Sha512;
+    use std::fs;
+    use serde::Deserialize;
+    use super::groups::redox_ecc::{WPoint,MPoint};
 
     #[test]
     fn end_to_end_oprf_ristretto() {
@@ -578,6 +581,130 @@ mod tests {
         };
 
         end_to_end_batch_voprf(srv, cli, pog, ciph)
+    }
+
+    #[derive(Clone, Deserialize, Debug)]
+    struct TestVector {
+        key: String,
+        pub_key: String,
+        inputs: Vec<String>,
+        blinds: Vec<String>,
+        dleq_scalar: String,
+        expected: Expected
+    }
+
+    #[derive(Clone, Deserialize, Debug)]
+    struct Expected {
+        outputs: Vec<String>,
+        proof: (String, String)
+    }
+
+    #[test]
+    fn end_to_end_batch_voprf_c448() {
+        let tvs = read_test_vectors("VOPRF-curve448-HKDF-SHA512-ELL2-RO");
+
+        for tv in tvs {
+            let pog = PrimeOrderGroup::<MPoint,Sha512>::c448();
+            let ciph = Ciphersuite::<MPoint,Sha512>::new(pog.clone(), true);
+            let mut srv = Server::<MPoint,Sha512>::setup(ciph.clone());
+            srv.set_key(hex::decode(&tv.key).unwrap());
+            let cli = match Client::<MPoint,Sha512>::setup(ciph.clone(), Some(srv.key.pub_key(&pog))) {
+                Ok(c) => c,
+                Err(e) => panic!(e),
+            };
+            batch_oprf_on_testvector::<MPoint, Sha512>(tv, srv, cli);
+        }
+    }
+
+    #[test]
+    fn end_to_end_batch_voprf_p384() {
+        let tvs = read_test_vectors("VOPRF-P384-HKDF-SHA512-SSWU-RO");
+
+        for tv in tvs {
+            let pog = PrimeOrderGroup::<WPoint,Sha512>::p384();
+            let ciph = Ciphersuite::<WPoint,Sha512>::new(pog.clone(), true);
+            let mut srv = Server::<WPoint,Sha512>::setup(ciph.clone());
+            srv.set_key(hex::decode(&tv.key).unwrap());
+            let cli = match Client::<WPoint,Sha512>::setup(ciph.clone(), Some(srv.key.pub_key(&pog))) {
+                Ok(c) => c,
+                Err(e) => panic!(e),
+            };
+            batch_oprf_on_testvector::<WPoint, Sha512>(tv, srv, cli);
+        }
+    }
+
+    #[test]
+    fn end_to_end_batch_voprf_p521() {
+        let tvs = read_test_vectors("VOPRF-P521-HKDF-SHA512-SSWU-RO");
+
+        for tv in tvs {
+            let pog = PrimeOrderGroup::<WPoint,Sha512>::p521();
+            let ciph = Ciphersuite::<WPoint,Sha512>::new(pog.clone(), true);
+            let mut srv = Server::<WPoint,Sha512>::setup(ciph.clone());
+            srv.set_key(hex::decode(&tv.key).unwrap());
+            let cli = match Client::<WPoint,Sha512>::setup(ciph.clone(), Some(srv.key.pub_key(&pog))) {
+                Ok(c) => c,
+                Err(e) => panic!(e),
+            };
+            batch_oprf_on_testvector::<WPoint, Sha512>(tv, srv, cli);
+        }
+    }
+
+    fn read_test_vectors(name: &str) -> Vec<TestVector> {
+        serde_json::from_str(&fs::read_to_string(
+            format!("../test-vectors/{}.json", name)
+            ).unwrap()).unwrap()
+    }
+
+    fn batch_oprf_on_testvector<T, H>(tv: TestVector, srv: Server<T,H>, cli: Client<T,H>)
+        where  Input<T>: Clone, Evaluation<T>: Clone, T: Clone, H: Clone
+                + digest::BlockInput + digest::FixedOutput + digest::Input
+                + digest::Reset + std::default::Default,
+                PrimeOrderGroup<T, H>: Supported, Client<T,H>: Clone {
+        // generate blinded input
+        let mut blinded_inputs: Vec<Input<T>> = Vec::new();
+        for (input, blind) in tv.inputs.into_iter().zip(tv.blinds) {
+            let input = hex::decode(input).unwrap();
+            let blind = hex::decode(blind).unwrap();
+            let blinded_input = cli.blind_fixed(&input, &blind);
+            blinded_inputs.push(Input{
+                data: input,
+                elem: blinded_input,
+                blind: blind
+            });
+        }
+
+        // eval
+        let mut input_elems = Vec::new();
+        for input in &blinded_inputs {
+            input_elems.push(input.elem.clone());
+        }
+        let eval = srv.fixed_eval(&input_elems, &hex::decode(tv.dleq_scalar).unwrap());
+        if let Some(d) = &eval.proof {
+            assert_eq!(d.len(), 2)
+        } else {
+            panic!("a proof should have been provided")
+        }
+
+        let aux_data: &str = "oprf_finalization_step";
+
+        // unblind
+        let mut outputs: Vec<String> = Vec::new();
+        match cli.unblind(&blinded_inputs, &eval) {
+            Ok(u) => {
+                // finalize
+                for i in 0..blinded_inputs.len() {
+                    let input_data = &blinded_inputs[i].data;
+                    let out = cli.finalize(&input_data, &u[i], &aux_data.as_bytes()).expect("Error in finalizing");
+                    outputs.push(hex::encode(out));
+                }
+            },
+            Err(e) => panic!(e)
+        };
+
+        let proof = &eval.proof.unwrap();
+        assert_eq!(tv.expected.outputs, outputs);
+        assert_eq!(tv.expected.proof, (hex::encode(&proof[0]), hex::encode(&proof[1])));
     }
 
     fn end_to_end_oprf<T,H>(srv: Server<T,H>, cli: Client<T,H>, pog: PrimeOrderGroup<T,H>, ciph: Ciphersuite<T,H>)
