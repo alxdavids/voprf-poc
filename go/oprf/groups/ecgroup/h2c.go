@@ -31,9 +31,8 @@ func (h hasher2point) Hash(msg []byte) (Point, error) {
 	return P, nil
 }
 
-func getH2CSuite(gc GroupCurve) (HashToPoint, error) {
+func getH2CSuiteWithDST(gc GroupCurve, dst []byte) (HashToPoint, error) {
 	var suite h2c.SuiteID
-	var err error
 	switch gc.Name() {
 	case "P-384":
 		suite = h2c.P384_XMDSHA512_SSWU_RO_
@@ -44,11 +43,27 @@ func getH2CSuite(gc GroupCurve) (HashToPoint, error) {
 	default:
 		return nil, oerr.ErrUnsupportedGroup
 	}
-	dst := append([]byte("RFCXXXX-VOPRF-"), suite...)
 	hasher, err := suite.Get(dst)
 	if err != nil {
 		return nil, err
 	}
 
 	return hasher2point{gc, hasher, dst}, nil
+}
+
+func getH2CSuite(gc GroupCurve) (HashToPoint, error) {
+	var suite h2c.SuiteID
+	switch gc.Name() {
+	case "P-384":
+		suite = h2c.P384_XMDSHA512_SSWU_RO_
+	case "P-521":
+		suite = h2c.P521_XMDSHA512_SSWU_RO_
+	case "curve-448":
+		suite = h2c.Curve448_XMDSHA512_ELL2_RO_
+	default:
+		return nil, oerr.ErrUnsupportedGroup
+	}
+
+	dst := []byte("RFCXXXX-VOPRF-" + suite)
+	return getH2CSuiteWithDST(gc, dst)
 }

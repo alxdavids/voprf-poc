@@ -3,8 +3,12 @@ github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 h1:w1UutsfOrms1J05zt7I
 github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412/go.mod h1:WPjqKcmVOxf0XSf3YxCJs6N6AOSrOx3obionmG7T0y0=
 github.com/armfazh/h2c-go-ref v0.0.0-20200318224313-763912060962 h1:j5zM1qsdf7P+ahT2mvz7ZzqtvyO5DLy0PPxZTyD7d9w=
 github.com/armfazh/h2c-go-ref v0.0.0-20200318224313-763912060962/go.mod h1:c+M7p/g/wcOuA3JL3iSovqQzuGPKey72kVfLIJkSsko=
+github.com/armfazh/h2c-go-ref v0.0.0-20200603094401-c69caec07161 h1:Dihfe8J7R4gJysNz2ErbzvjLqwGemh8alC5QxFDtPLc=
+github.com/armfazh/h2c-go-ref v0.0.0-20200603094401-c69caec07161/go.mod h1:pwAx19BU0bYSvNPzr9zeLxHWNz4vQlrfs9gKCBxtN24=
 github.com/armfazh/tozan-ecc v0.1.0 h1:CqVEdjUATWi09ZDTS5RfP1amGQbEjD7jieD5P39NsBQ=
 github.com/armfazh/tozan-ecc v0.1.0/go.mod h1:u25eZC5Z8uJFQxJxGBz1Blfii/7m3DfmwX0vFnwtG9I=
+github.com/armfazh/tozan-ecc v0.1.1 h1:t22NORZiIzJOUdNN/bKdRJpfZOSLohoCSUkivm6+hIE=
+github.com/armfazh/tozan-ecc v0.1.1/go.mod h1:u25eZC5Z8uJFQxJxGBz1Blfii/7m3DfmwX0vFnwtG9I=
 github.com/awnumar/memcall v0.0.0-20191004114545-73db50fd9f80/go.mod h1:S911igBPR9CThzd/hYQQmTc9SWNu3ZHIlCGaWsWsoJo=
 github.com/awnumar/memguard v0.21.0/go.mod h1:+ejY3DekvjnDWBXHwL5xB5p4Il77kDsrIz+UOUNrm2Q=
 github.com/cloudflare/circl v1.0.0 h1:64b6pyfCFbYm623ncIkYGNZaOcmIbyd+CjyMi2L9vdI=
@@ -37,6 +41,8 @@ golang.org/x/crypto v0.0.0-20200117160349-530e935923ad h1:Jh8cai0fqIK+f6nG0UgPW5
 golang.org/x/crypto v0.0.0-20200117160349-530e935923ad/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/crypto v0.0.0-20200317142112-1b76d66859c6 h1:TjszyFsQsyZNHwdVdZ5m7bjmreu0znc2kRYsEml9/Ww=
 golang.org/x/crypto v0.0.0-20200317142112-1b76d66859c6/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+golang.org/x/crypto v0.0.0-20200602180216-279210d13fed h1:g4KENRiCMEx58Q7/ecwfT0N2o8z35Fnbsjig/Alf2T4=
+golang.org/x/crypto v0.0.0-20200602180216-279210d13fed/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f/go.mod h1:5qLYkcX4OjUUV8bRuDixDT3tpyyb+LUpUlRWLxfhWrs=
 golang.org/x/mod v0.0.0-20190513183733-4bf6d317e70e/go.mod h1:mXi4GBBbnImb6dmsKGUJ2LatrhH/nqhxcFungHvyanc=
 golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee/go.mod h1:QqPTAvyqsEbceGzBzNggFXnrqF1CaUcvgkdR5Ot7KZg=
@@ -54,6 +60,8 @@ golang.org/x/sys v0.0.0-20191127021746-63cb32ae39b2/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.0.0-20200117145432-59e60aa80a0c/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200317113312-5766fd39f98d h1:62ap6LNOjDU6uGmKXHJbSfciMoV+FeI1sRXx/pLDL44=
 golang.org/x/sys v0.0.0-20200317113312-5766fd39f98d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20200602225109-6fdc65e7d980 h1:OjiUf46hAmXblsZdnoSXsEUSKU8r1UEzcL5RVZ4gO9Y=
+golang.org/x/sys v0.0.0-20200602225109-6fdc65e7d980/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/tools v0.0.0-20190621195816-6e04913cbbac/go.mod h1:/rFqwRUd4F7ZHNgwSSTFct+R/Kf4OFW1sUzUTQQTgfc=
 golang.org/x/tools v0.0.0-20191017151554-a3bc800455d5/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=

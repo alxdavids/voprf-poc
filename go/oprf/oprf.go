@@ -1,6 +1,7 @@
 package oprf
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"math/big"
@@ -156,9 +157,9 @@ func (s Server) voprfEval(batchM []gg.GroupElement) (Evaluation, error) {
 	sk := s.SecretKey()
 	var proof dleq.Proof
 	if len(batchM) == 1 {
-		proof, err = dleq.Generate(ciph.POG(), ciph.H3(), ciph.H5(), sk.K, sk.PubKey, batchM[0], batchZ[0])
+		proof, err = dleq.Generate(ciph.POG(), ciph.H2(), ciph.H3(), sk.K, sk.PubKey, batchM[0], batchZ[0])
 	} else {
-		proof, err = dleq.BatchGenerate(ciph.POG(), ciph.H3(), ciph.H4(), ciph.H5(), sk.K, sk.PubKey, batchM, batchZ)
+		proof, err = dleq.BatchGenerate(ciph.POG(), ciph.H2(), ciph.H3(), sk.K, sk.PubKey, batchM, batchZ)
 	}
 	if err != nil {
 		return Evaluation{}, err
@@ -183,9 +184,9 @@ func (s Server) voprfFixedEval(batchM []gg.GroupElement, tDleq string) (Evaluati
 	}
 	var proof dleq.Proof
 	if len(batchM) == 1 {
-		proof, err = dleq.FixedGenerate(ciph.POG(), ciph.H3(), ciph.H5(), sk.K, sk.PubKey, batchM[0], batchZ[0], t)
+		proof, err = dleq.FixedGenerate(ciph.POG(), ciph.H2(), ciph.H3(), sk.K, sk.PubKey, batchM[0], batchZ[0], t)
 	} else {
-		proof, err = dleq.FixedBatchGenerate(ciph.POG(), ciph.H3(), ciph.H4(), ciph.H5(), sk.K, sk.PubKey, batchM, batchZ, t)
+		proof, err = dleq.FixedBatchGenerate(ciph.POG(), ciph.H2(), ciph.H3(), sk.K, sk.PubKey, batchM, batchZ, t)
 	}
 	if err != nil {
 		return Evaluation{}, err
@@ -239,36 +240,43 @@ func (c Client) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participa
 // Blind samples a new random blind value from ZZp and returns P=r*T where T is
 // the representation of the input bytes x in the group pog.
 func (c Client) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
+	P, _, r, err := c.BlindInternal(x)
+	return P, r, err
+}
+
+// BlindInternal samples a new random blind value from ZZp and returns P=r*T and T, where T
+// is the representation of the input bytes x in the group pog.
+func (c Client) BlindInternal(x []byte) (gg.GroupElement, gg.GroupElement, *big.Int, error) {
 	pog := c.ciph.POG()
 
 	// sample a random blind
 	r, err := pog.UniformFieldElement()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// compute blinded group element
-	P, err := c.BlindFixed(x, r)
-	return P, r, nil
+	P, T, err := c.BlindFixed(x, r)
+	return P, T, r, nil
 }
 
 // BlindFixed performs the actual blinding, with the blinding value specified as
 // a fixed parameter.
-func (c Client) BlindFixed(x []byte, blind *big.Int) (gg.GroupElement, error) {
+func (c Client) BlindFixed(x []byte, blind *big.Int) (gg.GroupElement, gg.GroupElement, error) {
 	pog := c.Ciphersuite().POG()
 
 	// encode bytes to group
 	T, err := pog.EncodeToGroup(x)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// compute blinded group element
 	P, err := T.ScalarMult(blind)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return P, nil
+	return P, T, nil
 }
 
 // Unblind returns the unblinded group element N = r^{-1}*Z if the DLEQ proof
@@ -293,9 +301,9 @@ func (c Client) voprfUnblind(ev Evaluation, origs []gg.GroupElement, blinds []*b
 	// check DLEQ proof
 	b := false
 	if len(eles) == 1 {
-		b = proof.Verify(ciph.POG(), ciph.H3(), ciph.H5(), c.PublicKey(), origs[0], eles[0])
+		b = proof.Verify(ciph.POG(), ciph.H2(), ciph.H3(), c.PublicKey(), origs[0], eles[0])
 	} else {
-		b = proof.BatchVerify(ciph.POG(), ciph.H3(), ciph.H4(), ciph.H5(), c.PublicKey(), origs, eles)
+		b = proof.BatchVerify(ciph.POG(), ciph.H2(), ciph.H3(), c.PublicKey(), origs, eles)
 	}
 	if !b {
 		return nil, oerr.ErrClientVerification
@@ -321,34 +329,47 @@ func (c Client) oprfUnblind(ev Evaluation, blinds []*big.Int) ([]gg.GroupElement
 	return res, nil
 }
 
-// Finalize constructs the final client output from the OPRF protocol
-func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
-	ciph := c.ciph
-	DST := []byte("oprf_derive_output")
+func (c Client) CreateFinalizeInput(N gg.GroupElement, x, aux []byte) ([]byte, error) {
+	DST := []byte("RFCXXXX-Finalize")
 
-	// derive shared key
-	hmacShared := (c.ciph.H2())(ciph.H3, DST)
+	buffer := make([]byte, 0)
+	lengthBuffer := make([]byte, 2)
+
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(DST)))
+	buffer = append(buffer, lengthBuffer...)
+	buffer = append(buffer, DST...)
+
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(x)))
+	buffer = append(buffer, lengthBuffer...)
+	buffer = append(buffer, x...)
+
 	bytesN, err := N.Serialize()
 	if err != nil {
 		return nil, err
 	}
-	_, e := hmacShared.Write(x)
-	if e != nil {
-		return nil, oerr.ErrInternalInstantiation
-	}
-	_, e = hmacShared.Write(bytesN)
-	if e != nil {
-		return nil, oerr.ErrInternalInstantiation
-	}
-	dk := hmacShared.Sum(nil)
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(bytesN)))
+	buffer = append(buffer, lengthBuffer...)
+	buffer = append(buffer, bytesN...)
 
-	// derive output
-	hmacOut := (c.ciph.H2())(ciph.H3, dk)
-	_, e = hmacOut.Write(aux)
-	if e != nil {
-		return nil, oerr.ErrInternalInstantiation
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(aux)))
+	buffer = append(buffer, lengthBuffer...)
+	buffer = append(buffer, aux...)
+
+	return buffer, nil
+}
+
+// Finalize constructs the final client output from the OPRF protocol
+func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
+	ciph := c.ciph
+
+	hash := ciph.H1()
+	input, err := c.CreateFinalizeInput(N, x, aux)
+	if err != nil {
+		return nil, err
 	}
-	y := hmacOut.Sum(nil)
+	hash.Write(input)
+	y := hash.Sum(nil)
+
 	return y, nil
 }
 

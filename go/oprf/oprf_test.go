@@ -3,6 +3,7 @@ package oprf
 import (
 	"crypto/hmac"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"math/big"
 	"testing"
@@ -323,9 +324,9 @@ func checkServerEval(t *testing.T, validCiphersuite string, n int) {
 	if ciph.Verifiable() {
 		proof := ev.Proof
 		if n == 1 {
-			assert.True(t, proof.Verify(pog, ciph.H3(), ciph.H5(), s.SecretKey().PubKey, eles[0], ev.Elements[0]))
+			assert.True(t, proof.Verify(pog, ciph.H2(), ciph.H3(), s.SecretKey().PubKey, eles[0], ev.Elements[0]))
 		} else {
-			assert.True(t, proof.BatchVerify(pog, ciph.H3(), ciph.H4(), ciph.H5(), s.SecretKey().PubKey, eles, ev.Elements))
+			assert.True(t, proof.BatchVerify(pog, ciph.H2(), ciph.H3(), s.SecretKey().PubKey, eles, ev.Elements))
 		}
 	}
 }
@@ -378,20 +379,29 @@ func checkClientFinalize(t *testing.T, validCiphersuite string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	DST := []byte("oprf_derive_output")
-	hmacChk := hmac.New(c.Ciphersuite().H3, DST)
-	input := append(x, bytesP...)
-	_, e := hmacChk.Write(input)
-	if e != nil {
-		t.Fatal(e)
-	}
-	dk := hmacChk.Sum(nil)
-	hmacOutChk := hmac.New(c.Ciphersuite().H3, dk)
-	_, e = hmacOutChk.Write(aux)
-	if e != nil {
-		t.Fatal(e)
-	}
-	yChk := hmacOutChk.Sum(nil)
+	DST := []byte("RFCXXXX-Finalize")
+
+	hash := c.Ciphersuite().H3()
+	lengthBuffer := make([]byte, 2)
+
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(DST)))
+	hash.Write(lengthBuffer)
+	hash.Write(DST)
+
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(x)))
+	hash.Write(lengthBuffer)
+	hash.Write(x)
+
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(bytesP)))
+	hash.Write(lengthBuffer)
+	hash.Write(bytesP)
+
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(aux)))
+	hash.Write(lengthBuffer)
+	hash.Write(aux)
+
+	yChk := hash.Sum(nil)
+
 	if !hmac.Equal(y, yChk) {
 		t.Fatal("Finalize failed to produce the correct output")
 	}

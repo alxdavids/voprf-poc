@@ -13,6 +13,7 @@ import (
 )
 
 type hashToCurveTestVectors struct {
+	DST     string       `json:dst`
 	Vectors []testVector `json:"vectors"`
 }
 
@@ -28,7 +29,7 @@ type expectedPoint struct {
 
 func TestHashToCurveP384(t *testing.T) {
 	curve := initCurve(t, "P-384")
-	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/p384-sha512-sswu-ro-.json")
+	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/P384_XMD:SHA-512_SSWU_RO_.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +46,7 @@ func TestHashToCurveP384(t *testing.T) {
 
 func TestHashToCurveP521(t *testing.T) {
 	curve := initCurve(t, "P-521")
-	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/p521-sha512-sswu-ro-.json")
+	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/P521_XMD:SHA-512_SSWU_RO_.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +63,7 @@ func TestHashToCurveP521(t *testing.T) {
 
 func TestHashToCurve448(t *testing.T) {
 	curve := initCurve(t, "curve-448")
-	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/curve448-sha512-ell2-ro-.json")
+	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/curve448_XMD:SHA-512_ELL2_RO_.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +81,7 @@ func TestHashToCurve448(t *testing.T) {
 // performHashToCurve performs full hash-to-curve for each of the test inputs
 // and checks against expected responses
 func performHashToCurve(curve GroupCurve, testVectors hashToCurveTestVectors) error {
-	hasher, err := getH2CSuite(curve)
+	hasher, err := getH2CSuiteWithDST(curve, []byte(testVectors.DST))
 	if err != nil {
 		return err
 	}
