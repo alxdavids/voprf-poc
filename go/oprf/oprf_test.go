@@ -3,10 +3,10 @@ package oprf
 import (
 	"crypto/hmac"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"math/big"
 	"testing"
-	"encoding/binary"
 
 	"github.com/alxdavids/voprf-poc/go/oerr"
 	gg "github.com/alxdavids/voprf-poc/go/oprf/groups"
@@ -136,7 +136,7 @@ func TestServerBlind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, _, err = s.Blind([]byte{})
+	_, _, err = s.Blind([]byte{})
 	if err != oerr.ErrOPRFUnimplementedFunctionServer {
 		t.Fatal("Function should be unimplemented")
 	}
@@ -431,7 +431,7 @@ func checkFull(t *testing.T, validCiphersuite string, n int) {
 	for i := 0; i < n; i++ {
 		x := make([]byte, c.Ciphersuite().POG().ByteLength())
 		rand.Read(x)
-		P, _, r, err := c.Blind(x)
+		P, r, err := c.Blind(x)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -518,7 +518,7 @@ func clientSetupUnblind(validCiphersuite string, n int) (Client, Evaluation, [][
 	for i := 0; i < n; i++ {
 		x := make([]byte, pog.ByteLength())
 		rand.Read(x)
-		P, _, r, err := c.Blind(x)
+		P, r, err := c.Blind(x)
 		if err != nil {
 			return Client{}, Evaluation{}, nil, nil, nil, nil, err
 		}
@@ -763,7 +763,7 @@ func benchClientBlind(b *testing.B, validCiphersuite string) {
 
 	// benchmark
 	for i := 0; i < b.N; i++ {
-		_, _, _, err := c.Blind(x)
+		_, _, err := c.Blind(x)
 		if err != nil {
 			b.Fatal(err)
 		}

@@ -18,13 +18,13 @@ import (
 )
 
 var (
-	storedInputs       [][]byte
-	storedElements     []gg.GroupElement
-	storedBlinds       []*big.Int
-	storedEvaluation   oprf.Evaluation
-	storedFinalOutputs [][]byte
-	storedUnblindedElements [][]byte
-	storedFinalInputs [][]byte
+	storedInputs                 [][]byte
+	storedElements               []gg.GroupElement
+	storedBlinds                 []*big.Int
+	storedEvaluation             oprf.Evaluation
+	storedFinalOutputs           [][]byte
+	storedUnblindedElements      [][]byte
+	storedFinalInputs            [][]byte
 	storedUnblindedInputElements [][]byte
 )
 
@@ -162,7 +162,7 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 			blind = new(big.Int).SetBytes(bufBlind)
 			ge, gx, err = cfg.ocli.BlindFixed(buf, blind)
 		} else {
-			ge, gx, blind, err = cfg.ocli.Blind(buf)
+			ge, gx, blind, err = cfg.ocli.BlindInternal(buf)
 		}
 
 		if err != nil {

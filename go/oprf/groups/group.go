@@ -118,7 +118,7 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 func (c Ciphersuite) Name() string { return c.name }
 
 // H1 returns the hash1 function specified in Ciphersuite
-func (c Ciphersuite) H1() hash.Hash { 
+func (c Ciphersuite) H1() hash.Hash {
 	c.hash1.Reset()
 	return c.hash1
 }

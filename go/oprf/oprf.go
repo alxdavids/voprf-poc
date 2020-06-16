@@ -1,9 +1,9 @@
 package oprf
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/binary"
 	"math/big"
 
 	"github.com/alxdavids/voprf-poc/go/oerr"
@@ -74,7 +74,7 @@ func (ev Evaluation) ToJSON(verifiable bool) ([]byte, error) {
 type Participant interface {
 	Ciphersuite() gg.Ciphersuite
 	Setup(string, gg.PrimeOrderGroup) (Participant, error)
-	Blind([]byte) (gg.GroupElement, gg.GroupElement, *big.Int, error)
+	Blind([]byte) (gg.GroupElement, *big.Int, error)
 	Unblind(Evaluation, []gg.GroupElement, []*big.Int) ([]gg.GroupElement, error)
 	Eval([]gg.GroupElement) (Evaluation, error)
 	Finalize(gg.GroupElement, []byte, []byte) ([]byte, error)
@@ -196,8 +196,8 @@ func (s Server) voprfFixedEval(batchM []gg.GroupElement, tDleq string) (Evaluati
 }
 
 // Blind is unimplemented for the server
-func (s Server) Blind(x []byte) (gg.GroupElement, gg.GroupElement, *big.Int, error) {
-	return nil, nil, nil, oerr.ErrOPRFUnimplementedFunctionServer
+func (s Server) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
+	return nil, nil, oerr.ErrOPRFUnimplementedFunctionServer
 }
 
 // Unblind is unimplemented for the server
@@ -239,7 +239,14 @@ func (c Client) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participa
 
 // Blind samples a new random blind value from ZZp and returns P=r*T where T is
 // the representation of the input bytes x in the group pog.
-func (c Client) Blind(x []byte) (gg.GroupElement, gg.GroupElement, *big.Int, error) {
+func (c Client) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
+	P, _, r, err := c.BlindInternal(x)
+	return P, r, err
+}
+
+// Blind samples a new random blind value from ZZp and returns P=r*T where T is
+// the representation of the input bytes x in the group pog.
+func (c Client) BlindInternal(x []byte) (gg.GroupElement, gg.GroupElement, *big.Int, error) {
 	pog := c.ciph.POG()
 
 	// sample a random blind
