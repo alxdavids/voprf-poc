@@ -19,18 +19,18 @@ type Proof struct {
 
 // Generate constructs a new Proof object using a VOPRF secret key and the group
 // elements that were provided as input
-func Generate(pog gg.PrimeOrderGroup, h3 hash.Hash, h5 utils.ExtractorExpander, k *big.Int, Y, M, Z gg.GroupElement) (Proof, error) {
+func Generate(pog gg.PrimeOrderGroup, h2 utils.ExtractorExpander, h3 hash.Hash, k *big.Int, Y, M, Z gg.GroupElement) (Proof, error) {
 	t, err := pog.UniformFieldElement()
 	if err != nil {
 		return Proof{}, err
 	}
 
-	return FixedGenerate(pog, h3, h5, k, Y, M, Z, t)
+	return FixedGenerate(pog, h2, h3, k, Y, M, Z, t)
 }
 
 // FixedGenerate constructs a new Proof object with the random scalar t
 // explicitly generated
-func FixedGenerate(pog gg.PrimeOrderGroup, h3 hash.Hash, h5 utils.ExtractorExpander, k *big.Int, Y, M, Z gg.GroupElement, t *big.Int) (Proof, error) {
+func FixedGenerate(pog gg.PrimeOrderGroup, h2 utils.ExtractorExpander, h3 hash.Hash, k *big.Int, Y, M, Z gg.GroupElement, t *big.Int) (Proof, error) {
 	// A := tG, B := tM
 	A, err := pog.GeneratorMult(t)
 	if err != nil {
@@ -42,7 +42,7 @@ func FixedGenerate(pog gg.PrimeOrderGroup, h3 hash.Hash, h5 utils.ExtractorExpan
 	}
 
 	// compute hash output c
-	c, err := computeDleqChallenge(pog, h3, h5, pog.Generator(), Y, M, Z, A, B)
+	c, err := computeDleqChallenge(pog, h2, h3, pog.Generator(), Y, M, Z, A, B)
 	if err != nil {
 		return Proof{}, err
 	}
@@ -56,32 +56,32 @@ func FixedGenerate(pog gg.PrimeOrderGroup, h3 hash.Hash, h5 utils.ExtractorExpan
 
 // BatchGenerate generates a batched DLEQ proof evaluated over multiple values
 // of the form Z[i] = kM[i], wrt to the public key Y = kG
-func BatchGenerate(pog gg.PrimeOrderGroup, h3, h4 hash.Hash, h5 utils.ExtractorExpander, k *big.Int, Y gg.GroupElement, batchM, batchZ []gg.GroupElement) (Proof, error) {
+func BatchGenerate(pog gg.PrimeOrderGroup, h2 utils.ExtractorExpander, h3 hash.Hash, k *big.Int, Y gg.GroupElement, batchM, batchZ []gg.GroupElement) (Proof, error) {
 	// compute composite group elements
-	M, Z, err := batchComposites(pog, h4, h5, Y, batchM, batchZ)
+	M, Z, err := batchComposites(pog, h2, h3, Y, batchM, batchZ)
 	if err != nil {
 		return Proof{}, err
 	}
 
 	// generate DLEQ proof object
-	return Generate(pog, h3, h5, k, Y, M, Z)
+	return Generate(pog, h2, h3, k, Y, M, Z)
 }
 
 // FixedBatchGenerate generates a batched DLEQ proof with fixed proof generation
-func FixedBatchGenerate(pog gg.PrimeOrderGroup, h3, h4 hash.Hash, h5 utils.ExtractorExpander, k *big.Int, Y gg.GroupElement, batchM, batchZ []gg.GroupElement, t *big.Int) (Proof, error) {
+func FixedBatchGenerate(pog gg.PrimeOrderGroup, h2 utils.ExtractorExpander, h3 hash.Hash, k *big.Int, Y gg.GroupElement, batchM, batchZ []gg.GroupElement, t *big.Int) (Proof, error) {
 	// compute composite group elements
-	M, Z, err := batchComposites(pog, h4, h5, Y, batchM, batchZ)
+	M, Z, err := batchComposites(pog, h2, h3, Y, batchM, batchZ)
 	if err != nil {
 		return Proof{}, err
 	}
 
 	// generate DLEQ proof object
-	return FixedGenerate(pog, h3, h5, k, Y, M, Z, t)
+	return FixedGenerate(pog, h2, h3, k, Y, M, Z, t)
 }
 
 // Verify runs the DLEQ proof validation algorithm and returns a bool
 // indicating success or failure
-func (proof Proof) Verify(pog gg.PrimeOrderGroup, h3 hash.Hash, h5 utils.ExtractorExpander, Y, M, Z gg.GroupElement) bool {
+func (proof Proof) Verify(pog gg.PrimeOrderGroup, h2 utils.ExtractorExpander, h3 hash.Hash, Y, M, Z gg.GroupElement) bool {
 	// A = sG + cY
 	sG, err := pog.GeneratorMult(proof.S)
 	if err != nil {
@@ -110,7 +110,7 @@ func (proof Proof) Verify(pog gg.PrimeOrderGroup, h3 hash.Hash, h5 utils.Extract
 	}
 
 	// recompute hash output
-	c, err := computeDleqChallenge(pog, h3, h5, pog.Generator(), Y, M, Z, A, B)
+	c, err := computeDleqChallenge(pog, h2, h3, pog.Generator(), Y, M, Z, A, B)
 	if err != nil {
 		return false
 	}
@@ -124,15 +124,15 @@ func (proof Proof) Verify(pog gg.PrimeOrderGroup, h3 hash.Hash, h5 utils.Extract
 
 // BatchVerify verifies a batched DLEQ proof object over an array of
 // GroupElement objects of the form Zi = kMi where Y = kG.
-func (proof Proof) BatchVerify(pog gg.PrimeOrderGroup, h3, h4 hash.Hash, h5 utils.ExtractorExpander, Y gg.GroupElement, batchM, batchZ []gg.GroupElement) bool {
+func (proof Proof) BatchVerify(pog gg.PrimeOrderGroup, h2 utils.ExtractorExpander, h3 hash.Hash, Y gg.GroupElement, batchM, batchZ []gg.GroupElement) bool {
 	// compute composite group elements
-	M, Z, err := batchComposites(pog, h4, h5, Y, batchM, batchZ)
+	M, Z, err := batchComposites(pog, h2, h3, Y, batchM, batchZ)
 	if err != nil {
 		return false
 	}
 
 	// Verify standalone DLEQ proof object
-	return proof.Verify(pog, h3, h5, Y, M, Z)
+	return proof.Verify(pog, h2, h3, Y, M, Z)
 }
 
 // Serialize takes the values of the proof object and converts them into bytes
@@ -166,7 +166,7 @@ func computeSeed(pog gg.PrimeOrderGroup, h4 hash.Hash, Y gg.GroupElement, batchM
 
 // computeComposites constructs the composite GroupElement objects that are
 // used for generating and verifying a batched DLEQ proof
-func computeComposites(pog gg.PrimeOrderGroup, h4 hash.Hash, h5 utils.ExtractorExpander, seed []byte, batchM, batchZ []gg.GroupElement) (gg.GroupElement, gg.GroupElement, error) {
+func computeComposites(pog gg.PrimeOrderGroup, h2 utils.ExtractorExpander, h3 hash.Hash, seed []byte, batchM, batchZ []gg.GroupElement) (gg.GroupElement, gg.GroupElement, error) {
 	var M gg.GroupElement
 	var Z gg.GroupElement
 	ctr := 0
@@ -179,7 +179,7 @@ func computeComposites(pog gg.PrimeOrderGroup, h4 hash.Hash, h5 utils.ExtractorE
 		hkdfInp := append(ctrBytes, []byte("voprf_batch_dleq")...)
 
 		// sample coefficient and reject if it is too big
-		di := computeExpansion(pog, h4, h5, seed, hkdfInp)
+		di := computeExpansion(pog, h2, h3, seed, hkdfInp)
 		if di.Cmp(pog.Order()) > 0 {
 			i--
 			continue
@@ -215,12 +215,12 @@ func computeComposites(pog gg.PrimeOrderGroup, h4 hash.Hash, h5 utils.ExtractorE
 	return M, Z, nil
 }
 
-func batchComposites(pog gg.PrimeOrderGroup, h4 hash.Hash, h5 utils.ExtractorExpander, Y gg.GroupElement, batchM, batchZ []gg.GroupElement) (gg.GroupElement, gg.GroupElement, error) {
-	seed, err := computeSeed(pog, h4, Y, batchM, batchZ)
+func batchComposites(pog gg.PrimeOrderGroup, h2 utils.ExtractorExpander, h3 hash.Hash, Y gg.GroupElement, batchM, batchZ []gg.GroupElement) (gg.GroupElement, gg.GroupElement, error) {
+	seed, err := computeSeed(pog, h3, Y, batchM, batchZ)
 	if err != nil {
 		return nil, nil, err
 	}
-	return computeComposites(pog, h4, h5, seed, batchM, batchZ)
+	return computeComposites(pog, h2, h3, seed, batchM, batchZ)
 }
 
 // computeHash serializes the group elements and computes the hash output c
@@ -239,7 +239,7 @@ func computeHash(h hash.Hash, eles ...gg.GroupElement) ([]byte, error) {
 // computeDleqChallenge outputs a BigInt value corresponding to the
 // randomly distributed challenge in an invocation of the DLEQ NIZK (in
 // accordance with the FS transform)
-func computeDleqChallenge(pog gg.PrimeOrderGroup, h hash.Hash, ee utils.ExtractorExpander, eles ...gg.GroupElement) (*big.Int, error) {
+func computeDleqChallenge(pog gg.PrimeOrderGroup, ee utils.ExtractorExpander, h hash.Hash, eles ...gg.GroupElement) (*big.Int, error) {
 	seed, err := computeHash(h, eles...)
 	if err != nil {
 		return nil, err
@@ -252,7 +252,7 @@ func computeDleqChallenge(pog gg.PrimeOrderGroup, h hash.Hash, ee utils.Extracto
 		if err != nil {
 			return nil, err
 		}
-		c := computeExpansion(pog, h, ee, seed, append(ctrBytes, []byte("voprf_dleq_challenge")...))
+		c := computeExpansion(pog, ee, h, seed, append(ctrBytes, []byte("voprf_dleq_challenge")...))
 		if c.Cmp(pog.Order()) >= 0 {
 			continue
 		}
@@ -263,7 +263,7 @@ func computeDleqChallenge(pog gg.PrimeOrderGroup, h hash.Hash, ee utils.Extracto
 // computeExpansion computes a scalar value for the scalar field GF(p)
 // associated with the prime-order group from the expansion of an initial seed
 // and label
-func computeExpansion(pog gg.PrimeOrderGroup, h hash.Hash, ee utils.ExtractorExpander, seed []byte, label []byte) *big.Int {
+func computeExpansion(pog gg.PrimeOrderGroup, ee utils.ExtractorExpander, h hash.Hash, seed []byte, label []byte) *big.Int {
 	expander := ee.Expander()
 	output := expander(func() hash.Hash { h.Reset(); return h }, seed, label)
 	bitSize := pog.Order().BitLen()

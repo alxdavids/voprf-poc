@@ -37,7 +37,7 @@ func TestValidBatchedDLEQC448(t *testing.T) {
 }
 
 func TestBatchedDLEQInvalidLengths(t *testing.T) {
-	pog, h3, h4, h5, sk, pk, batchM, batchZ, proof, err := createBatchedProof("P384", 5)
+	pog, h2, h3, sk, pk, batchM, batchZ, proof, err := createBatchedProof("P384", 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,17 +47,17 @@ func TestBatchedDLEQInvalidLengths(t *testing.T) {
 	}
 	badBatchZ := append(batchZ, extraZ)
 
-	_, err = BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, badBatchZ)
+	_, err = BatchGenerate(pog, h2, h3, sk, pk, batchM, badBatchZ)
 	if err != oerr.ErrDLEQInvalidInput {
 		t.Fatal(err)
 	}
-	if proof.BatchVerify(pog, h3, h4, h5, pk, batchM, badBatchZ) {
+	if proof.BatchVerify(pog, h2, h3, pk, batchM, badBatchZ) {
 		t.Fatal("verification should have failed for bad lengths")
 	}
 }
 
 func TestBatchedDLEQBadElement(t *testing.T) {
-	pog, h3, h4, h5, sk, pk, batchM, _, proof, err := createBatchedProof("P384", 5)
+	pog, h2, h3, sk, pk, batchM, _, proof, err := createBatchedProof("P384", 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,36 +71,36 @@ func TestBatchedDLEQBadElement(t *testing.T) {
 	badBatchZ[2] = badZ
 
 	// fail verify for bad proof
-	badProof, err := BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, badBatchZ)
+	badProof, err := BatchGenerate(pog, h2, h3, sk, pk, batchM, badBatchZ)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if badProof.BatchVerify(pog, h3, h4, h5, pk, batchM, badBatchZ) {
+	if badProof.BatchVerify(pog, h2, h3, pk, batchM, badBatchZ) {
 		t.Fatal("verification should have failed due to bad element")
 	}
 
 	// fail verify for good proof but bad verify input
-	if proof.BatchVerify(pog, h3, h4, h5, pk, batchM, badBatchZ) {
+	if proof.BatchVerify(pog, h2, h3, pk, batchM, badBatchZ) {
 		t.Fatal("verification should have failed for bad input element")
 	}
 }
 
 func validateDLEQ(t *testing.T, groupName string) {
-	pog, h3, h5, _, pk, M, Z, proof, err := createProof(groupName)
+	pog, h2, h3, _, pk, M, Z, proof, err := createProof(groupName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !proof.Verify(pog, h3, h5, pk, M, Z) {
+	if !proof.Verify(pog, h2, h3, pk, M, Z) {
 		t.Fatal("Proof failed to validate")
 	}
 }
 
 func validateBatchedDLEQ(t *testing.T, groupName string) {
-	pog, h3, h4, h5, _, pk, batchM, batchZ, proof, err := createBatchedProof(groupName, 5)
+	pog, h2, h3, _, pk, batchM, batchZ, proof, err := createBatchedProof(groupName, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !proof.BatchVerify(pog, h3, h4, h5, pk, batchM, batchZ) {
+	if !proof.BatchVerify(pog, h2, h3, pk, batchM, batchZ) {
 		t.Fatal("Batch proof failed to verify")
 	}
 }
@@ -117,29 +117,28 @@ func generateAndEval(pog gg.PrimeOrderGroup, sk *big.Int, lbl string) (gg.GroupE
 	return M, Z, nil
 }
 
-func setup(groupName string) (gg.PrimeOrderGroup, hash.Hash, hash.Hash, utils.ExtractorExpander, *big.Int, gg.GroupElement, error) {
+func setup(groupName string) (gg.PrimeOrderGroup, utils.ExtractorExpander, hash.Hash, *big.Int, gg.GroupElement, error) {
 	ciphName := fmt.Sprintf("VOPRF-%s-HKDF-SHA512-SSWU-RO", groupName)
 	ciph, err := gg.Ciphersuite{}.FromString(ciphName, ecgroup.GroupCurve{})
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	pog := ciph.POG()
+	h2 := ciph.H2()
 	h3 := ciph.H3()
-	h4 := ciph.H4()
-	h5 := ciph.H5()
 	sk, err := pog.UniformFieldElement()
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	pk, err := pog.GeneratorMult(sk)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
-	return pog, h3, h4, h5, sk, pk, nil
+	return pog, h2, h3, sk, pk, nil
 }
 
-func createProof(groupName string) (gg.PrimeOrderGroup, hash.Hash, utils.ExtractorExpander, *big.Int, gg.GroupElement, gg.GroupElement, gg.GroupElement, Proof, error) {
-	pog, h3, _, h5, sk, pk, err := setup(groupName)
+func createProof(groupName string) (gg.PrimeOrderGroup, utils.ExtractorExpander, hash.Hash, *big.Int, gg.GroupElement, gg.GroupElement, gg.GroupElement, Proof, error) {
+	pog, h2, h3, sk, pk, err := setup(groupName)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, Proof{}, err
 	}
@@ -148,33 +147,33 @@ func createProof(groupName string) (gg.PrimeOrderGroup, hash.Hash, utils.Extract
 		return nil, nil, nil, nil, nil, nil, nil, Proof{}, err
 	}
 
-	proof, err := Generate(pog, h3, h5, sk, pk, M, Z)
+	proof, err := Generate(pog, h2, h3, sk, pk, M, Z)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, Proof{}, err
 	}
-	return pog, h3, h5, sk, pk, M, Z, proof, nil
+	return pog, h2, h3, sk, pk, M, Z, proof, nil
 }
 
-func createBatchedProof(groupName string, n int) (gg.PrimeOrderGroup, hash.Hash, hash.Hash, utils.ExtractorExpander, *big.Int, gg.GroupElement, []gg.GroupElement, []gg.GroupElement, Proof, error) {
-	pog, h3, h4, h5, sk, pk, err := setup(groupName)
+func createBatchedProof(groupName string, n int) (gg.PrimeOrderGroup, utils.ExtractorExpander, hash.Hash, *big.Int, gg.GroupElement, []gg.GroupElement, []gg.GroupElement, Proof, error) {
+	pog, h2, h3, sk, pk, err := setup(groupName)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, Proof{}, err
+		return nil, nil, nil, nil, nil, nil, nil, Proof{}, err
 	}
 	batchM := make([]gg.GroupElement, n)
 	batchZ := make([]gg.GroupElement, n)
 	for i := 0; i < n; i++ {
 		batchM[i], batchZ[i], err = generateAndEval(pog, sk, fmt.Sprintf("random_input_%v", i))
 		if err != nil {
-			return nil, nil, nil, nil, nil, nil, nil, nil, Proof{}, err
+			return nil, nil, nil, nil, nil, nil, nil, Proof{}, err
 		}
 	}
 
-	proof, err := BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, batchZ)
+	proof, err := BatchGenerate(pog, h2, h3, sk, pk, batchM, batchZ)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, Proof{}, err
+		return nil, nil, nil, nil, nil, nil, nil, Proof{}, err
 	}
 
-	return pog, h3, h4, h5, sk, pk, batchM, batchZ, proof, nil
+	return pog, h2, h3, sk, pk, batchM, batchZ, proof, nil
 }
 
 /**
@@ -194,13 +193,13 @@ func BenchmarkGenerateC448(b *testing.B) {
 }
 
 func benchGenerate(b *testing.B, groupName string) {
-	pog, h3, h5, sk, pk, M, Z, _, err := createProof(groupName)
+	pog, h2, h3, sk, pk, M, Z, _, err := createProof(groupName)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	for i := 0; i < b.N; i++ {
-		_, err := Generate(pog, h3, h5, sk, pk, M, Z)
+		_, err := Generate(pog, h2, h3, sk, pk, M, Z)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -220,13 +219,13 @@ func BenchmarkVerifyC448(b *testing.B) {
 }
 
 func benchVerify(b *testing.B, groupName string) {
-	pog, h3, h5, _, pk, M, Z, proof, err := createProof(groupName)
+	pog, h2, h3, _, pk, M, Z, proof, err := createProof(groupName)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	for i := 0; i < b.N; i++ {
-		if !proof.Verify(pog, h3, h5, pk, M, Z) {
+		if !proof.Verify(pog, h2, h3, pk, M, Z) {
 			b.Fatal("bad verification")
 		}
 	}
@@ -305,12 +304,12 @@ func BenchmarkGenerateC448_100(b *testing.B) {
 }
 
 func benchBatchedGenerate(b *testing.B, groupName string, n int) {
-	pog, h3, h4, h5, sk, pk, batchM, batchZ, _, err := createBatchedProof(groupName, n)
+	pog, h2, h3, sk, pk, batchM, batchZ, _, err := createBatchedProof(groupName, n)
 	if err != nil {
 		b.Fatal(err)
 	}
 	for i := 0; i < b.N; i++ {
-		_, err = BatchGenerate(pog, h3, h4, h5, sk, pk, batchM, batchZ)
+		_, err = BatchGenerate(pog, h2, h3, sk, pk, batchM, batchZ)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -390,12 +389,12 @@ func BenchmarkVerifyC448_100(b *testing.B) {
 }
 
 func benchBatchedVerify(b *testing.B, groupName string, n int) {
-	pog, h3, h4, h5, _, pk, batchM, batchZ, proof, err := createBatchedProof(groupName, n)
+	pog, h2, h3, _, pk, batchM, batchZ, proof, err := createBatchedProof(groupName, n)
 	if err != nil {
 		b.Fatal(err)
 	}
 	for i := 0; i < b.N; i++ {
-		if !proof.BatchVerify(pog, h3, h4, h5, pk, batchM, batchZ) {
+		if !proof.BatchVerify(pog, h2, h3, pk, batchM, batchZ) {
 			b.Fatal("bad batch verification")
 		}
 	}

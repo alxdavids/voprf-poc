@@ -1,7 +1,6 @@
 package groups
 
 import (
-	"crypto/hmac"
 	"crypto/sha512"
 	"hash"
 	"math/big"
@@ -28,22 +27,18 @@ type Ciphersuite struct {
 	// PrimeOrderGroup instantiation for performing the OPRF operations.
 	pog PrimeOrderGroup
 
-	// Hash function used for encoding sequences of bytes as elements of the
-	// PrimeOrderGroup pog.
-	hash1 func([]byte) (GroupElement, error)
-
 	// A hash function that is used for generating the final output derived from
 	// the OPRF protocol
-	hash2 func(func() hash.Hash, []byte) hash.Hash
+	hash1 hash.Hash
+
+	// A hash function that is modelled as a random oracle and expands inputs
+	// into random outputs of sufficient length
+	hash2 utils.ExtractorExpander
 
 	// A generic hash function that is typically used as the base underlying
 	// hash function when instantiating the other hash functionalities. We
 	// currently only support SHA-512
 	hashGeneric hash.Hash
-
-	// A hash function that is modelled as a random oracle and expands inputs
-	// into random outputs of sufficient length
-	hash5 utils.ExtractorExpander
 
 	// Indicates whether the ciphersuite supports verifiable functionality
 	verifiable bool
@@ -102,22 +97,19 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 	}
 
 	// derive Ciphersuite object
-	h1 := pogNew.EncodeToGroup
-	h2 := hmac.New
 	hashGeneric := pogNew.Hash()
-	var h5 utils.ExtractorExpander
+	var h2 utils.ExtractorExpander
 	verifiable := false
 	if split[0] == "VOPRF" {
 		verifiable = true
-		h5 = pogNew.EE()
+		h2 = pogNew.EE()
 	}
 	return Ciphersuite{
 		name:        s,
 		pog:         pogNew,
-		hash1:       h1,
+		hash1:       hashGeneric,
 		hash2:       h2,
 		hashGeneric: hashGeneric,
-		hash5:       h5,
 		verifiable:  verifiable,
 	}, nil
 }
@@ -126,25 +118,19 @@ func (c Ciphersuite) FromString(s string, pog PrimeOrderGroup) (Ciphersuite, err
 func (c Ciphersuite) Name() string { return c.name }
 
 // H1 returns the hash1 function specified in Ciphersuite
-func (c Ciphersuite) H1() func([]byte) (GroupElement, error) { return c.hash1 }
+func (c Ciphersuite) H1() hash.Hash { 
+	c.hash1.Reset()
+	return c.hash1
+}
 
 // H2 returns the hash2 function specified in Ciphersuite
-func (c Ciphersuite) H2() func(func() hash.Hash, []byte) hash.Hash { return c.hash2 }
+func (c Ciphersuite) H2() utils.ExtractorExpander { return c.hash2 }
 
 // H3 returns the hashGeneric function specified in Ciphersuite
 func (c Ciphersuite) H3() hash.Hash {
 	c.hashGeneric.Reset()
 	return c.hashGeneric
 }
-
-// H4 returns the hashGeneric function specified in Ciphersuite
-func (c Ciphersuite) H4() hash.Hash {
-	c.hashGeneric.Reset()
-	return c.hashGeneric
-}
-
-// H5 returns the hash5 function specified in Ciphersuite
-func (c Ciphersuite) H5() utils.ExtractorExpander { return c.hash5 }
 
 // POG returns the PrimeOrderGroup for the current Ciphersuite
 func (c Ciphersuite) POG() PrimeOrderGroup { return c.pog }
