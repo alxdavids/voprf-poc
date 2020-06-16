@@ -244,8 +244,8 @@ func (c Client) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
 	return P, r, err
 }
 
-// Blind samples a new random blind value from ZZp and returns P=r*T where T is
-// the representation of the input bytes x in the group pog.
+// BlindInternal samples a new random blind value from ZZp and returns P=r*T and T, where T
+// is the representation of the input bytes x in the group pog.
 func (c Client) BlindInternal(x []byte) (gg.GroupElement, gg.GroupElement, *big.Int, error) {
 	pog := c.ciph.POG()
 
