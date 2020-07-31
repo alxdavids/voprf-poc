@@ -21,7 +21,7 @@ var (
 	storedInputs                 [][]byte
 	storedElements               []gg.GroupElement
 	storedBlinds                 []*big.Int
-	storedEvaluation             oprf.Evaluation
+	storedEvaluation             oprf.BatchedEvaluation
 	storedFinalOutputs           [][]byte
 	storedUnblindedElements      [][]byte
 	storedFinalInputs            [][]byte
@@ -61,14 +61,14 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputP
 		test:       test,
 	}
 	if test {
-		bytes, err := ioutil.ReadFile(fmt.Sprintf("../test-vectors/%s.json", ciphersuite))
+		raw, err := ioutil.ReadFile(fmt.Sprintf("../test-vectors/%s.json", ciphersuite))
 		if err != nil {
 			return nil, err
 		}
 		testVectors := []testVector{}
-		err = json.Unmarshal(bytes, &testVectors)
+		err = json.Unmarshal(raw, &testVectors)
 		if err != nil {
-		  return nil, err
+			return nil, err
 		}
 		cfg.testVector = testVectors[testIndex]
 		cfg.n = len(cfg.testVector.Inputs)
@@ -82,7 +82,7 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputP
 }
 
 // SendOPRFRequest constructs and sends an OPRF request to the OPRF server
-// instance. The response is processed by running the Unblind() and Finalize()
+// instance. The response is processed by running the BatchUnblind() and Finalize()
 // functionalities.
 func (cfg *Config) SendOPRFRequest() error {
 	oprfReq, err := cfg.createOPRFRequest()
@@ -165,7 +165,7 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 			blind = new(big.Int).SetBytes(bufBlind)
 			ge, gx, err = cfg.ocli.BlindFixed(buf, blind)
 			if err != nil {
-			  return nil, err
+				return nil, err
 			}
 		} else {
 			ge, gx, blind, err = cfg.ocli.BlindInternal(buf)
@@ -201,20 +201,20 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 }
 
 // processServerResponse parses the JSONRPC response sent by the server
-func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) ([][]byte, [][]byte, [][]byte, oprf.Evaluation, error) {
+func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) ([][]byte, [][]byte, [][]byte, oprf.BatchedEvaluation, error) {
 	// parse returned group element and unblind
 	result := jsonrpcResp.Result
 	pog := cfg.ocli.Ciphersuite().POG()
-	ev := oprf.Evaluation{Elements: make([]gg.GroupElement, cfg.n)}
+	ev := oprf.BatchedEvaluation{Elements: make([]gg.GroupElement, cfg.n)}
 	// get evaluation results
 	for i := 0; i < cfg.n; i++ {
 		buf, err := hex.DecodeString(result.Data[i])
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
 		Z, err := gg.CreateGroupElement(pog).Deserialize(buf)
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
 		ev.Elements[i] = Z
 	}
@@ -223,20 +223,20 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 	if cfg.ocli.Ciphersuite().Verifiable() {
 		cBytes, err := hex.DecodeString(result.Proof[0])
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
 		sBytes, err := hex.DecodeString(result.Proof[1])
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
 		var proofBytes = [][]byte{cBytes, sBytes}
 		ev.Proof = dleq.Proof{}.Deserialize(pog, proofBytes)
 	}
 
 	// run the unblinding steps
-	ret, err := cfg.ocli.Unblind(ev, storedElements, storedBlinds)
+	ret, err := cfg.ocli.BatchUnblind(ev, storedElements, storedBlinds)
 	if err != nil {
-		return nil, nil, nil, oprf.Evaluation{}, err
+		return nil, nil, nil, oprf.BatchedEvaluation{}, err
 	}
 
 	// finalize outputs
@@ -247,19 +247,19 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 		aux := []byte("oprf_finalization_step")
 		y, err := cfg.ocli.Finalize(N, storedInputs[i], aux)
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
 		finalOutputs = append(finalOutputs, y)
 
 		finalizeInput, err := cfg.ocli.CreateFinalizeInput(N, storedInputs[i], aux)
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
 		finalizeInputs = append(finalizeInputs, finalizeInput)
 
 		encodedN, err := N.Serialize()
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
 		encodedUnblindedElements = append(encodedUnblindedElements, encodedN)
 	}
@@ -301,7 +301,7 @@ func (cfg *Config) parseJSONRPCResponse(body []byte) (*jsonrpc.ResponseSuccess, 
 		e2 := json.Unmarshal(body, jsonrpcError)
 		if e2 != nil || jsonrpcError.Error.Message == "" {
 			// either error or unable to parse error
-			return nil, errors.New("Failed to parse JSONRPC error response")
+			return nil, errors.New("failed to parse JSONRPC error response")
 		}
 		return nil, errors.New(jsonrpcError.Error.Message)
 	}

@@ -1,6 +1,7 @@
 package dleq
 
 import (
+	"errors"
 	"fmt"
 	"hash"
 	"math/big"
@@ -41,14 +42,14 @@ func TestBatchedDLEQInvalidLengths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	extraZ, err := pog.EncodeToGroup([]byte("last_element"))
+	extraZ, err := pog.HashToGroup([]byte("last_element"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	badBatchZ := append(batchZ, extraZ)
 
 	_, err = BatchGenerate(pog, h2, h3, sk, pk, batchM, badBatchZ)
-	if err != oerr.ErrDLEQInvalidInput {
+	if !errors.Is(err, oerr.ErrDLEQInvalidInput) {
 		t.Fatal(err)
 	}
 	if proof.BatchVerify(pog, h2, h3, pk, batchM, badBatchZ) {
@@ -63,7 +64,7 @@ func TestBatchedDLEQBadElement(t *testing.T) {
 	}
 
 	// create bad element
-	badZ, err := pog.EncodeToGroup([]byte("bad_element"))
+	badZ, err := pog.HashToGroup([]byte("bad_element"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +107,7 @@ func validateBatchedDLEQ(t *testing.T, groupName string) {
 }
 
 func generateAndEval(pog gg.PrimeOrderGroup, sk *big.Int, lbl string) (gg.GroupElement, gg.GroupElement, error) {
-	M, err := pog.EncodeToGroup([]byte(lbl))
+	M, err := pog.HashToGroup([]byte(lbl))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -126,7 +127,7 @@ func setup(groupName string) (gg.PrimeOrderGroup, utils.ExtractorExpander, hash.
 	pog := ciph.POG()
 	h2 := ciph.H2()
 	h3 := ciph.H3()
-	sk, err := pog.UniformFieldElement()
+	sk, err := pog.RandomScalar()
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}

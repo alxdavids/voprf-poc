@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"crypto/subtle"
+	"errors"
 	"hash"
 	"io"
 	"math/big"
@@ -83,6 +84,10 @@ func (c GroupCurve) P() *big.Int {
 	return c.ops.Params().P
 }
 
+func (c GroupCurve) Identity() gg.GroupElement {
+	panic(errors.New("identity not implemented"))
+}
+
 // Generator returns a point in the curve representing a fixed generator  of the
 // prime-order group.
 func (c GroupCurve) Generator() gg.GroupElement {
@@ -106,10 +111,10 @@ func (c GroupCurve) ByteLength() int {
 	return c.byteLength
 }
 
-// EncodeToGroup invokes the hash_to_curve method for encoding bytes as curve
+// HashToGroup invokes the hash_to_curve method for encoding bytes as curve
 // points. The hash-to-curve method for the curve is implemented using the
 // specification defined in draft-irtf-hash-to-curve-05.
-func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, error) {
+func (c GroupCurve) HashToGroup(buf []byte) (gg.GroupElement, error) {
 	hasher, err := getH2CSuite(c)
 	if err != nil {
 		return nil, err
@@ -122,11 +127,15 @@ func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, error) {
 	return p, nil
 }
 
+func (c GroupCurve) HashToScalar(buf []byte) (*big.Int, error) {
+	return nil, errors.New("hash-to-scalar not implemented")
+}
+
 // UniformFieldElement samples a random element from the underling field for the
 // specified elliptic curve.
 //
 // NOT constant time due to rejection sampling
-func (c GroupCurve) UniformFieldElement() (*big.Int, error) {
+func (c GroupCurve) RandomScalar() (*big.Int, error) {
 	N := c.Order() // base point subgroup order
 	bitLen := N.BitLen()
 	byteLen := (bitLen + 7) >> 3

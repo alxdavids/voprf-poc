@@ -16,7 +16,7 @@ func I2osp(x, xLen int) ([]byte, error) {
 	val := x
 	for i := xLen - 1; i >= 0; i-- {
 		ret[i] = byte(val & 0xff)
-		val = val >> 8
+		val >>= 8
 	}
 	return ret, nil
 }

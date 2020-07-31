@@ -62,7 +62,7 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, max int, tls b
 		testVectors := []testVector{}
 		err = json.Unmarshal(bytes, &testVectors)
 		if err != nil {
-		  return nil, err
+			return nil, err
 		}
 		cfg.testVector = testVectors[testIndex]
 
@@ -189,15 +189,15 @@ func (cfg *Config) processEval(params []string) (map[string][][]byte, error) {
 	}
 
 	// compute (V)OPRF evaluation over provided inputs
-	var eval oprf.Evaluation
+	var eval oprf.BatchedEvaluation
 	if cfg.test {
 		// when testing, we need to set a fixed DLEQ value
-		eval, err = cfg.osrv.FixedEval(inputs, cfg.testVector.DleqScalar)
+		eval, err = cfg.osrv.FixedBatchEval(inputs, cfg.testVector.DleqScalar)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		eval, err = cfg.osrv.Eval(inputs)
+		eval, err = cfg.osrv.BatchEval(inputs)
 		if err != nil {
 			return nil, err
 		}

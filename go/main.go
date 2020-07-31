@@ -48,7 +48,7 @@ func main() {
 	}
 }
 
-func runServer(ciphersuite string, max int, test int) error {
+func runServer(ciphersuite string, max, test int) error {
 	cfgServer, err := server.CreateConfig(ciphersuite, ecgroup.GroupCurve{}, max, false, test)
 	if err != nil {
 		return err
@@ -72,7 +72,7 @@ func runClient(ciphersuite, clientOutFolder string, n int, pk string, test int) 
 	// Set the input public key on the client
 	if pk != "not_set" {
 		if pk == "" {
-			return errors.New("Attempted to set empty public key")
+			return errors.New("attempted to set empty public key")
 		}
 		fmt.Println("Setting public key: ", pk)
 		err = cfgClient.SetPublicKey(pk)

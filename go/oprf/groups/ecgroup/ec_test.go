@@ -217,11 +217,11 @@ func checkPointAddition(t *testing.T, curveName string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	x, err := curve.UniformFieldElement()
+	x, err := curve.RandomScalar()
 	if err != nil {
 		t.Fatal(err)
 	}
-	y, err := curve.UniformFieldElement()
+	y, err := curve.RandomScalar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,7 +286,7 @@ func ciphersuiteFromString(t *testing.T, groupName string, verifiable bool) {
 func ciphersuiteFromStringInvalidH2C(t *testing.T, groupName string) {
 	ciphName := fmt.Sprintf("OPRF-%s-HKDF-SHA512-ELL2", strings.ReplaceAll(groupName, "-", ""))
 	_, err := gg.Ciphersuite{}.FromString(ciphName, GroupCurve{})
-	if err != oerr.ErrUnsupportedH2C {
+	if !errors.Is(err, oerr.ErrUnsupportedH2C) {
 		t.Fatal("Error didn't occur")
 	}
 }
@@ -294,7 +294,7 @@ func ciphersuiteFromStringInvalidH2C(t *testing.T, groupName string) {
 func ciphersuiteFromStringInvalidHash(t *testing.T, groupName string) {
 	ciphName := fmt.Sprintf("OPRF-%s-HKDF-SHA256-SSWU-RO", strings.ReplaceAll(groupName, "-", ""))
 	_, err := gg.Ciphersuite{}.FromString(ciphName, GroupCurve{})
-	if err != oerr.ErrUnsupportedHash {
+	if !errors.Is(err, oerr.ErrUnsupportedHash) {
 		t.Fatal("Error didn't occur")
 	}
 }
@@ -302,19 +302,19 @@ func ciphersuiteFromStringInvalidHash(t *testing.T, groupName string) {
 func ciphersuiteFromStringInvalidGroup(t *testing.T, groupName string) {
 	ciphName := fmt.Sprintf("OPRF-%s-HKDF-SHA512-SSWU-RO", strings.ReplaceAll(groupName, "-", ""))
 	_, err := gg.Ciphersuite{}.FromString(ciphName, GroupCurve{})
-	if err != oerr.ErrUnsupportedGroup {
+	if !errors.Is(err, oerr.ErrUnsupportedGroup) {
 		t.Fatal("Error didn't occur")
 	}
 }
 
 func curveEncoding(curve GroupCurve) (Point, error) {
-	P, err := curve.EncodeToGroup([]byte("test"))
+	P, err := curve.HashToGroup([]byte("test"))
 	if err != nil {
 		return Point{}, err
 	}
 
 	if !P.IsValid() {
-		return Point{}, errors.New("Didn't generated valid curve point")
+		return Point{}, errors.New("didn't generate valid curve point")
 	}
 
 	ret, err := castToPoint(P)
@@ -355,11 +355,11 @@ func checkSerialize(curve GroupCurve, P Point) error {
 }
 
 func initCurve(t *testing.T, curveName string) GroupCurve {
-	gg, err := GroupCurve{}.New(curveName)
+	g, err := GroupCurve{}.New(curveName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	curve, err := castToCurve(gg)
+	curve, err := castToCurve(g)
 	if err != nil {
 		t.Fatal(err)
 	}

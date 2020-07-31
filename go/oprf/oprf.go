@@ -25,7 +25,7 @@ type SecretKey struct {
 // New returns a SecretKey object corresponding to the PrimeOrderGroup that was
 // passed into it
 func (sk SecretKey) New(pog gg.PrimeOrderGroup) (SecretKey, error) {
-	randInt, err := pog.UniformFieldElement()
+	randInt, err := pog.RandomScalar()
 	if err != nil {
 		return SecretKey{}, err
 	}
@@ -38,17 +38,33 @@ func (sk SecretKey) New(pog gg.PrimeOrderGroup) (SecretKey, error) {
 	return SecretKey{K: randInt, PubKey: Y}, nil
 }
 
-// Evaluation corresponds to the output object of a (V)OPRF evaluation. In the
-// case of an OPRF, the object only consists of the output group elements. For a
+// A Token is an object created by a client when constructing a
+// (V)OPRF protocol input.  It is stored so that it can be used after
+// receiving the server response.
+type Token struct {
+	Data  gg.GroupElement
+	Blind *big.Int
+}
+
+// Evaluation corresponds to the output object of a (V)OPRF evaluation.
+// In the case of an OPRF, the object only consists of the output group element. For a
 // VOPRF, it also consists of a proof object
 type Evaluation struct {
+	Element gg.GroupElement
+	Proof   dleq.Proof
+}
+
+// BatchedEvaluation corresponds to the output object of a batched (V)OPRF evaluation.
+// In the case of an OPRF, the object only consists of the output group elements. For a
+// VOPRF, it also consists of a proof object
+type BatchedEvaluation struct {
 	Elements []gg.GroupElement
 	Proof    dleq.Proof
 }
 
 // ToJSON returns a formatted string containing the contents of the Evaluation
 // object
-func (ev Evaluation) ToJSON(verifiable bool) ([]byte, error) {
+func (ev BatchedEvaluation) ToJSON(verifiable bool) ([]byte, error) {
 	eleSerialized := make([]string, len(ev.Elements))
 	for i, v := range ev.Elements {
 		s, err := v.Serialize()
@@ -75,8 +91,10 @@ type Participant interface {
 	Ciphersuite() gg.Ciphersuite
 	Setup(string, gg.PrimeOrderGroup) (Participant, error)
 	Blind([]byte) (gg.GroupElement, *big.Int, error)
-	Unblind(Evaluation, []gg.GroupElement, []*big.Int) ([]gg.GroupElement, error)
-	Eval([]gg.GroupElement) (Evaluation, error)
+	Unblind(Evaluation, gg.GroupElement, *big.Int) (gg.GroupElement, error)
+	BatchUnblind(BatchedEvaluation, []gg.GroupElement, []*big.Int) ([]gg.GroupElement, error)
+	Eval(gg.GroupElement) (Evaluation, error)
+	BatchEval([]gg.GroupElement) (BatchedEvaluation, error)
 	Finalize(gg.GroupElement, []byte, []byte) ([]byte, error)
 }
 
@@ -114,42 +132,87 @@ func (s Server) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participa
 	return s, nil
 }
 
-// Eval computes the Server-side evaluation of the (V)OPRF using a secret key
+// BatchEval computes the Server-side evaluation of the (V)OPRF using a secret key
 // and a provided group element
-func (s Server) Eval(batchM []gg.GroupElement) (Evaluation, error) {
+func (s Server) Eval(M gg.GroupElement) (Evaluation, error) {
 	if !s.Ciphersuite().Verifiable() {
-		return s.oprfEval(batchM)
+		return s.oprfEval(M)
 	}
-	return s.voprfEval(batchM)
+	return s.voprfEval(M)
 }
 
-// FixedEval computes the Server-side evaluation of the (V)OPRF with fixed DLEQ
-// values (for testing)
-func (s Server) FixedEval(batchM []gg.GroupElement, tDleq string) (Evaluation, error) {
+// BatchEval computes the Server-side evaluation of the batched (V)OPRF using
+// a secret key and provided group elements
+func (s Server) BatchEval(batchM []gg.GroupElement) (BatchedEvaluation, error) {
 	if !s.Ciphersuite().Verifiable() {
-		return s.oprfEval(batchM)
+		return s.oprfBatchEval(batchM)
 	}
-	return s.voprfFixedEval(batchM, tDleq)
+	return s.voprfBatchEval(batchM)
+}
+
+// FixedBatchEval computes the Server-side evaluation of the (V)OPRF with fixed DLEQ
+// values (for testing)
+func (s Server) FixedEval(M gg.GroupElement, tDleq string) (Evaluation, error) {
+	if !s.Ciphersuite().Verifiable() {
+		return s.oprfEval(M)
+	}
+	return s.voprfFixedEval(M, tDleq)
+}
+
+// FixedBatchEval computes the Server-side evaluation of the (V)OPRF with fixed DLEQ
+// values (for testing)
+func (s Server) FixedBatchEval(batchM []gg.GroupElement, tDleq string) (BatchedEvaluation, error) {
+	if !s.Ciphersuite().Verifiable() {
+		return s.oprfBatchEval(batchM)
+	}
+	return s.voprfFixedBatchEval(batchM, tDleq)
+}
+
+func (s Server) oprfEval(M gg.GroupElement) (Evaluation, error) {
+	Z, err := M.ScalarMult(s.sk.K)
+	if err != nil {
+		return Evaluation{}, err
+	}
+	return Evaluation{Element: Z}, nil
 }
 
 // oprfEval evaluates OPRF_Eval as specified in draft-irtf-cfrg-voprf-02
-func (s Server) oprfEval(batchM []gg.GroupElement) (Evaluation, error) {
+func (s Server) oprfBatchEval(batchM []gg.GroupElement) (BatchedEvaluation, error) {
 	batchZ := make([]gg.GroupElement, len(batchM))
 	for i, M := range batchM {
 		Z, err := M.ScalarMult(s.sk.K)
 		if err != nil {
-			return Evaluation{}, err
+			return BatchedEvaluation{}, err
 		}
 		batchZ[i] = Z
 	}
-	return Evaluation{Elements: batchZ}, nil
+	return BatchedEvaluation{Elements: batchZ}, nil
 }
 
 // voprfEval evaluates VOPRF_Eval as specified in draft-irtf-cfrg-voprf-02
-func (s Server) voprfEval(batchM []gg.GroupElement) (Evaluation, error) {
-	eval, err := s.oprfEval(batchM)
+func (s Server) voprfEval(M gg.GroupElement) (Evaluation, error) {
+	eval, err := s.oprfEval(M)
 	if err != nil {
 		return Evaluation{}, err
+	}
+	Z := eval.Element
+
+	ciph := s.Ciphersuite()
+	sk := s.SecretKey()
+
+	proof, err := dleq.Generate(ciph.POG(), ciph.H2(), ciph.H3(), sk.K, sk.PubKey, M, Z)
+	if err != nil {
+		return Evaluation{}, err
+	}
+
+	return Evaluation{Element: Z, Proof: proof}, nil
+}
+
+// voprfBatchEval evaluates VOPRF_Eval as specified in draft-irtf-cfrg-voprf-02
+func (s Server) voprfBatchEval(batchM []gg.GroupElement) (BatchedEvaluation, error) {
+	eval, err := s.oprfBatchEval(batchM)
+	if err != nil {
+		return BatchedEvaluation{}, err
 	}
 	batchZ := eval.Elements
 
@@ -162,17 +225,40 @@ func (s Server) voprfEval(batchM []gg.GroupElement) (Evaluation, error) {
 		proof, err = dleq.BatchGenerate(ciph.POG(), ciph.H2(), ciph.H3(), sk.K, sk.PubKey, batchM, batchZ)
 	}
 	if err != nil {
-		return Evaluation{}, err
+		return BatchedEvaluation{}, err
 	}
 
-	return Evaluation{Elements: batchZ, Proof: proof}, nil
+	return BatchedEvaluation{Elements: batchZ, Proof: proof}, nil
 }
 
 // voprfFixedEval evaluates VOPRF_Eval with a fixed DLEQ parameter
-func (s Server) voprfFixedEval(batchM []gg.GroupElement, tDleq string) (Evaluation, error) {
-	eval, err := s.oprfEval(batchM)
+func (s Server) voprfFixedEval(M gg.GroupElement, tDleq string) (Evaluation, error) {
+	eval, err := s.oprfEval(M)
 	if err != nil {
 		return Evaluation{}, err
+	}
+
+	Z := eval.Element
+	ciph := s.Ciphersuite()
+	sk := s.SecretKey()
+	t, ok := new(big.Int).SetString(tDleq, 16)
+	if !ok {
+		panic("Bad hex value specified for fixed DLEQ value")
+	}
+
+	proof, err := dleq.FixedGenerate(ciph.POG(), ciph.H2(), ciph.H3(), sk.K, sk.PubKey, M, Z, t)
+	if err != nil {
+		return Evaluation{}, err
+	}
+
+	return Evaluation{Element: Z, Proof: proof}, nil
+}
+
+// voprfFixedEval evaluates VOPRF_Eval with a fixed DLEQ parameter
+func (s Server) voprfFixedBatchEval(batchM []gg.GroupElement, tDleq string) (BatchedEvaluation, error) {
+	eval, err := s.oprfBatchEval(batchM)
+	if err != nil {
+		return BatchedEvaluation{}, err
 	}
 	batchZ := eval.Elements
 
@@ -189,10 +275,10 @@ func (s Server) voprfFixedEval(batchM []gg.GroupElement, tDleq string) (Evaluati
 		proof, err = dleq.FixedBatchGenerate(ciph.POG(), ciph.H2(), ciph.H3(), sk.K, sk.PubKey, batchM, batchZ, t)
 	}
 	if err != nil {
-		return Evaluation{}, err
+		return BatchedEvaluation{}, err
 	}
 
-	return Evaluation{Elements: batchZ, Proof: proof}, nil
+	return BatchedEvaluation{Elements: batchZ, Proof: proof}, nil
 }
 
 // Blind is unimplemented for the server
@@ -201,7 +287,12 @@ func (s Server) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
 }
 
 // Unblind is unimplemented for the server
-func (s Server) Unblind(ev Evaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
+func (s Server) Unblind(ev Evaluation, orig gg.GroupElement, blind *big.Int) (gg.GroupElement, error) {
+	return nil, oerr.ErrOPRFUnimplementedFunctionServer
+}
+
+// BatchUnblind is unimplemented for the server
+func (s Server) BatchUnblind(ev BatchedEvaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
 	return nil, oerr.ErrOPRFUnimplementedFunctionServer
 }
 
@@ -250,7 +341,7 @@ func (c Client) BlindInternal(x []byte) (gg.GroupElement, gg.GroupElement, *big.
 	pog := c.ciph.POG()
 
 	// sample a random blind
-	r, err := pog.UniformFieldElement()
+	r, err := pog.RandomScalar()
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -258,7 +349,7 @@ func (c Client) BlindInternal(x []byte) (gg.GroupElement, gg.GroupElement, *big.
 	// compute blinded group element
 	P, T, err := c.BlindFixed(x, r)
 	if err != nil {
-	  return nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	return P, T, r, nil
 }
@@ -269,7 +360,7 @@ func (c Client) BlindFixed(x []byte, blind *big.Int) (gg.GroupElement, gg.GroupE
 	pog := c.Ciphersuite().POG()
 
 	// encode bytes to group
-	T, err := pog.EncodeToGroup(x)
+	T, err := pog.HashToGroup(x)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -282,22 +373,41 @@ func (c Client) BlindFixed(x []byte, blind *big.Int) (gg.GroupElement, gg.GroupE
 	return P, T, nil
 }
 
-// Unblind returns the unblinded group element N = r^{-1}*Z if the DLEQ proof
-// check passes (proof check is committed if the ciphersuite is not verifiable)
-func (c Client) Unblind(ev Evaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
+// BatchUnblind returns the unblinded group element N = r^{-1}*Z if the DLEQ proof
+// check passes (proof check is omitted if the ciphersuite is not verifiable)
+func (c Client) Unblind(ev Evaluation, orig gg.GroupElement, blind *big.Int) (gg.GroupElement, error) {
+	if !c.ciph.Verifiable() {
+		return c.oprfUnblind(ev, blind)
+	}
+	return c.voprfUnblind(ev, orig, blind)
+}
+
+// BatchUnblind returns the unblinded group elements N = r^{-1}*Z if the DLEQ proof
+// check passes (proof check is omitted if the ciphersuite is not verifiable)
+func (c Client) BatchUnblind(ev BatchedEvaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
 	// check that the lengths of the expected evaluations is the same as the
 	// number generated
 	if len(ev.Elements) != len(origs) {
 		return nil, oerr.ErrClientInconsistentResponse
 	}
 	if !c.ciph.Verifiable() {
-		return c.oprfUnblind(ev, blinds)
+		return c.oprfBatchUnblind(ev, blinds)
 	}
-	return c.voprfUnblind(ev, origs, blinds)
+	return c.voprfBatchUnblind(ev, origs, blinds)
 }
 
-// voprfUnblind runs VOPRF_Unblind as specified in draft-irtf-cfrg-voprf-02
-func (c Client) voprfUnblind(ev Evaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
+func (c Client) voprfUnblind(ev Evaluation, orig gg.GroupElement, blind *big.Int) (gg.GroupElement, error) {
+	ciph := c.ciph
+	proof := ev.Proof
+	// check DLEQ proof
+	if b := proof.Verify(ciph.POG(), ciph.H2(), ciph.H3(), c.PublicKey(), orig, ev.Element); !b {
+		return nil, oerr.ErrClientVerification
+	}
+	return c.oprfUnblind(ev, blind)
+}
+
+// voprfBatchUnblind runs VOPRF_Unblind as specified in draft-irtf-cfrg-voprf-02
+func (c Client) voprfBatchUnblind(ev BatchedEvaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
 	ciph := c.ciph
 	eles := ev.Elements
 	proof := ev.Proof
@@ -311,11 +421,22 @@ func (c Client) voprfUnblind(ev Evaluation, origs []gg.GroupElement, blinds []*b
 	if !b {
 		return nil, oerr.ErrClientVerification
 	}
-	return c.oprfUnblind(ev, blinds)
+	return c.oprfBatchUnblind(ev, blinds)
 }
 
-// oprfUnblind runs OPRF_Unblind as specified in draft-irtf-cfrg-voprf-02
-func (c Client) oprfUnblind(ev Evaluation, blinds []*big.Int) ([]gg.GroupElement, error) {
+func (c Client) oprfUnblind(ev Evaluation, blind *big.Int) (gg.GroupElement, error) {
+	pog := c.ciph.POG()
+	n := pog.Order()
+	rInv := new(big.Int).ModInverse(blind, n)
+	N, err := ev.Element.ScalarMult(rInv)
+	if err != nil {
+		return nil, err
+	}
+	return N, nil
+}
+
+// oprfBatchUnblind runs OPRF_Unblind as specified in draft-irtf-cfrg-voprf-02
+func (c Client) oprfBatchUnblind(ev BatchedEvaluation, blinds []*big.Int) ([]gg.GroupElement, error) {
 	pog := c.ciph.POG()
 	n := pog.Order()
 	eles := ev.Elements
@@ -380,8 +501,13 @@ func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
 }
 
 // Eval is not implemented for the OPRF client
-func (c Client) Eval(M []gg.GroupElement) (Evaluation, error) {
+func (c Client) Eval(M gg.GroupElement) (Evaluation, error) {
 	return Evaluation{}, oerr.ErrOPRFUnimplementedFunctionClient
+}
+
+// BatchEval is not implemented for the OPRF client
+func (c Client) BatchEval(M []gg.GroupElement) (BatchedEvaluation, error) {
+	return BatchedEvaluation{}, oerr.ErrOPRFUnimplementedFunctionClient
 }
 
 /**

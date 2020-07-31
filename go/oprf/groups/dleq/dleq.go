@@ -20,7 +20,7 @@ type Proof struct {
 // Generate constructs a new Proof object using a VOPRF secret key and the group
 // elements that were provided as input
 func Generate(pog gg.PrimeOrderGroup, h2 utils.ExtractorExpander, h3 hash.Hash, k *big.Int, Y, M, Z gg.GroupElement) (Proof, error) {
-	t, err := pog.UniformFieldElement()
+	t, err := pog.RandomScalar()
 	if err != nil {
 		return Proof{}, err
 	}
@@ -233,7 +233,7 @@ func computeHash(h hash.Hash, eles ...gg.GroupElement) ([]byte, error) {
 	for _, buf := range serialized {
 		_, err = h.Write(buf)
 		if err != nil {
-		  return nil, err
+			return nil, err
 		}
 	}
 	return h.Sum(nil), nil
@@ -266,7 +266,7 @@ func computeDleqChallenge(pog gg.PrimeOrderGroup, ee utils.ExtractorExpander, h 
 // computeExpansion computes a scalar value for the scalar field GF(p)
 // associated with the prime-order group from the expansion of an initial seed
 // and label
-func computeExpansion(pog gg.PrimeOrderGroup, ee utils.ExtractorExpander, h hash.Hash, seed []byte, label []byte) *big.Int {
+func computeExpansion(pog gg.PrimeOrderGroup, ee utils.ExtractorExpander, h hash.Hash, seed, label []byte) *big.Int {
 	expander := ee.Expander()
 	output := expander(func() hash.Hash { h.Reset(); return h }, seed, label)
 	bitSize := pog.Order().BitLen()

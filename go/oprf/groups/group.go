@@ -31,7 +31,7 @@ type Ciphersuite struct {
 	// the OPRF protocol
 	hash1 hash.Hash
 
-	// A hash function that is modelled as a random oracle and expands inputs
+	// A hash function that is modeled as a random oracle and expands inputs
 	// into random outputs of sufficient length
 	hash2 utils.ExtractorExpander
 
@@ -152,6 +152,9 @@ type PrimeOrderGroup interface {
 	// Returns the identifying name of the group
 	Name() string
 
+	// Returns the identity element of the group
+	Identity() GroupElement
+
 	// Returns the canonical (fixed) generator for defined group
 	Generator() GroupElement
 
@@ -166,8 +169,12 @@ type PrimeOrderGroup interface {
 	ByteLength() int
 
 	// Performs a transformation to encode bytes as a GroupElement object in the
-	// group. We expect that EncodeToGroup models a random oracle
-	EncodeToGroup([]byte) (GroupElement, error)
+	// group. We expect that HashToGroup models a random oracle
+	HashToGroup([]byte) (GroupElement, error)
+
+	// Performs a transformation to encode bytes as a scalar from the field
+	// of scalars defined by the group order
+	HashToScalar([]byte) (*big.Int, error)
 
 	// Base hash function used in conjunction with the PrimeOrderGroup
 	Hash() hash.Hash
@@ -178,7 +185,7 @@ type PrimeOrderGroup interface {
 
 	// Samples a random scalar value from the field of scalars defined by the
 	// group order.
-	UniformFieldElement() (*big.Int, error)
+	RandomScalar() (*big.Int, error)
 
 	// Casts a scalar for the given group to the correct number of bytes
 	ScalarToBytes(*big.Int) []byte

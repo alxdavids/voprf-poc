@@ -137,7 +137,7 @@ func TestServerBlind(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, _, err = s.Blind([]byte{})
-	if err != oerr.ErrOPRFUnimplementedFunctionServer {
+	if !errors.Is(err, oerr.ErrOPRFUnimplementedFunctionServer) {
 		t.Fatal("Function should be unimplemented")
 	}
 }
@@ -147,8 +147,8 @@ func TestServerUnblind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = s.Unblind(Evaluation{}, []gg.GroupElement{ecgroup.Point{}}, []*big.Int{new(big.Int)})
-	if err != oerr.ErrOPRFUnimplementedFunctionServer {
+	_, err = s.BatchUnblind(BatchedEvaluation{}, []gg.GroupElement{ecgroup.Point{}}, []*big.Int{new(big.Int)})
+	if !errors.Is(err, oerr.ErrOPRFUnimplementedFunctionServer) {
 		t.Fatal("Function should be unimplemented")
 	}
 }
@@ -159,7 +159,7 @@ func TestServerFinalize(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = s.Finalize(ecgroup.Point{}, []byte{}, []byte{})
-	if err != oerr.ErrOPRFUnimplementedFunctionServer {
+	if !errors.Is(err, oerr.ErrOPRFUnimplementedFunctionServer) {
 		t.Fatal("Function should be unimplemented")
 	}
 }
@@ -241,8 +241,8 @@ func TestClientEval(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.Eval([]gg.GroupElement{ecgroup.Point{}})
-	if err != oerr.ErrOPRFUnimplementedFunctionClient {
+	_, err = c.BatchEval([]gg.GroupElement{ecgroup.Point{}})
+	if !errors.Is(err, oerr.ErrOPRFUnimplementedFunctionClient) {
 		t.Fatal("Function should be unimplemented")
 	}
 }
@@ -253,7 +253,7 @@ func TestClientUnblindVerifiable(t *testing.T) {
 		t.Fatal(err)
 	}
 	pog := c.Ciphersuite().POG()
-	_, err = pog.UniformFieldElement()
+	_, err = pog.RandomScalar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +304,7 @@ func checkServerEval(t *testing.T, validCiphersuite string, n int) {
 	pog := ciph.POG()
 
 	// evaluate the OPRF
-	ev, err := s.Eval(eles)
+	ev, err := s.BatchEval(eles)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,14 +338,14 @@ func checkClientBlindUnblind(t *testing.T, validCiphersuite string, n int) {
 	}
 
 	// attempt unblind
-	ret, err := c.Unblind(eval, eles, blinds)
+	ret, err := c.BatchUnblind(eval, eles, blinds)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// check that the unblinded elements correspond
 	for i, N := range ret {
-		T, err := c.Ciphersuite().POG().EncodeToGroup(inputs[i])
+		T, err := c.Ciphersuite().POG().HashToGroup(inputs[i])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -365,7 +365,7 @@ func checkClientFinalize(t *testing.T, validCiphersuite string) {
 	x := []byte{1, 2, 3, 4, 5}
 	aux := []byte{6, 7, 8, 9, 10}
 	pog := c.Ciphersuite().POG()
-	P, err := pog.EncodeToGroup(x)
+	P, err := pog.HashToGroup(x)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -443,13 +443,13 @@ func checkFull(t *testing.T, validCiphersuite string, n int) {
 	}
 
 	// do server evaluation
-	eval, err := s.Eval(eles)
+	eval, err := s.BatchEval(eles)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// do client unblinding
-	ret, err := c.Unblind(eval, eles, blinds)
+	ret, err := c.BatchUnblind(eval, eles, blinds)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -463,11 +463,11 @@ func checkFull(t *testing.T, validCiphersuite string, n int) {
 		}
 
 		// compute server finalization
-		T, err := s.Ciphersuite().POG().EncodeToGroup(inputs[i])
+		T, err := s.Ciphersuite().POG().HashToGroup(inputs[i])
 		if err != nil {
 			t.Fatal(err)
 		}
-		out, err := s.Eval([]gg.GroupElement{T})
+		out, err := s.BatchEval([]gg.GroupElement{T})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -494,7 +494,7 @@ func setupServerEval(validCiphersuite string, n int) (Server, [][]byte, []gg.Gro
 	for i := 0; i < n; i++ {
 		x := make([]byte, pog.ByteLength())
 		rand.Read(x)
-		P, err := pog.EncodeToGroup(x)
+		P, err := pog.HashToGroup(x)
 		if err != nil {
 			return Server{}, nil, nil, err
 		}
@@ -504,10 +504,10 @@ func setupServerEval(validCiphersuite string, n int) (Server, [][]byte, []gg.Gro
 	return s, inputs, eles, nil
 }
 
-func clientSetupUnblind(validCiphersuite string, n int) (Client, Evaluation, [][]byte, []gg.GroupElement, []*big.Int, *big.Int, error) {
+func clientSetupUnblind(validCiphersuite string, n int) (Client, BatchedEvaluation, [][]byte, []gg.GroupElement, []*big.Int, *big.Int, error) {
 	c, err := clientSetup(validCiphersuite)
 	if err != nil {
-		return Client{}, Evaluation{}, nil, nil, nil, nil, err
+		return Client{}, BatchedEvaluation{}, nil, nil, nil, nil, err
 	}
 	pog := c.Ciphersuite().POG()
 
@@ -520,11 +520,11 @@ func clientSetupUnblind(validCiphersuite string, n int) (Client, Evaluation, [][
 		rand.Read(x)
 		P, r, err := c.Blind(x)
 		if err != nil {
-			return Client{}, Evaluation{}, nil, nil, nil, nil, err
+			return Client{}, BatchedEvaluation{}, nil, nil, nil, nil, err
 		}
 
 		if !P.IsValid() {
-			return Client{}, Evaluation{}, nil, nil, nil, nil, errors.New("Point is not valid")
+			return Client{}, BatchedEvaluation{}, nil, nil, nil, nil, errors.New("Point is not valid")
 		}
 
 		inputs[i] = x
@@ -533,15 +533,15 @@ func clientSetupUnblind(validCiphersuite string, n int) (Client, Evaluation, [][
 	}
 
 	// dummy server for generating keys and evaluating OPRF
-	// we need to do this as Unblind also checks the DLEQ proof in the
+	// we need to do this as BatchUnblind also checks the DLEQ proof in the
 	// verifiable mode
 	s, err := serverSetup(validCiphersuite)
 	if err != nil {
-		return Client{}, Evaluation{}, nil, nil, nil, nil, err
+		return Client{}, BatchedEvaluation{}, nil, nil, nil, nil, err
 	}
-	eval, err := s.Eval(eles)
+	eval, err := s.BatchEval(eles)
 	if err != nil {
-		return Client{}, Evaluation{}, nil, nil, nil, nil, err
+		return Client{}, BatchedEvaluation{}, nil, nil, nil, nil, err
 	}
 	c.pk = s.sk.PubKey
 
@@ -737,7 +737,7 @@ func benchServerEval(b *testing.B, validCiphersuite string, n int) {
 
 	// benchmark
 	for i := 0; i < b.N; i++ {
-		_, err := s.Eval(eles)
+		_, err := s.BatchEval(eles)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -922,7 +922,7 @@ func benchClientUnblind(b *testing.B, validCiphersuite string, n int) {
 
 	// benchmark
 	for i := 0; i < b.N; i++ {
-		_, err := c.Unblind(eval, eles, blinds)
+		_, err := c.BatchUnblind(eval, eles, blinds)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -950,7 +950,7 @@ func benchClientFinalize(b *testing.B, validCiphersuite string) {
 	x := make([]byte, pog.ByteLength())
 	rand.Read(x)
 	aux := []byte{6, 7, 8, 9, 10}
-	P, err := pog.EncodeToGroup(x)
+	P, err := pog.HashToGroup(x)
 	if err != nil {
 		b.Fatal(err)
 	}

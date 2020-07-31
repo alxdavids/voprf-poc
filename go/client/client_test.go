@@ -55,7 +55,7 @@ func TestCreateConfigC448(t *testing.T) {
 
 func TestInvalidCiphersuite(t *testing.T) {
 	_, err := CreateConfig("OPRF-P256-HKDF-SHA512-SSWU-RO", ecgroup.GroupCurve{}, 1, "", -1)
-	if err != oerr.ErrUnsupportedGroup {
+	if !errors.Is(err, oerr.ErrUnsupportedGroup) {
 		t.Fatal("bad group should have triggered a bad ciphersuite error")
 	}
 }
@@ -101,7 +101,7 @@ func CreateOPRFRequest(t *testing.T, config string) {
 	assert.Equal(t, len(storedInputs), 1)
 
 	// check that the point is correctly formed
-	geChk, err := pog.EncodeToGroup(storedInputs[0])
+	geChk, err := pog.HashToGroup(storedInputs[0])
 	if err != nil {
 		t.Fatal(err)
 	}
