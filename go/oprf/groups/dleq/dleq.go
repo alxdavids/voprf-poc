@@ -231,7 +231,10 @@ func computeHash(h hash.Hash, eles ...gg.GroupElement) ([]byte, error) {
 	}
 	h.Reset()
 	for _, buf := range serialized {
-		h.Write(buf)
+		_, err = h.Write(buf)
+		if err != nil {
+		  return nil, err
+		}
 	}
 	return h.Sum(nil), nil
 }

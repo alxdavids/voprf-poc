@@ -69,7 +69,7 @@ func (ev Evaluation) ToJSON(verifiable bool) ([]byte, error) {
 	return json.MarshalIndent(serialization, "", "  ")
 }
 
-// The Participant interface defines the functions necessary for implenting an OPRF
+// The Participant interface defines the functions necessary for implementing an OPRF
 // protocol
 type Participant interface {
 	Ciphersuite() gg.Ciphersuite
@@ -257,6 +257,9 @@ func (c Client) BlindInternal(x []byte) (gg.GroupElement, gg.GroupElement, *big.
 
 	// compute blinded group element
 	P, T, err := c.BlindFixed(x, r)
+	if err != nil {
+	  return nil, nil, nil, err
+	}
 	return P, T, r, nil
 }
 
@@ -280,7 +283,7 @@ func (c Client) BlindFixed(x []byte, blind *big.Int) (gg.GroupElement, gg.GroupE
 }
 
 // Unblind returns the unblinded group element N = r^{-1}*Z if the DLEQ proof
-// check passes (proof check is committed if the ciphersuite is not verififable)
+// check passes (proof check is committed if the ciphersuite is not verifiable)
 func (c Client) Unblind(ev Evaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
 	// check that the lengths of the expected evaluations is the same as the
 	// number generated
@@ -367,7 +370,10 @@ func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	hash.Write(input)
+	_, err = hash.Write(input)
+	if err != nil {
+		return nil, err
+	}
 	y := hash.Sum(nil)
 
 	return y, nil

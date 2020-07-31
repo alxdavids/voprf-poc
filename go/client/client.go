@@ -66,7 +66,10 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputP
 			return nil, err
 		}
 		testVectors := []testVector{}
-		json.Unmarshal(bytes, &testVectors)
+		err = json.Unmarshal(bytes, &testVectors)
+		if err != nil {
+		  return nil, err
+		}
 		cfg.testVector = testVectors[testIndex]
 		cfg.n = len(cfg.testVector.Inputs)
 		// set public key
@@ -161,6 +164,9 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 			}
 			blind = new(big.Int).SetBytes(bufBlind)
 			ge, gx, err = cfg.ocli.BlindFixed(buf, blind)
+			if err != nil {
+			  return nil, err
+			}
 		} else {
 			ge, gx, blind, err = cfg.ocli.BlindInternal(buf)
 		}
@@ -333,9 +339,9 @@ func (cfg *Config) PrintStorage() error {
 	for j, s := range arrays {
 		outString := ""
 		for i, byt := range s {
-			outString = outString + hex.EncodeToString(byt)
+			outString += hex.EncodeToString(byt)
 			if i != len(storedInputs)-1 {
-				outString = outString + "\n"
+				outString += "\n"
 			}
 		}
 		outputStrings[j] = outString

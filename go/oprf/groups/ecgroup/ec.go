@@ -349,14 +349,12 @@ func (p Point) decompress(curve GroupCurve, buf []byte) (Point, error) {
 		x3Plusax := new(big.Int).Mul(x2Plusa, x)
 		x3PlusaxPlusb := new(big.Int).Add(x3Plusax, curve.ops.Params().B)
 		y2 = new(big.Int).Mod(x3PlusaxPlusb, order)
-		break
 	case "mont":
 		xPlusa := new(big.Int).Add(x, curve.consts.a)
 		x2Plusax := new(big.Int).Mul(xPlusa, x)
 		x2PlusaxPlus1 := new(big.Int).Add(x2Plusax, constants.One)
 		byy := new(big.Int).Mul(x2PlusaxPlus1, x)
 		y2 = new(big.Int).Mul(byy, new(big.Int).ModInverse(curve.consts.b, order))
-		break
 	default:
 		return Point{}, oerr.ErrUnsupportedGroup
 	}
@@ -387,12 +385,10 @@ func checkBytes(buf []byte, expectedLen int) (bool, error) {
 			return false, oerr.ErrDeserializing
 		}
 		compressed = true
-		break
 	case 4:
 		if expectedLen*2 < len(buf)-1 {
 			return false, oerr.ErrDeserializing
 		}
-		break
 	default:
 		return false, oerr.ErrDeserializing
 	}
