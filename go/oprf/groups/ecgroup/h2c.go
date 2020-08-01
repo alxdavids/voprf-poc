@@ -34,11 +34,11 @@ func (h hasher2point) Hash(msg []byte) (Point, error) {
 func getH2CSuiteWithDST(gc GroupCurve, dst []byte) (HashToPoint, error) {
 	var suite h2c.SuiteID
 	switch gc.Name() {
-	case "P-384":
+	case CurveNameP384:
 		suite = h2c.P384_XMDSHA512_SSWU_RO_
-	case "P-521":
+	case CurveNameP521:
 		suite = h2c.P521_XMDSHA512_SSWU_RO_
-	case "curve-448":
+	case CurveNameCurve448:
 		suite = h2c.Curve448_XMDSHA512_ELL2_RO_
 	default:
 		return nil, oerr.ErrUnsupportedGroup
@@ -54,11 +54,11 @@ func getH2CSuiteWithDST(gc GroupCurve, dst []byte) (HashToPoint, error) {
 func getH2CSuite(gc GroupCurve) (HashToPoint, error) {
 	var suite h2c.SuiteID
 	switch gc.Name() {
-	case "P-384":
+	case CurveNameP384:
 		suite = h2c.P384_XMDSHA512_SSWU_RO_
-	case "P-521":
+	case CurveNameP521:
 		suite = h2c.P521_XMDSHA512_SSWU_RO_
-	case "curve-448":
+	case CurveNameCurve448:
 		suite = h2c.Curve448_XMDSHA512_ELL2_RO_
 	default:
 		return nil, oerr.ErrUnsupportedGroup

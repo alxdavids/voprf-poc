@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	testCurves = []string{"P-384", "P-521", "curve-448"}
+	testCurves = []string{CurveNameP384, CurveNameP521, CurveNameCurve448}
 )
 
 func TestCiphersuiteFromString(t *testing.T) {
@@ -44,7 +44,7 @@ func TestCiphersuiteFromStringInvalidGroup(t *testing.T) {
 }
 
 func TestGroupCurveEncodingP384(t *testing.T) {
-	curve := initCurve(t, "P-384")
+	curve := initCurve(t, CurveNameP384)
 	_, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -52,7 +52,7 @@ func TestGroupCurveEncodingP384(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationP384(t *testing.T) {
-	curve := initCurve(t, "P-384")
+	curve := initCurve(t, CurveNameP384)
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +65,7 @@ func TestGroupCurvePointSerializationP384(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationWithCompressionP384(t *testing.T) {
-	curve := initCurve(t, "P-384")
+	curve := initCurve(t, CurveNameP384)
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -79,7 +79,7 @@ func TestGroupCurvePointSerializationWithCompressionP384(t *testing.T) {
 }
 
 func TestGroupCurveEncodingP521(t *testing.T) {
-	curve := initCurve(t, "P-521")
+	curve := initCurve(t, CurveNameP521)
 	_, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +87,7 @@ func TestGroupCurveEncodingP521(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationP521(t *testing.T) {
-	curve := initCurve(t, "P-521")
+	curve := initCurve(t, CurveNameP521)
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -100,7 +100,7 @@ func TestGroupCurvePointSerializationP521(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationWithCompressionP521(t *testing.T) {
-	curve := initCurve(t, "P-521")
+	curve := initCurve(t, CurveNameP521)
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -114,7 +114,7 @@ func TestGroupCurvePointSerializationWithCompressionP521(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationC448(t *testing.T) {
-	curve := initCurve(t, "curve-448")
+	curve := initCurve(t, CurveNameCurve448)
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -127,7 +127,7 @@ func TestGroupCurvePointSerializationC448(t *testing.T) {
 }
 
 func TestGroupCurvePointSerializationWithCompressionC448(t *testing.T) {
-	curve := initCurve(t, "curve-448")
+	curve := initCurve(t, CurveNameCurve448)
 	P, err := curveEncoding(curve)
 	if err != nil {
 		t.Fatal(err)
@@ -141,29 +141,29 @@ func TestGroupCurvePointSerializationWithCompressionC448(t *testing.T) {
 }
 
 func TestPointAdditionP384(t *testing.T) {
-	checkPointAddition(t, "P-384")
+	checkPointAddition(t, CurveNameP384)
 }
 
 func TestPointAdditionP521(t *testing.T) {
-	checkPointAddition(t, "P-521")
+	checkPointAddition(t, CurveNameP521)
 }
 
 func TestPointEqualityP384(t *testing.T) {
-	checkPointEquality(t, "P-384")
+	checkPointEquality(t, CurveNameP384)
 }
 
 func TestPointEqualityP521(t *testing.T) {
-	checkPointEquality(t, "P-521")
+	checkPointEquality(t, CurveNameP521)
 }
 
 func TestPointEqualityFailsOnBadGroups(t *testing.T) {
-	p384 := initCurve(t, "P-384")
+	p384 := initCurve(t, CurveNameP384)
 	P, err := curveEncoding(p384)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	p521 := initCurve(t, "P-521")
+	p521 := initCurve(t, CurveNameP521)
 	Q, err := curveEncoding(p521)
 	if err != nil {
 		t.Fatal(err)
@@ -172,14 +172,14 @@ func TestPointEqualityFailsOnBadGroups(t *testing.T) {
 }
 
 func TestPointEqualityFailsOnInvalidCallerPoint(t *testing.T) {
-	p384 := initCurve(t, "P-384")
+	p384 := initCurve(t, CurveNameP384)
 	P, err := curveEncoding(p384)
 	if err != nil {
 		t.Fatal(err)
 	}
 	P.X = constants.MinusOne
 
-	p521 := initCurve(t, "P-521")
+	p521 := initCurve(t, CurveNameP521)
 	Q, err := curveEncoding(p521)
 	if err != nil {
 		t.Fatal(err)
@@ -188,13 +188,13 @@ func TestPointEqualityFailsOnInvalidCallerPoint(t *testing.T) {
 }
 
 func TestPointEqualityFailsOnInvalidInputPoint(t *testing.T) {
-	p384 := initCurve(t, "P-384")
+	p384 := initCurve(t, CurveNameP384)
 	P, err := curveEncoding(p384)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	p521 := initCurve(t, "P-521")
+	p521 := initCurve(t, CurveNameP521)
 	Q, err := curveEncoding(p521)
 	if err != nil {
 		t.Fatal(err)
@@ -261,9 +261,9 @@ func ciphersuiteFromString(t *testing.T, groupName string, verifiable bool) {
 		s = "V"
 	}
 
-	if groupName == "P-384" || groupName == "P-521" {
+	if groupName == CurveNameP384 || groupName == CurveNameP521 {
 		ciphName = fmt.Sprintf("%sOPRF-%s-HKDF-SHA512-SSWU-RO", s, strings.ReplaceAll(groupName, "-", ""))
-	} else if groupName == "curve-448" {
+	} else if groupName == CurveNameCurve448 {
 		ciphName = fmt.Sprintf("%sOPRF-%s-HKDF-SHA512-ELL2-RO", s, strings.ReplaceAll(groupName, "-", ""))
 	}
 

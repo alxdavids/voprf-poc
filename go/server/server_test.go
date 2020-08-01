@@ -62,7 +62,7 @@ func TestCreateConfigP384(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), "P-384")
+	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), ecgroup.CurveNameP384)
 }
 
 func TestCreateConfigP521(t *testing.T) {
@@ -70,7 +70,7 @@ func TestCreateConfigP521(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), "P-521")
+	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), ecgroup.CurveNameP521)
 }
 
 func TestCreateConfigC448(t *testing.T) {
@@ -78,7 +78,7 @@ func TestCreateConfigC448(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), "curve-448")
+	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), ecgroup.CurveNameCurve448)
 }
 
 func TestCreateConfigBadCiph(t *testing.T) {

@@ -25,7 +25,7 @@ func TestCreateConfigP384(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, cfg.ocli.Ciphersuite().POG().Name(), "P-384")
+	assert.Equal(t, cfg.ocli.Ciphersuite().POG().Name(), ecgroup.CurveNameP384)
 	assert.Equal(t, cfg.n, 1)
 	assert.Equal(t, cfg.addr, "http://localhost:3001")
 	assert.Equal(t, cfg.outputPath, "some_file")
@@ -36,7 +36,7 @@ func TestCreateConfigP521(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, cfg.ocli.Ciphersuite().POG().Name(), "P-521")
+	assert.Equal(t, cfg.ocli.Ciphersuite().POG().Name(), ecgroup.CurveNameP521)
 	assert.Equal(t, cfg.n, 1)
 	assert.Equal(t, cfg.addr, "http://localhost:3001")
 	assert.Equal(t, cfg.outputPath, "some_file")
@@ -47,7 +47,7 @@ func TestCreateConfigC448(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, cfg.ocli.Ciphersuite().POG().Name(), "curve-448")
+	assert.Equal(t, cfg.ocli.Ciphersuite().POG().Name(), ecgroup.CurveNameCurve448)
 	assert.Equal(t, cfg.n, 1)
 	assert.Equal(t, cfg.addr, "http://localhost:3001")
 	assert.Equal(t, cfg.outputPath, "some_file")

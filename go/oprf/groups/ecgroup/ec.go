@@ -19,6 +19,15 @@ import (
 	p448 "github.com/otrv4/ed448"
 )
 
+const (
+	EncodingWeier      = "weier"
+	EncodingMontgomery = "mont"
+
+	CurveNameP384     = "P-384"
+	CurveNameP521     = "P-521"
+	CurveNameCurve448 = "curve-448"
+)
+
 // GroupCurve implements the PrimeOrderGroup interface using an elliptic curve
 // to provide the underlying group structure. The abstraction of the curve
 // interface is based on the one used in draft-irtf-hash-to-curve-05.
@@ -38,26 +47,26 @@ type GroupCurve struct {
 func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 	var gc GroupCurve
 	switch name {
-	case "P-384":
+	case CurveNameP384:
 		gc.ops = p384.P384()
 		curve := gc.ops
-		gc.encoding = "weier"
+		gc.encoding = EncodingWeier
 		gc.consts.a = constants.MinusThree
 		gc.consts.b = curve.Params().B
 		gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Two, curve.Params().P)), curve.Params().P)
 		gc.consts.sqrtExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Four, curve.Params().P)), curve.Params().P)
-	case "P-521":
+	case CurveNameP521:
 		gc.ops = elliptic.P521()
 		curve := gc.ops
-		gc.encoding = "weier"
+		gc.encoding = EncodingWeier
 		gc.consts.a = constants.MinusThree
 		gc.consts.b = curve.Params().B
 		gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Two, curve.Params().P)), curve.Params().P)
 		gc.consts.sqrtExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Four, curve.Params().P)), curve.Params().P)
-	case "curve-448":
+	case CurveNameCurve448:
 		gc.ops = p448.Curve448()
 		curve := gc.ops
-		gc.encoding = "mont"
+		gc.encoding = EncodingMontgomery
 		gc.consts.a = curve.Params().B // Alex: p448 implementation mis-uses this const
 		gc.consts.b = constants.One
 		gc.consts.isSqExp = new(big.Int).Rsh(new(big.Int).Sub(curve.Params().P, constants.One), 1)
@@ -353,12 +362,12 @@ func (p Point) decompress(curve GroupCurve, buf []byte) (Point, error) {
 	var y2 *big.Int
 	x := new(big.Int).SetBytes(buf[1:])
 	switch curve.encoding {
-	case "weier":
+	case EncodingWeier:
 		x2Plusa := new(big.Int).Add(new(big.Int).Exp(x, constants.Two, order), curve.consts.a)
 		x3Plusax := new(big.Int).Mul(x2Plusa, x)
 		x3PlusaxPlusb := new(big.Int).Add(x3Plusax, curve.ops.Params().B)
 		y2 = new(big.Int).Mod(x3PlusaxPlusb, order)
-	case "mont":
+	case EncodingMontgomery:
 		xPlusa := new(big.Int).Add(x, curve.consts.a)
 		x2Plusax := new(big.Int).Mul(xPlusa, x)
 		x2PlusaxPlus1 := new(big.Int).Add(x2Plusax, constants.One)

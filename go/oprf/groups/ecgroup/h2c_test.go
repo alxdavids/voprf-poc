@@ -28,7 +28,7 @@ type expectedPoint struct {
 }
 
 func TestHashToCurveP384(t *testing.T) {
-	curve := initCurve(t, "P-384")
+	curve := initCurve(t, CurveNameP384)
 	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/P384_XMD:SHA-512_SSWU_RO_.json")
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +45,7 @@ func TestHashToCurveP384(t *testing.T) {
 }
 
 func TestHashToCurveP521(t *testing.T) {
-	curve := initCurve(t, "P-521")
+	curve := initCurve(t, CurveNameP521)
 	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/P521_XMD:SHA-512_SSWU_RO_.json")
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +62,7 @@ func TestHashToCurveP521(t *testing.T) {
 }
 
 func TestHashToCurve448(t *testing.T) {
-	curve := initCurve(t, "curve-448")
+	curve := initCurve(t, CurveNameCurve448)
 	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/curve448_XMD:SHA-512_ELL2_RO_.json")
 	if err != nil {
 		t.Fatal(err)
@@ -122,15 +122,15 @@ func performHashToCurve(curve GroupCurve, testVectors hashToCurveTestVectors) er
 }
 
 func BenchmarkHashToCurveP384(b *testing.B) {
-	benchmarkHashToCurve(b, benchInitCurve(b, "P-384"))
+	benchmarkHashToCurve(b, benchInitCurve(b, CurveNameP384))
 }
 
 func BenchmarkHashToCurveP521(b *testing.B) {
-	benchmarkHashToCurve(b, benchInitCurve(b, "P-521"))
+	benchmarkHashToCurve(b, benchInitCurve(b, CurveNameP521))
 }
 
 func BenchmarkHashToCurveC448(b *testing.B) {
-	benchmarkHashToCurve(b, benchInitCurve(b, "curve-448"))
+	benchmarkHashToCurve(b, benchInitCurve(b, CurveNameCurve448))
 }
 
 func benchmarkHashToCurve(b *testing.B, curve GroupCurve) {

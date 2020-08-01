@@ -240,28 +240,28 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 	}
 
 	// finalize outputs
-	var finalOutputs [][]byte
-	var finalizeInputs [][]byte
-	var encodedUnblindedElements [][]byte
+	finalOutputs := make([][]byte, len(ret))
+	finalizeInputs := make([][]byte, len(ret))
+	encodedUnblindedElements := make([][]byte, len(ret))
 	for i, N := range ret {
 		aux := []byte("oprf_finalization_step")
 		y, err := cfg.ocli.Finalize(N, storedInputs[i], aux)
 		if err != nil {
 			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
-		finalOutputs = append(finalOutputs, y)
+		finalOutputs[i] = y
 
 		finalizeInput, err := cfg.ocli.CreateFinalizeInput(N, storedInputs[i], aux)
 		if err != nil {
 			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
-		finalizeInputs = append(finalizeInputs, finalizeInput)
+		finalizeInputs[i] = finalizeInput
 
 		encodedN, err := N.Serialize()
 		if err != nil {
 			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
-		encodedUnblindedElements = append(encodedUnblindedElements, encodedN)
+		encodedUnblindedElements[i] = encodedN
 	}
 	return finalOutputs, finalizeInputs, encodedUnblindedElements, ev, nil
 }
@@ -269,9 +269,9 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 // createJSONRPCRequest creates the JSONRPC Request object for sending to the
 // OPRF server instance
 func (cfg *Config) createJSONRPCRequest(eles [][]byte, id int) *jsonrpc.Request {
-	var hexParams []string
-	for _, buf := range eles {
-		hexParams = append(hexParams, hex.EncodeToString(buf))
+	hexParams := make([]string, len(eles))
+	for i, buf := range eles {
+		hexParams[i] = hex.EncodeToString(buf)
 	}
 	return &jsonrpc.Request{
 		Version: "2.0",
@@ -328,9 +328,9 @@ func (cfg *Config) SetPublicKey(pk string) error {
 // PrintStorage outputs all the current stored variables to either stdout or file
 // (if a filepath is specified)
 func (cfg *Config) PrintStorage() error {
-	var bufBlinds [][]byte
-	for _, v := range storedBlinds {
-		bufBlinds = append(bufBlinds, cfg.ocli.Ciphersuite().POG().ScalarToBytes(v))
+	bufBlinds := make([][]byte, len(storedBlinds))
+	for i, v := range storedBlinds {
+		bufBlinds[i] = cfg.ocli.Ciphersuite().POG().ScalarToBytes(v)
 	}
 
 	// construct output strings
