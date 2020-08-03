@@ -431,15 +431,15 @@ func checkFull(t *testing.T, validCiphersuite string, n int) {
 	for i := 0; i < n; i++ {
 		x := make([]byte, c.Ciphersuite().POG().ByteLength())
 		rand.Read(x)
-		P, r, err := c.Blind(x)
+		token, blindedToken, err := c.Blind(x)
 		if err != nil {
 			t.Fatal(err)
 		}
-		assert.True(t, P.IsValid())
+		assert.True(t, blindedToken.IsValid())
 
 		inputs[i] = x
-		eles[i] = P
-		blinds[i] = r
+		eles[i] = blindedToken
+		blinds[i] = token.Blind
 	}
 
 	// do server evaluation
@@ -518,18 +518,18 @@ func clientSetupUnblind(validCiphersuite string, n int) (Client, BatchedEvaluati
 	for i := 0; i < n; i++ {
 		x := make([]byte, pog.ByteLength())
 		rand.Read(x)
-		P, r, err := c.Blind(x)
+		token, blindedToken, err := c.Blind(x)
 		if err != nil {
 			return Client{}, BatchedEvaluation{}, nil, nil, nil, nil, err
 		}
 
-		if !P.IsValid() {
+		if !blindedToken.IsValid() {
 			return Client{}, BatchedEvaluation{}, nil, nil, nil, nil, errors.New("Point is not valid")
 		}
 
 		inputs[i] = x
-		eles[i] = P
-		blinds[i] = r
+		eles[i] = blindedToken
+		blinds[i] = token.Blind
 	}
 
 	// dummy server for generating keys and evaluating OPRF

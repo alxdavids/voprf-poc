@@ -42,7 +42,7 @@ func (sk SecretKey) New(pog gg.PrimeOrderGroup) (SecretKey, error) {
 // (V)OPRF protocol input.  It is stored so that it can be used after
 // receiving the server response.
 type Token struct {
-	Data  gg.GroupElement
+	Data  []byte // original input to Blind
 	Blind *big.Int
 }
 
@@ -90,7 +90,7 @@ func (ev BatchedEvaluation) ToJSON(verifiable bool) ([]byte, error) {
 type Participant interface {
 	Ciphersuite() gg.Ciphersuite
 	Setup(string, gg.PrimeOrderGroup) (Participant, error)
-	Blind([]byte) (gg.GroupElement, *big.Int, error)
+	Blind([]byte) (*Token, gg.GroupElement, error)
 	Unblind(Evaluation, gg.GroupElement, *big.Int) (gg.GroupElement, error)
 	BatchUnblind(BatchedEvaluation, []gg.GroupElement, []*big.Int) ([]gg.GroupElement, error)
 	Eval(gg.GroupElement) (Evaluation, error)
@@ -282,7 +282,7 @@ func (s Server) voprfFixedBatchEval(batchM []gg.GroupElement, tDleq string) (Bat
 }
 
 // Blind is unimplemented for the server
-func (s Server) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
+func (s Server) Blind(x []byte) (*Token, gg.GroupElement, error) {
 	return nil, nil, oerr.ErrOPRFUnimplementedFunctionServer
 }
 
@@ -330,9 +330,9 @@ func (c Client) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participa
 
 // Blind samples a new random blind value from ZZp and returns P=r*T where T is
 // the representation of the input bytes x in the group pog.
-func (c Client) Blind(x []byte) (gg.GroupElement, *big.Int, error) {
+func (c Client) Blind(x []byte) (*Token, gg.GroupElement, error) {
 	P, _, r, err := c.BlindInternal(x)
-	return P, r, err
+	return &Token{Data: x, Blind: r}, P, err
 }
 
 // BlindInternal samples a new random blind value from ZZp and returns P=r*T and T, where T
