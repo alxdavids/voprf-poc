@@ -24,51 +24,51 @@ var (
 )
 
 func TestFullOPRFP384(t *testing.T) {
-	checkFull(t, validOPRFP384Ciphersuite, 1)
+	checkFull(t, validOPRFP384Ciphersuite)
 }
 
 func TestFullOPRFP384Multiple(t *testing.T) {
-	checkFull(t, validOPRFP384Ciphersuite, 5)
+	checkFullBatch(t, validOPRFP384Ciphersuite, 5)
 }
 
 func TestFullVOPRFP384(t *testing.T) {
-	checkFull(t, validVOPRFP384Ciphersuite, 1)
+	checkFull(t, validVOPRFP384Ciphersuite)
 }
 
 func TestFullVOPRFP384Multiple(t *testing.T) {
-	checkFull(t, validVOPRFP384Ciphersuite, 5)
+	checkFullBatch(t, validVOPRFP384Ciphersuite, 5)
 }
 
 func TestFullOPRFP521(t *testing.T) {
-	checkFull(t, validOPRFP521Ciphersuite, 1)
+	checkFull(t, validOPRFP521Ciphersuite)
 }
 
 func TestFullOPRFP521Multiple(t *testing.T) {
-	checkFull(t, validOPRFP521Ciphersuite, 5)
+	checkFullBatch(t, validOPRFP521Ciphersuite, 5)
 }
 
 func TestFullVOPRFP521(t *testing.T) {
-	checkFull(t, validVOPRFP521Ciphersuite, 1)
+	checkFull(t, validVOPRFP521Ciphersuite)
 }
 
 func TestFullVOPRFP521Multiple(t *testing.T) {
-	checkFull(t, validVOPRFP521Ciphersuite, 5)
+	checkFullBatch(t, validVOPRFP521Ciphersuite, 5)
 }
 
 func TestFullOPRFCurve448(t *testing.T) {
-	checkFull(t, validOPRFC448Ciphersuite, 1)
+	checkFull(t, validOPRFC448Ciphersuite)
 }
 
 func TestFullOPRFCurve448Multiple(t *testing.T) {
-	checkFull(t, validOPRFC448Ciphersuite, 5)
+	checkFullBatch(t, validOPRFC448Ciphersuite, 5)
 }
 
 func TestFullVOPRFCurve448(t *testing.T) {
-	checkFull(t, validVOPRFC448Ciphersuite, 1)
+	checkFull(t, validVOPRFC448Ciphersuite)
 }
 
 func TestFullVOPRFCurve448Multiple(t *testing.T) {
-	checkFull(t, validVOPRFC448Ciphersuite, 5)
+	checkFullBatch(t, validVOPRFC448Ciphersuite, 5)
 }
 
 func TestServerSetupP384(t *testing.T) {
@@ -407,7 +407,73 @@ func checkClientFinalize(t *testing.T, validCiphersuite string) {
 	}
 }
 
-func checkFull(t *testing.T, validCiphersuite string, n int) {
+func checkFull(t *testing.T, validCiphersuite string) {
+	s, err := serverSetup(validCiphersuite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := clientSetup(validCiphersuite)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if c.Ciphersuite().Name() != s.Ciphersuite().Name() {
+		t.Fatal("Ciphersuites are inconsistent")
+	}
+
+	auxFinal := []byte{6, 7, 8, 9, 10}
+	c.pk = s.SecretKey().PubKey
+
+	// create blinded point
+	x := make([]byte, c.Ciphersuite().POG().ByteLength())
+	rand.Read(x)
+	token, blindedToken, err := c.Blind(x)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.True(t, blindedToken.IsValid())
+
+	// do server evaluation
+	eval, err := s.Eval(blindedToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// do client unblinding
+	unblindedToken, err := c.Unblind(eval, token, blindedToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// compute finalizations and check that they can also be recomputed by the
+	// server
+
+	y, err := c.Finalize(unblindedToken, token.Data, auxFinal)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// compute server finalization
+	T, err := s.Ciphersuite().POG().HashToGroup(token.Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ev, err := s.Eval(T)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	yServer, err := c.Finalize(ev.Element, token.Data, auxFinal)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check that client & server agree
+	assert.True(t, hmac.Equal(y, yServer))
+}
+
+func checkFullBatch(t *testing.T, validCiphersuite string, n int) {
 	s, err := serverSetup(validCiphersuite)
 	if err != nil {
 		t.Fatal(err)

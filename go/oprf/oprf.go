@@ -91,7 +91,7 @@ type Participant interface {
 	Ciphersuite() gg.Ciphersuite
 	Setup(string, gg.PrimeOrderGroup) (Participant, error)
 	Blind([]byte) (*Token, gg.GroupElement, error)
-	Unblind(Evaluation, gg.GroupElement, *big.Int) (gg.GroupElement, error)
+	Unblind(Evaluation, *Token, gg.GroupElement) (gg.GroupElement, error)
 	BatchUnblind(BatchedEvaluation, []gg.GroupElement, []*big.Int) ([]gg.GroupElement, error)
 	Eval(gg.GroupElement) (Evaluation, error)
 	BatchEval([]gg.GroupElement) (BatchedEvaluation, error)
@@ -287,7 +287,7 @@ func (s Server) Blind(x []byte) (*Token, gg.GroupElement, error) {
 }
 
 // Unblind is unimplemented for the server
-func (s Server) Unblind(ev Evaluation, orig gg.GroupElement, blind *big.Int) (gg.GroupElement, error) {
+func (s Server) Unblind(ev Evaluation, token *Token, blindedToken gg.GroupElement) (gg.GroupElement, error) {
 	return nil, oerr.ErrOPRFUnimplementedFunctionServer
 }
 
@@ -351,6 +351,7 @@ func (c Client) BlindInternal(x []byte) (gg.GroupElement, gg.GroupElement, *big.
 	if err != nil {
 		return nil, nil, nil, err
 	}
+
 	return P, T, r, nil
 }
 
@@ -370,16 +371,17 @@ func (c Client) BlindFixed(x []byte, blind *big.Int) (gg.GroupElement, gg.GroupE
 	if err != nil {
 		return nil, nil, err
 	}
+
 	return P, T, nil
 }
 
 // BatchUnblind returns the unblinded group element N = r^{-1}*Z if the DLEQ proof
 // check passes (proof check is omitted if the ciphersuite is not verifiable)
-func (c Client) Unblind(ev Evaluation, orig gg.GroupElement, blind *big.Int) (gg.GroupElement, error) {
+func (c Client) Unblind(ev Evaluation, token *Token, blindedToken gg.GroupElement) (gg.GroupElement, error) {
 	if !c.ciph.Verifiable() {
-		return c.oprfUnblind(ev, blind)
+		return c.oprfUnblind(ev, token.Blind)
 	}
-	return c.voprfUnblind(ev, orig, blind)
+	return c.voprfUnblind(ev, blindedToken, token.Blind)
 }
 
 // BatchUnblind returns the unblinded group elements N = r^{-1}*Z if the DLEQ proof
