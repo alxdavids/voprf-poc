@@ -147,7 +147,7 @@ func TestServerUnblind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = s.BatchUnblind(BatchedEvaluation{}, []gg.GroupElement{ecgroup.Point{}}, []*big.Int{new(big.Int)})
+	_, err = s.BatchUnblind(BatchedEvaluation{}, []*Token{new(Token)}, []gg.GroupElement{ecgroup.Point{}})
 	if !errors.Is(err, oerr.ErrOPRFUnimplementedFunctionServer) {
 		t.Fatal("Function should be unimplemented")
 	}
@@ -332,28 +332,29 @@ func checkServerEval(t *testing.T, validCiphersuite string, n int) {
 }
 
 func checkClientBlindUnblind(t *testing.T, validCiphersuite string, n int) {
-	c, eval, inputs, eles, blinds, sk, err := clientSetupUnblind(validCiphersuite, n)
+	c, eval, tokens, blindedTokens, sk, err := clientSetupUnblind(validCiphersuite, n)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// attempt unblind
-	ret, err := c.BatchUnblind(eval, eles, blinds)
+	unblindedTokens, err := c.BatchUnblind(eval, tokens, blindedTokens)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// check that the unblinded elements correspond
-	for i, N := range ret {
-		T, err := c.Ciphersuite().POG().HashToGroup(inputs[i])
+	for i, unblindedToken := range unblindedTokens {
+		T, err := c.Ciphersuite().POG().HashToGroup(tokens[i].Data)
 		if err != nil {
 			t.Fatal(err)
 		}
-		chkN, err := T.ScalarMult(sk)
+
+		expected, err := T.ScalarMult(sk)
 		if err != nil {
 			t.Fatal(err)
 		}
-		assert.True(t, N.Equal(chkN))
+		assert.True(t, unblindedToken.Equal(expected))
 	}
 }
 
@@ -491,9 +492,8 @@ func checkFullBatch(t *testing.T, validCiphersuite string, n int) {
 	c.pk = s.SecretKey().PubKey
 
 	// create blinded points
-	inputs := make([][]byte, n)
-	eles := make([]gg.GroupElement, n)
-	blinds := make([]*big.Int, n)
+	blindedTokens := make([]gg.GroupElement, n)
+	tokens := make([]*Token, n)
 	for i := 0; i < n; i++ {
 		x := make([]byte, c.Ciphersuite().POG().ByteLength())
 		rand.Read(x)
@@ -503,42 +503,44 @@ func checkFullBatch(t *testing.T, validCiphersuite string, n int) {
 		}
 		assert.True(t, blindedToken.IsValid())
 
-		inputs[i] = x
-		eles[i] = blindedToken
-		blinds[i] = token.Blind
+		blindedTokens[i] = blindedToken
+		tokens[i] = token
 	}
 
 	// do server evaluation
-	eval, err := s.BatchEval(eles)
+	eval, err := s.BatchEval(blindedTokens)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// do client unblinding
-	ret, err := c.BatchUnblind(eval, eles, blinds)
+	unblindedTokens, err := c.BatchUnblind(eval, tokens, blindedTokens)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// compute finalizations and check that they can also be recomputed by the
 	// server
-	for i, N := range ret {
-		y, err := c.Finalize(N, inputs[i], auxFinal)
+	for i, unblindedToken := range unblindedTokens {
+		y, err := c.Finalize(unblindedToken, tokens[i].Data, auxFinal)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		// compute server finalization
-		T, err := s.Ciphersuite().POG().HashToGroup(inputs[i])
+		T, err := s.Ciphersuite().POG().HashToGroup(tokens[i].Data)
 		if err != nil {
 			t.Fatal(err)
 		}
-		out, err := s.BatchEval([]gg.GroupElement{T})
+
+		evs, err := s.BatchEval([]gg.GroupElement{T})
 		if err != nil {
 			t.Fatal(err)
 		}
-		Z := out.Elements[0]
-		yServer, err := c.Finalize(Z, inputs[i], auxFinal)
+
+		Z := evs.Elements[0]
+
+		yServer, err := c.Finalize(Z, tokens[i].Data, auxFinal)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -570,32 +572,30 @@ func setupServerEval(validCiphersuite string, n int) (Server, [][]byte, []gg.Gro
 	return s, inputs, eles, nil
 }
 
-func clientSetupUnblind(validCiphersuite string, n int) (Client, BatchedEvaluation, [][]byte, []gg.GroupElement, []*big.Int, *big.Int, error) {
+func clientSetupUnblind(validCiphersuite string, n int) (Client, BatchedEvaluation, []*Token, []gg.GroupElement, *big.Int, error) {
 	c, err := clientSetup(validCiphersuite)
 	if err != nil {
-		return Client{}, BatchedEvaluation{}, nil, nil, nil, nil, err
+		return Client{}, BatchedEvaluation{}, nil, nil, nil, err
 	}
 	pog := c.Ciphersuite().POG()
 
 	// create blinded points
-	inputs := make([][]byte, n)
-	eles := make([]gg.GroupElement, n)
-	blinds := make([]*big.Int, n)
+	blindedTokens := make([]gg.GroupElement, n)
+	tokens := make([]*Token, n)
 	for i := 0; i < n; i++ {
 		x := make([]byte, pog.ByteLength())
 		rand.Read(x)
 		token, blindedToken, err := c.Blind(x)
 		if err != nil {
-			return Client{}, BatchedEvaluation{}, nil, nil, nil, nil, err
+			return Client{}, BatchedEvaluation{}, nil, nil, nil, err
 		}
 
 		if !blindedToken.IsValid() {
-			return Client{}, BatchedEvaluation{}, nil, nil, nil, nil, errors.New("Point is not valid")
+			return Client{}, BatchedEvaluation{}, nil, nil, nil, errors.New("Point is not valid")
 		}
 
-		inputs[i] = x
-		eles[i] = blindedToken
-		blinds[i] = token.Blind
+		blindedTokens[i] = blindedToken
+		tokens[i] = token
 	}
 
 	// dummy server for generating keys and evaluating OPRF
@@ -603,15 +603,15 @@ func clientSetupUnblind(validCiphersuite string, n int) (Client, BatchedEvaluati
 	// verifiable mode
 	s, err := serverSetup(validCiphersuite)
 	if err != nil {
-		return Client{}, BatchedEvaluation{}, nil, nil, nil, nil, err
+		return Client{}, BatchedEvaluation{}, nil, nil, nil, err
 	}
-	eval, err := s.BatchEval(eles)
+	eval, err := s.BatchEval(blindedTokens)
 	if err != nil {
-		return Client{}, BatchedEvaluation{}, nil, nil, nil, nil, err
+		return Client{}, BatchedEvaluation{}, nil, nil, nil, err
 	}
 	c.pk = s.sk.PubKey
 
-	return c, eval, inputs, eles, blinds, s.SecretKey().K, err
+	return c, eval, tokens, blindedTokens, s.SecretKey().K, err
 }
 
 /**
@@ -981,14 +981,14 @@ func BenchmarkClientVOPRFUnblindC448_100(b *testing.B) {
 }
 
 func benchClientUnblind(b *testing.B, validCiphersuite string, n int) {
-	c, eval, _, eles, blinds, _, err := clientSetupUnblind(validCiphersuite, n)
+	c, eval, tokens, blindedTokens, _, err := clientSetupUnblind(validCiphersuite, n)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	// benchmark
 	for i := 0; i < b.N; i++ {
-		_, err := c.BatchUnblind(eval, eles, blinds)
+		_, err := c.BatchUnblind(eval, tokens, blindedTokens)
 		if err != nil {
 			b.Fatal(err)
 		}

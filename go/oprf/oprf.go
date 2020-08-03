@@ -92,7 +92,7 @@ type Participant interface {
 	Setup(string, gg.PrimeOrderGroup) (Participant, error)
 	Blind([]byte) (*Token, gg.GroupElement, error)
 	Unblind(Evaluation, *Token, gg.GroupElement) (gg.GroupElement, error)
-	BatchUnblind(BatchedEvaluation, []gg.GroupElement, []*big.Int) ([]gg.GroupElement, error)
+	BatchUnblind(BatchedEvaluation, []*Token, []gg.GroupElement) ([]gg.GroupElement, error)
 	Eval(gg.GroupElement) (Evaluation, error)
 	BatchEval([]gg.GroupElement) (BatchedEvaluation, error)
 	Finalize(gg.GroupElement, []byte, []byte) ([]byte, error)
@@ -292,7 +292,7 @@ func (s Server) Unblind(ev Evaluation, token *Token, blindedToken gg.GroupElemen
 }
 
 // BatchUnblind is unimplemented for the server
-func (s Server) BatchUnblind(ev BatchedEvaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
+func (s Server) BatchUnblind(ev BatchedEvaluation, tokens []*Token, blindedTokens []gg.GroupElement) ([]gg.GroupElement, error) {
 	return nil, oerr.ErrOPRFUnimplementedFunctionServer
 }
 
@@ -386,16 +386,16 @@ func (c Client) Unblind(ev Evaluation, token *Token, blindedToken gg.GroupElemen
 
 // BatchUnblind returns the unblinded group elements N = r^{-1}*Z if the DLEQ proof
 // check passes (proof check is omitted if the ciphersuite is not verifiable)
-func (c Client) BatchUnblind(ev BatchedEvaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
+func (c Client) BatchUnblind(ev BatchedEvaluation, tokens []*Token, blindedTokens []gg.GroupElement) ([]gg.GroupElement, error) {
 	// check that the lengths of the expected evaluations is the same as the
 	// number generated
-	if len(ev.Elements) != len(origs) {
+	if len(ev.Elements) != len(blindedTokens) {
 		return nil, oerr.ErrClientInconsistentResponse
 	}
 	if !c.ciph.Verifiable() {
-		return c.oprfBatchUnblind(ev, blinds)
+		return c.oprfBatchUnblind(ev, tokens)
 	}
-	return c.voprfBatchUnblind(ev, origs, blinds)
+	return c.voprfBatchUnblind(ev, tokens, blindedTokens)
 }
 
 func (c Client) voprfUnblind(ev Evaluation, orig gg.GroupElement, blind *big.Int) (gg.GroupElement, error) {
@@ -409,21 +409,21 @@ func (c Client) voprfUnblind(ev Evaluation, orig gg.GroupElement, blind *big.Int
 }
 
 // voprfBatchUnblind runs VOPRF_Unblind as specified in draft-irtf-cfrg-voprf-02
-func (c Client) voprfBatchUnblind(ev BatchedEvaluation, origs []gg.GroupElement, blinds []*big.Int) ([]gg.GroupElement, error) {
+func (c Client) voprfBatchUnblind(evs BatchedEvaluation, tokens []*Token, blindedTokens []gg.GroupElement) ([]gg.GroupElement, error) {
 	ciph := c.ciph
-	eles := ev.Elements
-	proof := ev.Proof
+	eles := evs.Elements
+	proof := evs.Proof
 	// check DLEQ proof
 	b := false
 	if len(eles) == 1 {
-		b = proof.Verify(ciph.POG(), ciph.H2(), ciph.H3(), c.PublicKey(), origs[0], eles[0])
+		b = proof.Verify(ciph.POG(), ciph.H2(), ciph.H3(), c.PublicKey(), blindedTokens[0], eles[0])
 	} else {
-		b = proof.BatchVerify(ciph.POG(), ciph.H2(), ciph.H3(), c.PublicKey(), origs, eles)
+		b = proof.BatchVerify(ciph.POG(), ciph.H2(), ciph.H3(), c.PublicKey(), blindedTokens, eles)
 	}
 	if !b {
 		return nil, oerr.ErrClientVerification
 	}
-	return c.oprfBatchUnblind(ev, blinds)
+	return c.oprfBatchUnblind(evs, tokens)
 }
 
 func (c Client) oprfUnblind(ev Evaluation, blind *big.Int) (gg.GroupElement, error) {
@@ -438,21 +438,21 @@ func (c Client) oprfUnblind(ev Evaluation, blind *big.Int) (gg.GroupElement, err
 }
 
 // oprfBatchUnblind runs OPRF_Unblind as specified in draft-irtf-cfrg-voprf-02
-func (c Client) oprfBatchUnblind(ev BatchedEvaluation, blinds []*big.Int) ([]gg.GroupElement, error) {
+func (c Client) oprfBatchUnblind(evs BatchedEvaluation, tokens []*Token) ([]gg.GroupElement, error) {
 	pog := c.ciph.POG()
 	n := pog.Order()
-	eles := ev.Elements
-	res := make([]gg.GroupElement, len(eles))
-	for i, r := range blinds {
-		Z := eles[i]
-		rInv := new(big.Int).ModInverse(r, n)
-		N, err := Z.ScalarMult(rInv)
+	eles := evs.Elements
+	unblindedTokens := make([]gg.GroupElement, len(eles))
+	for i, token := range tokens {
+		ele := eles[i]
+		blindInverse := new(big.Int).ModInverse(token.Blind, n)
+		unblindedToken, err := ele.ScalarMult(blindInverse)
 		if err != nil {
 			return nil, err
 		}
-		res[i] = N
+		unblindedTokens[i] = unblindedToken
 	}
-	return res, nil
+	return unblindedTokens, nil
 }
 
 func (c Client) CreateFinalizeInput(N gg.GroupElement, x, aux []byte) ([]byte, error) {

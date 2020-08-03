@@ -18,12 +18,11 @@ import (
 )
 
 var (
-	storedInputs                 [][]byte
-	storedElements               []gg.GroupElement
-	storedBlinds                 []*big.Int
-	storedEvaluation             oprf.BatchedEvaluation
+	storedTokens                 []*oprf.Token
+	storedBlindedTokens          []gg.GroupElement
+	storedEvaluations            oprf.BatchedEvaluation
 	storedFinalOutputs           [][]byte
-	storedUnblindedElements      [][]byte
+	storedUnblindedTokens        [][]byte
 	storedFinalInputs            [][]byte
 	storedUnblindedInputElements [][]byte
 )
@@ -114,7 +113,7 @@ func (cfg *Config) SendOPRFRequest() error {
 	}
 
 	// Process and finalize the server response, and then store
-	storedFinalOutputs, storedFinalInputs, storedUnblindedElements, storedEvaluation, err = cfg.processServerResponse(jsonrpcResp)
+	storedFinalOutputs, storedFinalInputs, storedUnblindedTokens, storedEvaluations, err = cfg.processServerResponse(jsonrpcResp)
 	if err != nil {
 		return err
 	}
@@ -129,9 +128,9 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 	if n < 1 {
 		return nil, errors.New("The value of n must be greater than 0")
 	}
-	var inputs [][]byte
-	var elements []gg.GroupElement
-	var blinds []*big.Int
+
+	var tokens []*oprf.Token
+	var blindedTokens []gg.GroupElement
 	var encodedElements [][]byte
 	var unblindedInputElements [][]byte
 	var err error
@@ -151,7 +150,7 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 				return nil, err
 			}
 		}
-		inputs = append(inputs, buf)
+		token := &oprf.Token{Data: buf}
 
 		// create a blinded group element
 		var ge gg.GroupElement
@@ -174,14 +173,15 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 		if err != nil {
 			return nil, err
 		}
-		blinds = append(blinds, blind)
+		token.Blind = blind
+		tokens = append(tokens, token)
 
 		// Encode group element
 		encoded, err := ge.Serialize()
 		if err != nil {
 			return nil, err
 		}
-		elements = append(elements, ge)
+		blindedTokens = append(blindedTokens, ge)
 		encodedElements = append(encodedElements, encoded)
 
 		// Encode group element
@@ -192,10 +192,9 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 		unblindedInputElements = append(unblindedInputElements, encoded)
 	}
 	// store in globals
-	storedInputs = inputs
-	storedElements = elements
+	storedBlindedTokens = blindedTokens
 	storedUnblindedInputElements = unblindedInputElements
-	storedBlinds = blinds
+	storedTokens = tokens
 	// return JSONRPC Request object
 	return cfg.createJSONRPCRequest(encodedElements, 1), nil
 }
@@ -234,30 +233,30 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 	}
 
 	// run the unblinding steps
-	ret, err := cfg.ocli.BatchUnblind(ev, storedElements, storedBlinds)
+	unblindedTokens, err := cfg.ocli.BatchUnblind(ev, storedTokens, storedBlindedTokens)
 	if err != nil {
 		return nil, nil, nil, oprf.BatchedEvaluation{}, err
 	}
 
 	// finalize outputs
-	finalOutputs := make([][]byte, len(ret))
-	finalizeInputs := make([][]byte, len(ret))
-	encodedUnblindedElements := make([][]byte, len(ret))
-	for i, N := range ret {
+	finalOutputs := make([][]byte, len(unblindedTokens))
+	finalizeInputs := make([][]byte, len(unblindedTokens))
+	encodedUnblindedElements := make([][]byte, len(unblindedTokens))
+	for i, unblindedToken := range unblindedTokens {
 		aux := []byte("oprf_finalization_step")
-		y, err := cfg.ocli.Finalize(N, storedInputs[i], aux)
+		y, err := cfg.ocli.Finalize(unblindedToken, storedTokens[i].Data, aux)
 		if err != nil {
 			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
 		finalOutputs[i] = y
 
-		finalizeInput, err := cfg.ocli.CreateFinalizeInput(N, storedInputs[i], aux)
+		finalizeInput, err := cfg.ocli.CreateFinalizeInput(unblindedToken, storedTokens[i].Data, aux)
 		if err != nil {
 			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
 		finalizeInputs[i] = finalizeInput
 
-		encodedN, err := N.Serialize()
+		encodedN, err := unblindedToken.Serialize()
 		if err != nil {
 			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
@@ -328,26 +327,28 @@ func (cfg *Config) SetPublicKey(pk string) error {
 // PrintStorage outputs all the current stored variables to either stdout or file
 // (if a filepath is specified)
 func (cfg *Config) PrintStorage() error {
-	bufBlinds := make([][]byte, len(storedBlinds))
-	for i, v := range storedBlinds {
-		bufBlinds[i] = cfg.ocli.Ciphersuite().POG().ScalarToBytes(v)
+	bufInputs := make([][]byte, len(storedTokens))
+	bufBlinds := make([][]byte, len(storedTokens))
+	for i, token := range storedTokens {
+		bufInputs[i] = token.Data
+		bufBlinds[i] = cfg.ocli.Ciphersuite().POG().ScalarToBytes(token.Blind)
 	}
 
 	// construct output strings
-	arrays := [][][]byte{storedInputs, storedUnblindedInputElements, bufBlinds, storedUnblindedElements, storedFinalInputs, storedFinalOutputs}
+	arrays := [][][]byte{bufInputs, storedUnblindedInputElements, bufBlinds, storedUnblindedTokens, storedFinalInputs, storedFinalOutputs}
 	outputStrings := make([]string, len(arrays))
 	for j, s := range arrays {
 		outString := ""
 		for i, byt := range s {
 			outString += hex.EncodeToString(byt)
-			if i != len(storedInputs)-1 {
+			if i != len(storedTokens)-1 {
 				outString += "\n"
 			}
 		}
 		outputStrings[j] = outString
 	}
 
-	evJSON, err := storedEvaluation.ToJSON(cfg.ocli.Ciphersuite().Verifiable())
+	evJSON, err := storedEvaluations.ToJSON(cfg.ocli.Ciphersuite().Verifiable())
 	if err != nil {
 		return err
 	}

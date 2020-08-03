@@ -97,15 +97,14 @@ func CreateOPRFRequest(t *testing.T, config string) {
 		t.Fatal(err)
 	}
 	assert.True(t, ge.IsValid())
-	assert.Equal(t, len(storedBlinds), 1)
-	assert.Equal(t, len(storedInputs), 1)
+	assert.Equal(t, len(storedTokens), 1)
 
 	// check that the point is correctly formed
-	geChk, err := pog.HashToGroup(storedInputs[0])
+	geChk, err := pog.HashToGroup(storedTokens[0].Data)
 	if err != nil {
 		t.Fatal(err)
 	}
-	blindChk, err := geChk.ScalarMult(storedBlinds[0])
+	blindChk, err := geChk.ScalarMult(storedTokens[0].Blind)
 	if err != nil {
 		t.Fatal(err)
 	}
