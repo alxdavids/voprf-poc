@@ -243,14 +243,14 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 	finalizeInputs := make([][]byte, len(unblindedTokens))
 	encodedUnblindedElements := make([][]byte, len(unblindedTokens))
 	for i, unblindedToken := range unblindedTokens {
-		aux := []byte("oprf_finalization_step")
-		y, err := cfg.ocli.Finalize(unblindedToken, storedTokens[i].Data, aux)
+		info := []byte("oprf_finalization_step")
+		y, err := cfg.ocli.Finalize(storedTokens[i], unblindedToken, info)
 		if err != nil {
 			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
 		finalOutputs[i] = y
 
-		finalizeInput, err := cfg.ocli.CreateFinalizeInput(unblindedToken, storedTokens[i].Data, aux)
+		finalizeInput, err := cfg.ocli.CreateFinalizeInput(storedTokens[i], unblindedToken, info)
 		if err != nil {
 			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}

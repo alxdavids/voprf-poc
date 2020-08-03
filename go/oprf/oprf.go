@@ -95,7 +95,7 @@ type Participant interface {
 	BatchUnblind(BatchedEvaluation, []*Token, []gg.GroupElement) ([]gg.GroupElement, error)
 	Eval(gg.GroupElement) (Evaluation, error)
 	BatchEval([]gg.GroupElement) (BatchedEvaluation, error)
-	Finalize(gg.GroupElement, []byte, []byte) ([]byte, error)
+	Finalize(*Token, gg.GroupElement, []byte) ([]byte, error)
 }
 
 // Server implements the OPRF interface for processing the server-side
@@ -297,7 +297,7 @@ func (s Server) BatchUnblind(ev BatchedEvaluation, tokens []*Token, blindedToken
 }
 
 // Finalize is unimplemented for the server
-func (s Server) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
+func (s Server) Finalize(token *Token, unblindedToken gg.GroupElement, info []byte) ([]byte, error) {
 	return nil, oerr.ErrOPRFUnimplementedFunctionServer
 }
 
@@ -455,7 +455,7 @@ func (c Client) oprfBatchUnblind(evs BatchedEvaluation, tokens []*Token) ([]gg.G
 	return unblindedTokens, nil
 }
 
-func (c Client) CreateFinalizeInput(N gg.GroupElement, x, aux []byte) ([]byte, error) {
+func (c Client) CreateFinalizeInput(token *Token, unblindedToken gg.GroupElement, info []byte) ([]byte, error) {
 	DST := []byte("RFCXXXX-Finalize")
 
 	buffer := make([]byte, 0)
@@ -465,11 +465,11 @@ func (c Client) CreateFinalizeInput(N gg.GroupElement, x, aux []byte) ([]byte, e
 	buffer = append(buffer, lengthBuffer...)
 	buffer = append(buffer, DST...)
 
-	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(x)))
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(token.Data)))
 	buffer = append(buffer, lengthBuffer...)
-	buffer = append(buffer, x...)
+	buffer = append(buffer, token.Data...)
 
-	bytesN, err := N.Serialize()
+	bytesN, err := unblindedToken.Serialize()
 	if err != nil {
 		return nil, err
 	}
@@ -477,19 +477,19 @@ func (c Client) CreateFinalizeInput(N gg.GroupElement, x, aux []byte) ([]byte, e
 	buffer = append(buffer, lengthBuffer...)
 	buffer = append(buffer, bytesN...)
 
-	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(aux)))
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(info)))
 	buffer = append(buffer, lengthBuffer...)
-	buffer = append(buffer, aux...)
+	buffer = append(buffer, info...)
 
 	return buffer, nil
 }
 
 // Finalize constructs the final client output from the OPRF protocol
-func (c Client) Finalize(N gg.GroupElement, x, aux []byte) ([]byte, error) {
+func (c Client) Finalize(token *Token, unblindedToken gg.GroupElement, info []byte) ([]byte, error) {
 	ciph := c.ciph
 
 	hash := ciph.H1()
-	input, err := c.CreateFinalizeInput(N, x, aux)
+	input, err := c.CreateFinalizeInput(token, unblindedToken, info)
 	if err != nil {
 		return nil, err
 	}

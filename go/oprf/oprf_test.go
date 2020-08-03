@@ -158,7 +158,10 @@ func TestServerFinalize(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = s.Finalize(ecgroup.Point{}, []byte{}, []byte{})
+
+	var ge gg.GroupElement
+
+	_, err = s.Finalize(&Token{}, ge, []byte{})
 	if !errors.Is(err, oerr.ErrOPRFUnimplementedFunctionServer) {
 		t.Fatal("Function should be unimplemented")
 	}
@@ -363,20 +366,24 @@ func checkClientFinalize(t *testing.T, validCiphersuite string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	x := []byte{1, 2, 3, 4, 5}
-	aux := []byte{6, 7, 8, 9, 10}
+
+	clientInput := []byte{1, 2, 3, 4, 5}
+	token := &Token{Data: clientInput}
+	info := []byte{6, 7, 8, 9, 10}
 	pog := c.Ciphersuite().POG()
-	P, err := pog.HashToGroup(x)
+
+	unblindedToken, err := pog.HashToGroup(clientInput)
 	if err != nil {
 		t.Fatal(err)
 	}
-	y, err := c.Finalize(P, x, aux)
+
+	output, err := c.Finalize(token, unblindedToken, info)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// recompute
-	bytesP, err := P.Serialize()
+	bytesUnblindedToken, err := unblindedToken.Serialize()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -389,21 +396,21 @@ func checkClientFinalize(t *testing.T, validCiphersuite string) {
 	hash.Write(lengthBuffer)
 	hash.Write(DST)
 
-	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(x)))
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(clientInput)))
 	hash.Write(lengthBuffer)
-	hash.Write(x)
+	hash.Write(clientInput)
 
-	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(bytesP)))
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(bytesUnblindedToken)))
 	hash.Write(lengthBuffer)
-	hash.Write(bytesP)
+	hash.Write(bytesUnblindedToken)
 
-	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(aux)))
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(info)))
 	hash.Write(lengthBuffer)
-	hash.Write(aux)
+	hash.Write(info)
 
-	yChk := hash.Sum(nil)
+	outputCheck := hash.Sum(nil)
 
-	if !hmac.Equal(y, yChk) {
+	if !hmac.Equal(output, outputCheck) {
 		t.Fatal("Finalize failed to produce the correct output")
 	}
 }
@@ -422,7 +429,7 @@ func checkFull(t *testing.T, validCiphersuite string) {
 		t.Fatal("Ciphersuites are inconsistent")
 	}
 
-	auxFinal := []byte{6, 7, 8, 9, 10}
+	infoFinal := []byte{6, 7, 8, 9, 10}
 	c.pk = s.SecretKey().PubKey
 
 	// create blinded point
@@ -449,7 +456,7 @@ func checkFull(t *testing.T, validCiphersuite string) {
 	// compute finalizations and check that they can also be recomputed by the
 	// server
 
-	y, err := c.Finalize(unblindedToken, token.Data, auxFinal)
+	outputClient, err := c.Finalize(token, unblindedToken, infoFinal)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -465,13 +472,13 @@ func checkFull(t *testing.T, validCiphersuite string) {
 		t.Fatal(err)
 	}
 
-	yServer, err := c.Finalize(ev.Element, token.Data, auxFinal)
+	outputServer, err := c.Finalize(token, ev.Element, infoFinal)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// check that client & server agree
-	assert.True(t, hmac.Equal(y, yServer))
+	assert.True(t, hmac.Equal(outputClient, outputServer))
 }
 
 func checkFullBatch(t *testing.T, validCiphersuite string, n int) {
@@ -488,7 +495,7 @@ func checkFullBatch(t *testing.T, validCiphersuite string, n int) {
 		t.Fatal("Ciphersuites are inconsistent")
 	}
 
-	auxFinal := []byte{6, 7, 8, 9, 10}
+	infoFinal := []byte{6, 7, 8, 9, 10}
 	c.pk = s.SecretKey().PubKey
 
 	// create blinded points
@@ -522,7 +529,7 @@ func checkFullBatch(t *testing.T, validCiphersuite string, n int) {
 	// compute finalizations and check that they can also be recomputed by the
 	// server
 	for i, unblindedToken := range unblindedTokens {
-		y, err := c.Finalize(unblindedToken, tokens[i].Data, auxFinal)
+		y, err := c.Finalize(tokens[i], unblindedToken, infoFinal)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -540,7 +547,7 @@ func checkFullBatch(t *testing.T, validCiphersuite string, n int) {
 
 		Z := evs.Elements[0]
 
-		yServer, err := c.Finalize(Z, tokens[i].Data, auxFinal)
+		yServer, err := c.Finalize(tokens[i], Z, infoFinal)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1013,17 +1020,18 @@ func benchClientFinalize(b *testing.B, validCiphersuite string) {
 		b.Fatal(err)
 	}
 	pog := c.Ciphersuite().POG()
-	x := make([]byte, pog.ByteLength())
-	rand.Read(x)
-	aux := []byte{6, 7, 8, 9, 10}
-	P, err := pog.HashToGroup(x)
+	input := make([]byte, pog.ByteLength())
+	rand.Read(input)
+	info := []byte{6, 7, 8, 9, 10}
+	unblindedToken, err := pog.HashToGroup(input)
 	if err != nil {
 		b.Fatal(err)
 	}
+	token := &Token{Data: input}
 
 	// benchmark
 	for i := 0; i < b.N; i++ {
-		_, err := c.Finalize(P, x, aux)
+		_, err := c.Finalize(token, unblindedToken, info)
 		if err != nil {
 			b.Fatal(err)
 		}
