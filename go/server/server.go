@@ -15,6 +15,10 @@ import (
 	gg "github.com/alxdavids/voprf-poc/go/oprf/groups"
 )
 
+const (
+	version2 = "2.0"
+)
+
 // Config corresponds to the actual HTTP instantiation of the server in the OPRF
 // protocol, it contains an oprf.Server object for processing OPRF operations
 type Config struct {
@@ -128,7 +132,7 @@ func (cfg *Config) handleOPRF(w http.ResponseWriter, r *http.Request) {
 // processJSONRPCRequest parses the JSONRPC request and attempts to run the OPRF
 // functionality specified in the request
 func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) (map[string][][]byte, error) {
-	if jsonReq.Version != "2.0" {
+	if jsonReq.Version != version2 {
 		return nil, oerr.ErrJSONRPCInvalidRequest
 	}
 
@@ -197,7 +201,7 @@ func (cfg *Config) processEval(params []string) (map[string][][]byte, error) {
 			return nil, err
 		}
 	} else {
-		eval, err = cfg.osrv.BatchEval(inputs)
+		eval, err = cfg.osrv.BatchEvaluate(inputs)
 		if err != nil {
 			return nil, err
 		}
@@ -264,7 +268,7 @@ func respSuccess(w http.ResponseWriter, result map[string][][]byte, id int) {
 	}
 
 	// marshal success response
-	resp, _ := json.Marshal(jsonrpc.ResponseSuccess{Version: "2.0", Result: r, ID: id})
+	resp, _ := json.Marshal(jsonrpc.ResponseSuccess{Version: version2, Result: r, ID: id})
 	w.Write(resp)
 }
 
@@ -275,7 +279,7 @@ func respError(w http.ResponseWriter, e error, status int) {
 
 	// if an error occurs here then we have no hope so I'm going to
 	// ignore it
-	resp, _ := json.Marshal(jsonrpc.ResponseError{Version: "2.0", Error: jsonrpcError, ID: 1})
+	resp, _ := json.Marshal(jsonrpc.ResponseError{Version: version2, Error: jsonrpcError, ID: 1})
 	w.WriteHeader(status)
 	w.Write(resp)
 	fmt.Printf("Error occurred processing client request (message: %v)\n", e)

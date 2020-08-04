@@ -244,7 +244,7 @@ func TestClientEval(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.BatchEval([]gg.GroupElement{ecgroup.Point{}})
+	_, err = c.BatchEvaluate([]gg.GroupElement{ecgroup.Point{}})
 	if !errors.Is(err, oerr.ErrOPRFUnimplementedFunctionClient) {
 		t.Fatal("Function should be unimplemented")
 	}
@@ -307,7 +307,7 @@ func checkServerEval(t *testing.T, validCiphersuite string, n int) {
 	pog := ciph.POG()
 
 	// evaluate the OPRF
-	ev, err := s.BatchEval(eles)
+	ev, err := s.BatchEvaluate(eles)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -442,7 +442,7 @@ func checkFull(t *testing.T, validCiphersuite string) {
 	assert.True(t, blindedToken.IsValid())
 
 	// do server evaluation
-	eval, err := s.Eval(blindedToken)
+	eval, err := s.Evaluate(blindedToken)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -467,7 +467,7 @@ func checkFull(t *testing.T, validCiphersuite string) {
 		t.Fatal(err)
 	}
 
-	ev, err := s.Eval(T)
+	ev, err := s.Evaluate(T)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -515,7 +515,7 @@ func checkFullBatch(t *testing.T, validCiphersuite string, n int) {
 	}
 
 	// do server evaluation
-	eval, err := s.BatchEval(blindedTokens)
+	eval, err := s.BatchEvaluate(blindedTokens)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -540,7 +540,7 @@ func checkFullBatch(t *testing.T, validCiphersuite string, n int) {
 			t.Fatal(err)
 		}
 
-		evs, err := s.BatchEval([]gg.GroupElement{T})
+		evs, err := s.BatchEvaluate([]gg.GroupElement{T})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -612,7 +612,7 @@ func clientSetupUnblind(validCiphersuite string, n int) (Client, BatchedEvaluati
 	if err != nil {
 		return Client{}, BatchedEvaluation{}, nil, nil, nil, err
 	}
-	eval, err := s.BatchEval(blindedTokens)
+	eval, err := s.BatchEvaluate(blindedTokens)
 	if err != nil {
 		return Client{}, BatchedEvaluation{}, nil, nil, nil, err
 	}
@@ -810,7 +810,7 @@ func benchServerEval(b *testing.B, validCiphersuite string, n int) {
 
 	// benchmark
 	for i := 0; i < b.N; i++ {
-		_, err := s.BatchEval(eles)
+		_, err := s.BatchEvaluate(eles)
 		if err != nil {
 			b.Fatal(err)
 		}

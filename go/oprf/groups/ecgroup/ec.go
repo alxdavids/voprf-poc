@@ -145,8 +145,8 @@ func (c GroupCurve) HashToScalar(buf []byte) (*big.Int, error) {
 //
 // NOT constant time due to rejection sampling
 func (c GroupCurve) RandomScalar() (*big.Int, error) {
-	N := c.Order() // base point subgroup order
-	bitLen := N.BitLen()
+	n := c.Order() // base point subgroup order
+	bitLen := n.BitLen()
 	byteLen := (bitLen + 7) >> 3
 	buf := make([]byte, byteLen)
 
@@ -159,7 +159,7 @@ func (c GroupCurve) RandomScalar() (*big.Int, error) {
 		// Mask to account for field sizes that are not a whole number of bytes.
 		buf = utils.MaskScalar(buf, bitLen)
 		// Check if scalar is in the correct range.
-		if new(big.Int).SetBytes(buf).Cmp(N) >= 0 {
+		if new(big.Int).SetBytes(buf).Cmp(n) >= 0 {
 			continue
 		}
 		break

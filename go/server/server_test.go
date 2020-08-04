@@ -103,7 +103,7 @@ func TestProcessValidJSONRPCRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
 		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}, Ciphersuite: validOPRFP384Ciphersuite},
 		ID:      1,
@@ -133,7 +133,7 @@ func TestInvalidJSONRPCRequestMethod(t *testing.T) {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "bad_method",
 		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}, Ciphersuite: validOPRFP384Ciphersuite},
 		ID:      1,
@@ -177,7 +177,7 @@ func TestInvalidJSONRPCRequestEmptyParams(t *testing.T) {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
 		ID:      1,
 	}
@@ -204,7 +204,7 @@ func TestInvalidJSONRPCRequestNoCiphersuite(t *testing.T) {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
 		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}},
 		ID:      1,
@@ -232,7 +232,7 @@ func TestInvalidJSONRPCRequestInvalidCiphersuite(t *testing.T) {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
 		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}, Ciphersuite: validOPRFP521Ciphersuite},
 		ID:      1,
@@ -251,7 +251,7 @@ func TestInvalidJSONRPCRequestBadlyEncodedParam(t *testing.T) {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
 		Params:  jsonrpc.RequestParams{Data: []string{"badly_encoded_string"}},
 		ID:      1,
@@ -270,7 +270,7 @@ func TestInvalidJSONRPCRequestBadParams(t *testing.T) {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
 		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString([]byte("bad_byte_string"))}, Ciphersuite: validOPRFP384Ciphersuite},
 		ID:      1,

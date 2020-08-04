@@ -17,6 +17,10 @@ import (
 	"github.com/alxdavids/voprf-poc/go/oprf/groups/dleq"
 )
 
+const (
+	version2 = "2.0"
+)
+
 var (
 	storedTokens                 []*oprf.Token
 	storedBlindedTokens          []gg.GroupElement
@@ -273,7 +277,7 @@ func (cfg *Config) createJSONRPCRequest(eles [][]byte, id int) *jsonrpc.Request 
 		hexParams[i] = hex.EncodeToString(buf)
 	}
 	return &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
 		Params: jsonrpc.RequestParams{
 			Data:        hexParams,

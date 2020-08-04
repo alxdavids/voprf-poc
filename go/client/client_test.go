@@ -81,7 +81,7 @@ func CreateOPRFRequest(t *testing.T, config string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, jsonrpcReq.Version, "2.0")
+	assert.Equal(t, jsonrpcReq.Version, version2)
 	assert.Equal(t, jsonrpcReq.Method, "eval")
 	assert.Equal(t, jsonrpcReq.ID, 1)
 	assert.Equal(t, 1, len(jsonrpcReq.Params.Data))
@@ -154,7 +154,7 @@ func CreateJSONRPCRequest(t *testing.T, config string) {
 	buf0 := []byte{1, 2, 3, 4}
 	buf1 := []byte{3, 4, 5, 6}
 	jsonrpcReq := cfg.createJSONRPCRequest([][]byte{buf0, buf1}, 3)
-	assert.Equal(t, jsonrpcReq.Version, "2.0")
+	assert.Equal(t, jsonrpcReq.Version, version2)
 	assert.Equal(t, jsonrpcReq.Method, "eval")
 	assert.Equal(t, jsonrpcReq.Params.Data[0], hex.EncodeToString(buf0))
 	assert.Equal(t, jsonrpcReq.Params.Data[1], hex.EncodeToString(buf1))
@@ -179,7 +179,7 @@ func ParseJSONRPCResponseSuccess(t *testing.T, config string) {
 		t.Fatal(err)
 	}
 	jsonrpcResp := &jsonrpc.ResponseSuccess{
-		Version: "2.0",
+		Version: version2,
 		Result:  jsonrpc.ResponseResult{Data: []string{"some_response_string"}},
 		ID:      1,
 	}
@@ -218,7 +218,7 @@ func ParseJSONRPCResponseError(t *testing.T, config string) {
 	errorMessage := "error_message"
 	errorCode := -33001
 	jsonrpcResp := &jsonrpc.ResponseError{
-		Version: "2.0",
+		Version: version2,
 		Error: oerr.ErrorJSON{
 			Message: errorMessage,
 			Code:    errorCode,
@@ -255,7 +255,7 @@ func ParseJSONRPCResponseInvalidResult(t *testing.T, config string) {
 		t.Fatal(err)
 	}
 	jsonrpcResp := make(map[string]interface{})
-	jsonrpcResp["Version"] = "2.0"
+	jsonrpcResp["Version"] = version2
 	jsonrpcResp["Result"] = 7
 	jsonrpcResp["ID"] = 3
 	buf, e := json.Marshal(jsonrpcResp)
@@ -286,7 +286,7 @@ func ParseJSONRPCResponseInvalidField(t *testing.T, config string) {
 		t.Fatal(err)
 	}
 	jsonrpcResp := make(map[string]interface{})
-	jsonrpcResp["Version"] = "2.0"
+	jsonrpcResp["Version"] = version2
 	jsonrpcResp["Weird"] = []string{"some_string"}
 	jsonrpcResp["ID"] = 3
 	buf, e := json.Marshal(jsonrpcResp)

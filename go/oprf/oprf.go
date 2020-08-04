@@ -93,8 +93,8 @@ type Participant interface {
 	Blind([]byte) (*Token, gg.GroupElement, error)
 	Unblind(Evaluation, *Token, gg.GroupElement) (gg.GroupElement, error)
 	BatchUnblind(BatchedEvaluation, []*Token, []gg.GroupElement) ([]gg.GroupElement, error)
-	Eval(gg.GroupElement) (Evaluation, error)
-	BatchEval([]gg.GroupElement) (BatchedEvaluation, error)
+	Evaluate(gg.GroupElement) (Evaluation, error)
+	BatchEvaluate([]gg.GroupElement) (BatchedEvaluation, error)
 	Finalize(*Token, gg.GroupElement, []byte) ([]byte, error)
 }
 
@@ -132,18 +132,18 @@ func (s Server) Setup(ciphersuite string, pogInit gg.PrimeOrderGroup) (Participa
 	return s, nil
 }
 
-// BatchEval computes the Server-side evaluation of the (V)OPRF using a secret key
+// BatchEvaluate computes the Server-side evaluation of the (V)OPRF using a secret key
 // and a provided group element
-func (s Server) Eval(M gg.GroupElement) (Evaluation, error) {
+func (s Server) Evaluate(M gg.GroupElement) (Evaluation, error) {
 	if !s.Ciphersuite().Verifiable() {
 		return s.oprfEval(M)
 	}
 	return s.voprfEval(M)
 }
 
-// BatchEval computes the Server-side evaluation of the batched (V)OPRF using
+// BatchEvaluate computes the Server-side evaluation of the batched (V)OPRF using
 // a secret key and provided group elements
-func (s Server) BatchEval(batchM []gg.GroupElement) (BatchedEvaluation, error) {
+func (s Server) BatchEvaluate(batchM []gg.GroupElement) (BatchedEvaluation, error) {
 	if !s.Ciphersuite().Verifiable() {
 		return s.oprfBatchEval(batchM)
 	}
@@ -428,24 +428,24 @@ func (c Client) voprfBatchUnblind(evs BatchedEvaluation, tokens []*Token, blinde
 
 func (c Client) oprfUnblind(ev Evaluation, blind *big.Int) (gg.GroupElement, error) {
 	pog := c.ciph.POG()
-	n := pog.Order()
-	rInv := new(big.Int).ModInverse(blind, n)
-	N, err := ev.Element.ScalarMult(rInv)
+	N := pog.Order()
+	blindInverse := new(big.Int).ModInverse(blind, N)
+	unblindedToken, err := ev.Element.ScalarMult(blindInverse)
 	if err != nil {
 		return nil, err
 	}
-	return N, nil
+	return unblindedToken, nil
 }
 
 // oprfBatchUnblind runs OPRF_Unblind as specified in draft-irtf-cfrg-voprf-02
 func (c Client) oprfBatchUnblind(evs BatchedEvaluation, tokens []*Token) ([]gg.GroupElement, error) {
 	pog := c.ciph.POG()
-	n := pog.Order()
+	N := pog.Order()
 	eles := evs.Elements
 	unblindedTokens := make([]gg.GroupElement, len(eles))
 	for i, token := range tokens {
 		ele := eles[i]
-		blindInverse := new(big.Int).ModInverse(token.Blind, n)
+		blindInverse := new(big.Int).ModInverse(token.Blind, N)
 		unblindedToken, err := ele.ScalarMult(blindInverse)
 		if err != nil {
 			return nil, err
@@ -502,13 +502,13 @@ func (c Client) Finalize(token *Token, unblindedToken gg.GroupElement, info []by
 	return y, nil
 }
 
-// Eval is not implemented for the OPRF client
-func (c Client) Eval(M gg.GroupElement) (Evaluation, error) {
+// Evaluate is not implemented for the OPRF client
+func (c Client) Evaluate(M gg.GroupElement) (Evaluation, error) {
 	return Evaluation{}, oerr.ErrOPRFUnimplementedFunctionClient
 }
 
-// BatchEval is not implemented for the OPRF client
-func (c Client) BatchEval(M []gg.GroupElement) (BatchedEvaluation, error) {
+// BatchEvaluate is not implemented for the OPRF client
+func (c Client) BatchEvaluate(M []gg.GroupElement) (BatchedEvaluation, error) {
 	return BatchedEvaluation{}, oerr.ErrOPRFUnimplementedFunctionClient
 }
 
