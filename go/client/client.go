@@ -14,7 +14,6 @@ import (
 	"github.com/alxdavids/voprf-poc/go/jsonrpc"
 	"github.com/alxdavids/voprf-poc/go/oprf"
 	gg "github.com/alxdavids/voprf-poc/go/oprf/groups"
-	"github.com/alxdavids/voprf-poc/go/oprf/groups/dleq"
 )
 
 const (
@@ -44,7 +43,7 @@ type Config struct {
 
 // CreateConfig instantiates the client that will communicate with the HTTP
 // server running the (V)OPRF
-func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputPath string, testIndex int) (*Config, error) {
+func CreateConfig(ciphersuite int, pogInit gg.PrimeOrderGroup, n int, outputPath string, testIndex int) (*Config, error) {
 	ptpnt, err := oprf.Client{}.Setup(ciphersuite, pogInit)
 	if err != nil {
 		return nil, err
@@ -64,7 +63,7 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputP
 		test:       test,
 	}
 	if test {
-		raw, err := ioutil.ReadFile(fmt.Sprintf("../test-vectors/%s.json", ciphersuite))
+		raw, err := ioutil.ReadFile(fmt.Sprintf("../test-vectors/%s.json", gg.IDtoName(ciphersuite)))
 		if err != nil {
 			return nil, err
 		}
@@ -134,7 +133,7 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 	}
 
 	var tokens []*oprf.Token
-	var blindedTokens []gg.GroupElement
+	var blindTokens []gg.GroupElement
 	var encodedElements [][]byte
 	var unblindedInputElements [][]byte
 	var err error
@@ -185,7 +184,7 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 		if err != nil {
 			return nil, err
 		}
-		blindedTokens = append(blindedTokens, ge)
+		blindTokens = append(blindTokens, ge)
 		encodedElements = append(encodedElements, encoded)
 
 		// Encode group element
@@ -196,7 +195,7 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 		unblindedInputElements = append(unblindedInputElements, encoded)
 	}
 	// store in globals
-	storedBlindedTokens = blindedTokens
+	storedBlindedTokens = blindTokens
 	storedUnblindedInputElements = unblindedInputElements
 	storedTokens = tokens
 	// return JSONRPC Request object
@@ -215,15 +214,15 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 		if err != nil {
 			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
-		Z, err := gg.CreateGroupElement(pog).Deserialize(buf)
+		elem, err := gg.CreateGroupElement(pog).Deserialize(buf)
 		if err != nil {
 			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
-		ev.Elements[i] = Z
+		ev.Elements[i] = elem
 	}
 
 	// if the ciphersuite is verifiable then construct the proof object
-	if cfg.ocli.Ciphersuite().Verifiable() {
+	if cfg.ocli.Verifiable() {
 		cBytes, err := hex.DecodeString(result.Proof[0])
 		if err != nil {
 			return nil, nil, nil, oprf.BatchedEvaluation{}, err
@@ -233,7 +232,7 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
 		var proofBytes = [][]byte{cBytes, sBytes}
-		ev.Proof = dleq.Proof{}.Deserialize(pog, proofBytes)
+		ev.Proof = oprf.Proof{}.Deserialize(pog, proofBytes)
 	}
 
 	// run the unblinding steps
@@ -281,7 +280,7 @@ func (cfg *Config) createJSONRPCRequest(eles [][]byte, id int) *jsonrpc.Request 
 		Method:  "eval",
 		Params: jsonrpc.RequestParams{
 			Data:        hexParams,
-			Ciphersuite: cfg.ocli.Ciphersuite().Name(),
+			Ciphersuite: cfg.ocli.Ciphersuite().ID(),
 		},
 		ID: id,
 	}
@@ -352,7 +351,7 @@ func (cfg *Config) PrintStorage() error {
 		outputStrings[j] = outString
 	}
 
-	evJSON, err := storedEvaluations.ToJSON(cfg.ocli.Ciphersuite().Verifiable())
+	evJSON, err := storedEvaluations.ToJSON(cfg.ocli.Verifiable())
 	if err != nil {
 		return err
 	}

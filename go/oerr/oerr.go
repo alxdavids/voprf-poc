@@ -61,6 +61,10 @@ var (
 	// ErrUnsupportedH2C indicates that the requested hash-to-curve function is
 	// not supported.
 	ErrUnsupportedH2C = errors.New("The chosen hash-to-curve function is not supported, currently supported functions: [SSWU-RO (for NIST curves)]")
+	// ErrUnsupportedCiphersuite indicates that the requested ciphersuite is
+	// not supported.
+	// TODO: fill in supported ciphersuites
+	ErrUnsupportedCiphersuite = errors.New("The chosen ciphersuite is not supported, currently supported ciphersuites: [TODO]")
 	// ErrIncompatibleGroupParams indicates that the requested group has a
 	// parameter setting that is incompatible with our implementation
 	ErrIncompatibleGroupParams = errors.New("The chosen group has an incompatible parameter setting")

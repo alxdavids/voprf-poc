@@ -31,7 +31,7 @@ type Config struct {
 }
 
 // CreateConfig returns a HTTP Server object
-func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, max int, tls bool, testIndex int) (*Config, error) {
+func CreateConfig(ciphersuite int, pogInit gg.PrimeOrderGroup, max int, tls bool, testIndex int) (*Config, error) {
 	ptpnt, err := oprf.Server{}.Setup(ciphersuite, pogInit)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, max int, tls b
 
 	// when running in test mode we use fixed test vectors
 	if test {
-		bytes, err := ioutil.ReadFile(fmt.Sprintf("../test-vectors/%s.json", ciphersuite))
+		bytes, err := ioutil.ReadFile(fmt.Sprintf("../test-vectors/%v.json", ciphersuite))
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +139,7 @@ func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) (map[string][
 	params := jsonReq.Params
 	// if the ciphersuite is empty then just attempt to evaluate
 	ciph := params.Ciphersuite
-	if ciph != cfg.osrv.Ciphersuite().Name() {
+	if ciph != cfg.osrv.Ciphersuite().ID() {
 		fmt.Println(ciph)
 		fmt.Println(cfg.osrv.Ciphersuite().Name())
 		return nil, oerr.ErrJSONRPCInvalidMethodParams
@@ -208,7 +208,7 @@ func (cfg *Config) processEval(params []string) (map[string][][]byte, error) {
 	}
 
 	// print out DLEQ scalar
-	if osrv.Ciphersuite().Verifiable() {
+	if osrv.Verifiable() {
 		k := osrv.SecretKey().K
 		c := eval.Proof.C
 		s := eval.Proof.S
@@ -218,8 +218,8 @@ func (cfg *Config) processEval(params []string) (map[string][][]byte, error) {
 
 	// serialize output group elements
 	evalsOut := make([][]byte, l)
-	for i, Z := range eval.Elements {
-		out, err := Z.Serialize()
+	for i, elem := range eval.Elements {
+		out, err := elem.Serialize()
 		if err != nil {
 			return nil, err
 		}
@@ -228,7 +228,7 @@ func (cfg *Config) processEval(params []string) (map[string][][]byte, error) {
 
 	// serialize proof object if the ciphersuite indicates verifiability
 	serializedProof := make([][]byte, 2)
-	if cfg.osrv.Ciphersuite().Verifiable() {
+	if cfg.osrv.Verifiable() {
 		serializedProof = eval.Proof.Serialize()
 	}
 

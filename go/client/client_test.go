@@ -14,14 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	validOPRFP384Ciphersuite = "OPRF-P384-HKDF-SHA512-SSWU-RO"
-	validOPRFP521Ciphersuite = "OPRF-P521-HKDF-SHA512-SSWU-RO"
-	validOPRFC448Ciphersuite = "OPRF-curve448-HKDF-SHA512-ELL2-RO"
-)
-
 func TestCreateConfigP384(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 1, "some_file", -1)
+	cfg, err := CreateConfig(gg.OPRF_P384_SHA512, ecgroup.GroupCurve{}, 1, "some_file", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +26,7 @@ func TestCreateConfigP384(t *testing.T) {
 }
 
 func TestCreateConfigP521(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP521Ciphersuite, ecgroup.GroupCurve{}, 1, "some_file", -1)
+	cfg, err := CreateConfig(gg.OPRF_P521_SHA512, ecgroup.GroupCurve{}, 1, "some_file", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +37,7 @@ func TestCreateConfigP521(t *testing.T) {
 }
 
 func TestCreateConfigC448(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFC448Ciphersuite, ecgroup.GroupCurve{}, 1, "some_file", -1)
+	cfg, err := CreateConfig(gg.OPRF_CURVE448_SHA512, ecgroup.GroupCurve{}, 1, "some_file", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,26 +48,26 @@ func TestCreateConfigC448(t *testing.T) {
 }
 
 func TestInvalidCiphersuite(t *testing.T) {
-	_, err := CreateConfig("OPRF-P256-HKDF-SHA512-SSWU-RO", ecgroup.GroupCurve{}, 1, "", -1)
+	_, err := CreateConfig(gg.GROUP_P256, ecgroup.GroupCurve{}, 1, "", -1)
 	if !errors.Is(err, oerr.ErrUnsupportedGroup) {
 		t.Fatal("bad group should have triggered a bad ciphersuite error")
 	}
 }
 
 func TestCreateOPRFRequestP384(t *testing.T) {
-	CreateOPRFRequest(t, validOPRFP384Ciphersuite)
+	CreateOPRFRequest(t, gg.OPRF_P384_SHA512)
 }
 
 func TestCreateOPRFRequestP521(t *testing.T) {
-	CreateOPRFRequest(t, validOPRFP521Ciphersuite)
+	CreateOPRFRequest(t, gg.OPRF_P521_SHA512)
 }
 
 func TestCreateOPRFRequestC448(t *testing.T) {
-	CreateOPRFRequest(t, validOPRFC448Ciphersuite)
+	CreateOPRFRequest(t, gg.OPRF_CURVE448_SHA512)
 }
 
-func CreateOPRFRequest(t *testing.T, config string) {
-	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, 1, "", -1)
+func CreateOPRFRequest(t *testing.T, ciph int) {
+	cfg, err := CreateConfig(ciph, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,19 +106,19 @@ func CreateOPRFRequest(t *testing.T, config string) {
 }
 
 func TestCreateOPRFRequestBadNP384(t *testing.T) {
-	CreateOPRFRequestBadN(t, validOPRFP384Ciphersuite)
+	CreateOPRFRequestBadN(t, gg.OPRF_P384_SHA512)
 }
 
 func TestCreateOPRFRequestBadNP521(t *testing.T) {
-	CreateOPRFRequestBadN(t, validOPRFP521Ciphersuite)
+	CreateOPRFRequestBadN(t, gg.OPRF_P521_SHA512)
 }
 
 func TestCreateOPRFRequestBadNC448(t *testing.T) {
-	CreateOPRFRequestBadN(t, validOPRFC448Ciphersuite)
+	CreateOPRFRequestBadN(t, gg.OPRF_CURVE448_SHA512)
 }
 
-func CreateOPRFRequestBadN(t *testing.T, config string) {
-	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, -1, "", -1)
+func CreateOPRFRequestBadN(t *testing.T, ciphID int) {
+	cfg, err := CreateConfig(ciphID, ecgroup.GroupCurve{}, -1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,19 +129,19 @@ func CreateOPRFRequestBadN(t *testing.T, config string) {
 }
 
 func TestCreateJSONRPCRequestP384(t *testing.T) {
-	CreateJSONRPCRequest(t, validOPRFP384Ciphersuite)
+	CreateJSONRPCRequest(t, gg.OPRF_P384_SHA512)
 }
 
 func TestCreateJSONRPCRequestP521(t *testing.T) {
-	CreateJSONRPCRequest(t, validOPRFP521Ciphersuite)
+	CreateJSONRPCRequest(t, gg.OPRF_P521_SHA512)
 }
 
 func TestCreateJSONRPCRequestC448(t *testing.T) {
-	CreateJSONRPCRequest(t, validOPRFC448Ciphersuite)
+	CreateJSONRPCRequest(t, gg.OPRF_CURVE448_SHA512)
 }
 
-func CreateJSONRPCRequest(t *testing.T, config string) {
-	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, 1, "", -1)
+func CreateJSONRPCRequest(t *testing.T, ciph int) {
+	cfg, err := CreateConfig(ciph, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,19 +156,19 @@ func CreateJSONRPCRequest(t *testing.T, config string) {
 }
 
 func TestParseJSONRPCResponseSuccessP384(t *testing.T) {
-	ParseJSONRPCResponseSuccess(t, validOPRFP384Ciphersuite)
+	ParseJSONRPCResponseSuccess(t, gg.OPRF_P384_SHA512)
 }
 
 func TestParseJSONRPCResponseSuccessP521(t *testing.T) {
-	ParseJSONRPCResponseSuccess(t, validOPRFP521Ciphersuite)
+	ParseJSONRPCResponseSuccess(t, gg.OPRF_P521_SHA512)
 }
 
 func TestParseJSONRPCResponseSuccessC448(t *testing.T) {
-	ParseJSONRPCResponseSuccess(t, validOPRFC448Ciphersuite)
+	ParseJSONRPCResponseSuccess(t, gg.OPRF_CURVE448_SHA512)
 }
 
-func ParseJSONRPCResponseSuccess(t *testing.T, config string) {
-	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, 1, "", -1)
+func ParseJSONRPCResponseSuccess(t *testing.T, ciph int) {
+	cfg, err := CreateConfig(ciph, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,19 +193,19 @@ func ParseJSONRPCResponseSuccess(t *testing.T, config string) {
 }
 
 func TestParseJSONRPCResponseErrorP384(t *testing.T) {
-	ParseJSONRPCResponseError(t, validOPRFP384Ciphersuite)
+	ParseJSONRPCResponseError(t, gg.OPRF_P384_SHA512)
 }
 
 func TestParseJSONRPCResponseErrorP521(t *testing.T) {
-	ParseJSONRPCResponseError(t, validOPRFP521Ciphersuite)
+	ParseJSONRPCResponseError(t, gg.OPRF_P521_SHA512)
 }
 
 func TestParseJSONRPCResponseErrorC448(t *testing.T) {
-	ParseJSONRPCResponseError(t, validOPRFC448Ciphersuite)
+	ParseJSONRPCResponseError(t, gg.OPRF_CURVE448_SHA512)
 }
 
-func ParseJSONRPCResponseError(t *testing.T, config string) {
-	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, 1, "", -1)
+func ParseJSONRPCResponseError(t *testing.T, ciph int) {
+	cfg, err := CreateConfig(ciph, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,19 +232,19 @@ func ParseJSONRPCResponseError(t *testing.T, config string) {
 }
 
 func TestParseJSONRPCResponseInvalidResultP384(t *testing.T) {
-	ParseJSONRPCResponseInvalidResult(t, validOPRFP384Ciphersuite)
+	ParseJSONRPCResponseInvalidResult(t, gg.OPRF_P384_SHA512)
 }
 
 func TestParseJSONRPCResponseInvalidResultP521(t *testing.T) {
-	ParseJSONRPCResponseInvalidResult(t, validOPRFP521Ciphersuite)
+	ParseJSONRPCResponseInvalidResult(t, gg.OPRF_P521_SHA512)
 }
 
 func TestParseJSONRPCResponseInvalidResultC448(t *testing.T) {
-	ParseJSONRPCResponseInvalidResult(t, validOPRFC448Ciphersuite)
+	ParseJSONRPCResponseInvalidResult(t, gg.OPRF_CURVE448_SHA512)
 }
 
-func ParseJSONRPCResponseInvalidResult(t *testing.T, config string) {
-	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, 1, "", -1)
+func ParseJSONRPCResponseInvalidResult(t *testing.T, ciph int) {
+	cfg, err := CreateConfig(ciph, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,19 +263,19 @@ func ParseJSONRPCResponseInvalidResult(t *testing.T, config string) {
 }
 
 func TestParseJSONRPCResponseInvalidFieldP384(t *testing.T) {
-	ParseJSONRPCResponseInvalidField(t, validOPRFP384Ciphersuite)
+	ParseJSONRPCResponseInvalidField(t, gg.OPRF_P384_SHA512)
 }
 
 func TestParseJSONRPCResponseInvalidFieldP521(t *testing.T) {
-	ParseJSONRPCResponseInvalidField(t, validOPRFP521Ciphersuite)
+	ParseJSONRPCResponseInvalidField(t, gg.OPRF_P521_SHA512)
 }
 
 func TestParseJSONRPCResponseInvalidFieldC448(t *testing.T) {
-	ParseJSONRPCResponseInvalidField(t, validOPRFC448Ciphersuite)
+	ParseJSONRPCResponseInvalidField(t, gg.OPRF_CURVE448_SHA512)
 }
 
-func ParseJSONRPCResponseInvalidField(t *testing.T, config string) {
-	cfg, err := CreateConfig(config, ecgroup.GroupCurve{}, 1, "", -1)
+func ParseJSONRPCResponseInvalidField(t *testing.T, ciph int) {
+	cfg, err := CreateConfig(ciph, ecgroup.GroupCurve{}, 1, "", -1)
 	if err != nil {
 		t.Fatal(err)
 	}

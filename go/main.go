@@ -7,20 +7,16 @@ import (
 	"os"
 
 	"github.com/alxdavids/voprf-poc/go/client"
+	gg "github.com/alxdavids/voprf-poc/go/oprf/groups"
 	"github.com/alxdavids/voprf-poc/go/oprf/groups/ecgroup"
 	"github.com/alxdavids/voprf-poc/go/server"
 )
 
-var (
-	validP384Ciphersuite = "OPRF-P384-HKDF-SHA512-SSWU-RO"
-	validP521Ciphersuite = "OPRF-P521-HKDF-SHA512-SSWU-RO"
-)
-
 func main() {
-	var mode, ciphersuite, clientOutFolder, pk string
-	var max, n, test int
+	var mode, clientOutFolder, pk string
+	var ciphersuite, max, n, test int
 	flag.StringVar(&mode, "mode", "", "Specifies which mode to run in, options: (client|server).")
-	flag.StringVar(&ciphersuite, "ciph", validP384Ciphersuite, "Specifies the VOPRF ciphersuite to use.")
+	flag.IntVar(&ciphersuite, "ciph", gg.OPRF_P384_SHA512, "Specifies the VOPRF ciphersuite to use.")
 	flag.StringVar(&clientOutFolder, "out_folder", "", "Specifies an output folder to write files containing the client's stored variables after invocation. If left empty, output is written to console.")
 	flag.IntVar(&max, "max_evals", 10, "Specifies the maximum number of OPRF evaluations that are permitted by the server")
 	flag.IntVar(&n, "n", 1, "Specifies the number of OPRF evaluations to be attempted by the client")
@@ -48,7 +44,7 @@ func main() {
 	}
 }
 
-func runServer(ciphersuite string, max, test int) error {
+func runServer(ciphersuite, max, test int) error {
 	cfgServer, err := server.CreateConfig(ciphersuite, ecgroup.GroupCurve{}, max, false, test)
 	if err != nil {
 		return err
@@ -63,7 +59,7 @@ func runServer(ciphersuite string, max, test int) error {
 	return nil
 }
 
-func runClient(ciphersuite, clientOutFolder string, n int, pk string, test int) error {
+func runClient(ciphersuite int, clientOutFolder string, n int, pk string, test int) error {
 	cfgClient, err := client.CreateConfig(ciphersuite, ecgroup.GroupCurve{}, n, clientOutFolder, test)
 	if err != nil {
 		return err
