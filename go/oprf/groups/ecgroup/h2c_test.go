@@ -13,7 +13,7 @@ import (
 )
 
 type hashToCurveTestVectors struct {
-	DST     string       `json:dst`
+	DST     string       `json:"dst"`
 	Vectors []testVector `json:"vectors"`
 }
 

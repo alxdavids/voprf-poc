@@ -58,7 +58,10 @@ func TestGroupCurvePointSerializationP384(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	checkSerialize(curve, P)
+	err = checkSerialize(curve, P)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGroupCurvePointSerializationWithCompressionP384(t *testing.T) {
@@ -69,7 +72,10 @@ func TestGroupCurvePointSerializationWithCompressionP384(t *testing.T) {
 	}
 
 	P.compress = true
-	checkSerialize(curve, P)
+	err = checkSerialize(curve, P)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGroupCurveEncodingP521(t *testing.T) {
@@ -87,7 +93,10 @@ func TestGroupCurvePointSerializationP521(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	checkSerialize(curve, P)
+	err = checkSerialize(curve, P)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGroupCurvePointSerializationWithCompressionP521(t *testing.T) {
@@ -98,7 +107,10 @@ func TestGroupCurvePointSerializationWithCompressionP521(t *testing.T) {
 	}
 
 	P.compress = true
-	checkSerialize(curve, P)
+	err = checkSerialize(curve, P)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGroupCurvePointSerializationC448(t *testing.T) {
@@ -108,7 +120,10 @@ func TestGroupCurvePointSerializationC448(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	checkSerialize(curve, P)
+	err = checkSerialize(curve, P)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGroupCurvePointSerializationWithCompressionC448(t *testing.T) {
@@ -119,7 +134,10 @@ func TestGroupCurvePointSerializationWithCompressionC448(t *testing.T) {
 	}
 
 	P.compress = true
-	checkSerialize(curve, P)
+	err = checkSerialize(curve, P)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestPointAdditionP384(t *testing.T) {
@@ -312,21 +330,25 @@ func checkSerialize(curve GroupCurve, P Point) error {
 	if err != nil {
 		return err
 	}
+
 	Q, err := Point{}.New(curve).Deserialize(buf)
 	if err != nil {
 		return err
 	}
 
 	if (P.compress && len(buf) != curve.ByteLength()+1) ||
-		len(buf) != (2*curve.ByteLength())+1 {
-		return errors.New("Incorrect buffer length")
+		(!P.compress && len(buf) != (2*curve.ByteLength())+1) {
+		if P.compress {
+			return fmt.Errorf("Incorrect buffer length: expected %v got %v", curve.ByteLength()+1, len(buf))
+		}
+		return fmt.Errorf("Incorrect buffer length: expected %v, got %v", (2*curve.ByteLength())+1, len(buf))
 	}
 
 	qPoint, err := castToPoint(Q)
 	if err != nil {
 		return err
 	}
-	if qPoint.Equal(P) {
+	if !qPoint.Equal(P) {
 		return errors.New("qPoint and P are not equal points")
 	}
 	return nil

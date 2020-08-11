@@ -60,7 +60,10 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, max int, tls b
 			return nil, err
 		}
 		testVectors := []testVector{}
-		json.Unmarshal(bytes, &testVectors)
+		err = json.Unmarshal(bytes, &testVectors)
+		if err != nil {
+		  return nil, err
+		}
 		cfg.testVector = testVectors[testIndex]
 
 		// set new keys
@@ -148,7 +151,6 @@ func (cfg *Config) processJSONRPCRequest(jsonReq *jsonrpc.Request) (map[string][
 		}
 		// evaluate OPRF
 		ret, err = cfg.processEval(params.Data)
-		break
 	default:
 		return nil, oerr.ErrJSONRPCMethodNotFound
 	}
