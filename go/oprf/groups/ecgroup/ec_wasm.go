@@ -1,4 +1,4 @@
-//+build !js,!wasm
+//+build js,wasm
 
 package ecgroup
 
@@ -15,7 +15,6 @@ import (
 	gg "github.com/alxdavids/voprf-poc/go/oprf/groups"
 	"github.com/alxdavids/voprf-poc/go/oprf/utils"
 	"github.com/alxdavids/voprf-poc/go/oprf/utils/constants"
-	"github.com/cloudflare/circl/ecc/p384"
 
 	p448 "github.com/otrv4/ed448"
 )
@@ -39,14 +38,7 @@ type GroupCurve struct {
 func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 	var gc GroupCurve
 	switch name {
-	case "P-384":
-		gc.ops = p384.P384()
-		curve := gc.ops
-		gc.encoding = "weier"
-		gc.consts.a = constants.MinusThree
-		gc.consts.b = curve.Params().B
-		gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Two, curve.Params().P)), curve.Params().P)
-		gc.consts.sqrtExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Four, curve.Params().P)), curve.Params().P)
+	// no support for P-384 in Wasm
 	case "P-521":
 		gc.ops = elliptic.P521()
 		curve := gc.ops
