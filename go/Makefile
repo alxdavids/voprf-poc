@@ -1,7 +1,7 @@
-TEST_FLAGS=./... -cover -count=1
+TEST_FLAGS=./... -cover -count=1 
 BENCH_FLAGS=$(TEST_FLAGS) -bench=.
 COMPILED=voprf-go
-BUILD_FLAGS=-o $(COMPILED)
+BUILD_FLAGS=-o $(COMPILED) 
 
 # defaults
 GROUP=P384

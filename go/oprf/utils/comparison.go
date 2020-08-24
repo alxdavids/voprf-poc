@@ -53,9 +53,9 @@ func Cmov(a, b, c *big.Int) *big.Int {
 var mask = []byte{0xff, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f}
 
 // MaskScalar takes a scalar value bytes and masks it with the appropriate value
-// for associated scalar fields that are not descibred by a whole number of
+// for associated scalar fields that are not described by a whole number of
 // bits.
 func MaskScalar(sc []byte, bitSize int) []byte {
-	sc[0] = sc[0] & mask[bitSize%8]
+	sc[0] &= mask[bitSize%8]
 	return sc
 }

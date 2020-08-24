@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -12,26 +13,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	validOPRFP384Ciphersuite = "OPRF-P384-HKDF-SHA512-SSWU-RO"
-	validOPRFP521Ciphersuite = "OPRF-P521-HKDF-SHA512-SSWU-RO"
-	validOPRFC448Ciphersuite = "OPRF-curve448-HKDF-SHA512-ELL2-RO"
-)
-
 func TestProcessEvalP384(t *testing.T) {
-	processOPRFEval(t, validOPRFP384Ciphersuite, 5)
+	processOPRFEval(t, gg.OPRF_P384_SHA512, 5)
 }
 
 func TestProcessEvalP521(t *testing.T) {
-	processOPRFEval(t, validOPRFP521Ciphersuite, 5)
+	processOPRFEval(t, gg.OPRF_P521_SHA512, 5)
 }
 
 func TestProcessEvalC448(t *testing.T) {
-	processOPRFEval(t, validOPRFC448Ciphersuite, 5)
+	processOPRFEval(t, gg.OPRF_CURVE448_SHA512, 5)
 }
 
 func TestProcessEvalMaxError(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 3, false, -1)
+	cfg, err := CreateConfig(gg.OPRF_P384_SHA512, ecgroup.GroupCurve{}, 3, false, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +34,7 @@ func TestProcessEvalMaxError(t *testing.T) {
 	hexInputs := make([]string, 5)
 	points := make([]gg.GroupElement, 5)
 	for i := 0; i < 5; i++ {
-		P, err := pog.EncodeToGroup([]byte{1, 3, 4, 2})
+		P, err := pog.HashToGroup([]byte{1, 3, 4, 2})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -51,49 +46,49 @@ func TestProcessEvalMaxError(t *testing.T) {
 		points[i] = P
 	}
 	_, err = cfg.processEval(hexInputs)
-	if err != oerr.ErrJSONRPCInvalidMethodParams {
+	if !errors.Is(err, oerr.ErrJSONRPCInvalidMethodParams) {
 		t.Fatal("Error should have occurred due to breaching max limit on evaluation")
 	}
 }
 
 func TestCreateConfigP384(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 5, false, -1)
+	cfg, err := CreateConfig(gg.OPRF_P384_SHA512, ecgroup.GroupCurve{}, 5, false, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), "P-384")
+	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), ecgroup.CurveNameP384)
 }
 
 func TestCreateConfigP521(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP521Ciphersuite, ecgroup.GroupCurve{}, 5, false, -1)
+	cfg, err := CreateConfig(gg.OPRF_P521_SHA512, ecgroup.GroupCurve{}, 5, false, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), "P-521")
+	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), ecgroup.CurveNameP521)
 }
 
 func TestCreateConfigC448(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFC448Ciphersuite, ecgroup.GroupCurve{}, 5, false, -1)
+	cfg, err := CreateConfig(gg.OPRF_CURVE448_SHA512, ecgroup.GroupCurve{}, 5, false, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), "curve-448")
+	assert.Equal(t, cfg.osrv.Ciphersuite().POG().(ecgroup.GroupCurve).Name(), ecgroup.CurveNameCurve448)
 }
 
 func TestCreateConfigBadCiph(t *testing.T) {
-	_, err := CreateConfig("OPRF-P521-HKDF-SHA256-SSWU-RO", ecgroup.GroupCurve{}, 5, false, -1)
-	if err != oerr.ErrUnsupportedHash {
-		t.Fatal("Error should have occurred (bad hash in ciphersuite)")
+	_, err := CreateConfig(gg.OPRF_INVALID_CIPHERSUITE, ecgroup.GroupCurve{}, 5, false, -1)
+	if !errors.Is(err, oerr.ErrUnsupportedCiphersuite) {
+		t.Fatal("Error should have occurred (bad ciphersuite)")
 	}
 }
 
 func TestProcessValidJSONRPCRequest(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 5, false, -1)
+	cfg, err := CreateConfig(gg.OPRF_P384_SHA512, ecgroup.GroupCurve{}, 5, false, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	pog := cfg.osrv.Ciphersuite().POG()
-	P, err := pog.EncodeToGroup([]byte("random_input"))
+	P, err := pog.HashToGroup([]byte("random_input"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,9 +97,9 @@ func TestProcessValidJSONRPCRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
-		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}, Ciphersuite: validOPRFP384Ciphersuite},
+		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}, Ciphersuite: gg.OPRF_P384_SHA512},
 		ID:      1,
 	}
 	// actual value checks are done in other tests
@@ -119,11 +114,11 @@ func TestProcessValidJSONRPCRequest(t *testing.T) {
 }
 
 func TestInvalidJSONRPCRequestMethod(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 5, false, -1)
+	cfg, err := CreateConfig(gg.OPRF_P384_SHA512, ecgroup.GroupCurve{}, 5, false, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	P, err := cfg.osrv.Ciphersuite().POG().EncodeToGroup([]byte("random_input"))
+	P, err := cfg.osrv.Ciphersuite().POG().HashToGroup([]byte("random_input"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,24 +127,24 @@ func TestInvalidJSONRPCRequestMethod(t *testing.T) {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "bad_method",
-		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}, Ciphersuite: validOPRFP384Ciphersuite},
+		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}, Ciphersuite: gg.OPRF_P384_SHA512},
 		ID:      1,
 	}
 	// actual value checks are done in other tests
 	_, err = cfg.processJSONRPCRequest(jsonrpcReq)
-	if err != oerr.ErrJSONRPCMethodNotFound {
+	if !errors.Is(err, oerr.ErrJSONRPCMethodNotFound) {
 		t.Fatal("bad method should have caused errors")
 	}
 }
 
 func TestInvalidJSONRPCRequestVersion(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 5, false, -1)
+	cfg, err := CreateConfig(gg.OPRF_P384_SHA512, ecgroup.GroupCurve{}, 5, false, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	P, err := cfg.osrv.Ciphersuite().POG().EncodeToGroup([]byte("random_input"))
+	P, err := cfg.osrv.Ciphersuite().POG().HashToGroup([]byte("random_input"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,36 +160,36 @@ func TestInvalidJSONRPCRequestVersion(t *testing.T) {
 	}
 	// actual value checks are done in other tests
 	_, err = cfg.processJSONRPCRequest(jsonrpcReq)
-	if err != oerr.ErrJSONRPCInvalidRequest {
+	if !errors.Is(err, oerr.ErrJSONRPCInvalidRequest) {
 		t.Fatal("bad version should have caused errors")
 	}
 }
 
 func TestInvalidJSONRPCRequestEmptyParams(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 5, false, -1)
+	cfg, err := CreateConfig(gg.OPRF_P384_SHA512, ecgroup.GroupCurve{}, 5, false, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
 		ID:      1,
 	}
 	// actual value checks are done in other tests
 	_, err = cfg.processJSONRPCRequest(jsonrpcReq)
-	if err != oerr.ErrJSONRPCInvalidMethodParams {
+	if !errors.Is(err, oerr.ErrJSONRPCInvalidMethodParams) {
 		fmt.Println(err)
 		t.Fatal("bad method params should have caused errors")
 	}
 }
 
 func TestInvalidJSONRPCRequestNoCiphersuite(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 5, false, -1)
+	cfg, err := CreateConfig(gg.OPRF_P384_SHA512, ecgroup.GroupCurve{}, 5, false, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	pog := cfg.osrv.Ciphersuite().POG()
-	P, err := pog.EncodeToGroup([]byte("random_input"))
+	P, err := pog.HashToGroup([]byte("random_input"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,26 +198,26 @@ func TestInvalidJSONRPCRequestNoCiphersuite(t *testing.T) {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
 		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}},
 		ID:      1,
 	}
 	// actual value checks are done in other tests
 	_, err = cfg.processJSONRPCRequest(jsonrpcReq)
-	if err != oerr.ErrJSONRPCInvalidMethodParams {
+	if !errors.Is(err, oerr.ErrJSONRPCInvalidMethodParams) {
 		fmt.Println(err)
 		t.Fatal("bad method params should have caused errors")
 	}
 }
 
 func TestInvalidJSONRPCRequestInvalidCiphersuite(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 5, false, -1)
+	cfg, err := CreateConfig(gg.OPRF_P384_SHA512, ecgroup.GroupCurve{}, 5, false, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	pog := cfg.osrv.Ciphersuite().POG()
-	P, err := pog.EncodeToGroup([]byte("random_input"))
+	P, err := pog.HashToGroup([]byte("random_input"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,58 +226,58 @@ func TestInvalidJSONRPCRequestInvalidCiphersuite(t *testing.T) {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
-		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}, Ciphersuite: validOPRFP521Ciphersuite},
+		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString(buf)}, Ciphersuite: gg.OPRF_P521_SHA512},
 		ID:      1,
 	}
 	// actual value checks are done in other tests
 	_, err = cfg.processJSONRPCRequest(jsonrpcReq)
-	if err != oerr.ErrJSONRPCInvalidMethodParams {
+	if !errors.Is(err, oerr.ErrJSONRPCInvalidMethodParams) {
 		fmt.Println(err)
 		t.Fatal("bad method params should have caused errors")
 	}
 }
 
 func TestInvalidJSONRPCRequestBadlyEncodedParam(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 5, false, -1)
+	cfg, err := CreateConfig(gg.OPRF_P384_SHA512, ecgroup.GroupCurve{}, 5, false, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
 		Params:  jsonrpc.RequestParams{Data: []string{"badly_encoded_string"}},
 		ID:      1,
 	}
 	// actual value checks are done in other tests
 	_, err = cfg.processJSONRPCRequest(jsonrpcReq)
-	if err != oerr.ErrJSONRPCInvalidMethodParams {
+	if !errors.Is(err, oerr.ErrJSONRPCInvalidMethodParams) {
 		fmt.Println(err)
 		t.Fatal("bad method params should have caused errors")
 	}
 }
 
 func TestInvalidJSONRPCRequestBadParams(t *testing.T) {
-	cfg, err := CreateConfig(validOPRFP384Ciphersuite, ecgroup.GroupCurve{}, 5, false, -1)
+	cfg, err := CreateConfig(gg.OPRF_P384_SHA512, ecgroup.GroupCurve{}, 5, false, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	jsonrpcReq := &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
-		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString([]byte("bad_byte_string"))}, Ciphersuite: validOPRFP384Ciphersuite},
+		Params:  jsonrpc.RequestParams{Data: []string{hex.EncodeToString([]byte("bad_byte_string"))}, Ciphersuite: gg.OPRF_P384_SHA512},
 		ID:      1,
 	}
 	// actual value checks are done in other tests
 	_, err = cfg.processJSONRPCRequest(jsonrpcReq)
-	if err != oerr.ErrDeserializing {
+	if !errors.Is(err, oerr.ErrDeserializing) {
 		fmt.Println(err)
 		t.Fatal("bad method params should have caused errors")
 	}
 }
 
-func processOPRFEval(t *testing.T, validCiphersuite string, n int) {
+func processOPRFEval(t *testing.T, validCiphersuite int, n int) {
 	cfg, err := CreateConfig(validCiphersuite, ecgroup.GroupCurve{}, n, false, -1)
 	if err != nil {
 		t.Fatal(err)
@@ -291,7 +286,7 @@ func processOPRFEval(t *testing.T, validCiphersuite string, n int) {
 	hexInputs := make([]string, n)
 	points := make([]gg.GroupElement, n)
 	for i := 0; i < n; i++ {
-		P, err := pog.EncodeToGroup([]byte{1, 3, 4, 2})
+		P, err := pog.HashToGroup([]byte{1, 3, 4, 2})
 		if err != nil {
 			t.Fatal(err)
 		}

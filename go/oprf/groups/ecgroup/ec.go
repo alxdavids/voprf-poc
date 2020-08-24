@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"crypto/subtle"
+	"fmt"
 	"hash"
 	"io"
 	"math/big"
@@ -20,12 +21,33 @@ import (
 	p448 "github.com/otrv4/ed448"
 )
 
+const (
+	EncodingWeierstrass = "weier"
+	EncodingMontgomery  = "mont"
+
+	CurveNameP384     = "P-384"
+	CurveNameP521     = "P-521"
+	CurveNameCurve448 = "curve-448"
+)
+
+func IDtoName(id int) string {
+	switch id {
+	case gg.GROUP_P384:
+		return CurveNameP384
+	case gg.GROUP_P521:
+		return CurveNameP521
+	case gg.GROUP_CURVE448:
+		return CurveNameCurve448
+	}
+	return "Unsupported Group"
+}
+
 // GroupCurve implements the PrimeOrderGroup interface using an elliptic curve
 // to provide the underlying group structure. The abstraction of the curve
 // interface is based on the one used in draft-irtf-hash-to-curve-05.
 type GroupCurve struct {
 	ops        elliptic.Curve
-	name       string
+	id         int
 	hash       hash.Hash
 	ee         utils.ExtractorExpander
 	byteLength int
@@ -36,29 +58,29 @@ type GroupCurve struct {
 
 // New constructs a new GroupCurve object implementing the PrimeOrderGroup
 // interface.
-func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
+func (c GroupCurve) New(id int) (gg.PrimeOrderGroup, error) {
 	var gc GroupCurve
-	switch name {
-	case "P-384":
+	switch id {
+	case gg.GROUP_P384:
 		gc.ops = p384.P384()
 		curve := gc.ops
-		gc.encoding = "weier"
+		gc.encoding = EncodingWeierstrass
 		gc.consts.a = constants.MinusThree
 		gc.consts.b = curve.Params().B
 		gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Two, curve.Params().P)), curve.Params().P)
 		gc.consts.sqrtExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Four, curve.Params().P)), curve.Params().P)
-	case "P-521":
+	case gg.GROUP_P521:
 		gc.ops = elliptic.P521()
 		curve := gc.ops
-		gc.encoding = "weier"
+		gc.encoding = EncodingWeierstrass
 		gc.consts.a = constants.MinusThree
 		gc.consts.b = curve.Params().B
 		gc.consts.isSqExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Sub(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Two, curve.Params().P)), curve.Params().P)
 		gc.consts.sqrtExp = new(big.Int).Mod(new(big.Int).Mul(new(big.Int).Add(curve.Params().P, constants.One), new(big.Int).ModInverse(constants.Four, curve.Params().P)), curve.Params().P)
-	case "curve-448":
+	case gg.GROUP_CURVE448:
 		gc.ops = p448.Curve448()
 		curve := gc.ops
-		gc.encoding = "mont"
+		gc.encoding = EncodingMontgomery
 		gc.consts.a = curve.Params().B // Alex: p448 implementation mis-uses this const
 		gc.consts.b = constants.One
 		gc.consts.isSqExp = new(big.Int).Rsh(new(big.Int).Sub(curve.Params().P, constants.One), 1)
@@ -67,7 +89,7 @@ func (c GroupCurve) New(name string) (gg.PrimeOrderGroup, error) {
 		return nil, oerr.ErrUnsupportedGroup
 	}
 	gc.byteLength = (gc.ops.Params().BitSize + 7) / 8
-	gc.name = name
+	gc.id = id
 	gc.hash = sha512.New()
 	gc.ee = utils.HKDFExtExp{}
 	gc.sgn0 = utils.Sgn0LE
@@ -83,6 +105,14 @@ func (c GroupCurve) Order() *big.Int {
 // that is used
 func (c GroupCurve) P() *big.Int {
 	return c.ops.Params().P
+}
+
+func (c GroupCurve) Identity() gg.GroupElement {
+	result, err := c.Generator().ScalarMult(big.NewInt(0))
+	if err != nil {
+		panic(err)
+	}
+	return result
 }
 
 // Generator returns a point in the curve representing a fixed generator  of the
@@ -108,10 +138,10 @@ func (c GroupCurve) ByteLength() int {
 	return c.byteLength
 }
 
-// EncodeToGroup invokes the hash_to_curve method for encoding bytes as curve
+// HashToGroup invokes the hash_to_curve method for encoding bytes as curve
 // points. The hash-to-curve method for the curve is implemented using the
 // specification defined in draft-irtf-hash-to-curve-05.
-func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, error) {
+func (c GroupCurve) HashToGroup(buf []byte) (gg.GroupElement, error) {
 	hasher, err := getH2CSuite(c)
 	if err != nil {
 		return nil, err
@@ -124,13 +154,26 @@ func (c GroupCurve) EncodeToGroup(buf []byte) (gg.GroupElement, error) {
 	return p, nil
 }
 
+func (c GroupCurve) HashToScalar(buf []byte) (*big.Int, error) {
+	hasher, err := getH2CSuite(c)
+	if err != nil {
+		return nil, err
+	}
+	scalar, err := hasher.HashToScalar(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return scalar, nil
+}
+
 // UniformFieldElement samples a random element from the underling field for the
 // specified elliptic curve.
 //
 // NOT constant time due to rejection sampling
-func (c GroupCurve) UniformFieldElement() (*big.Int, error) {
-	N := c.Order() // base point subgroup order
-	bitLen := N.BitLen()
+func (c GroupCurve) RandomScalar() (*big.Int, error) {
+	n := c.Order() // base point subgroup order
+	bitLen := n.BitLen()
 	byteLen := (bitLen + 7) >> 3
 	buf := make([]byte, byteLen)
 
@@ -143,7 +186,7 @@ func (c GroupCurve) UniformFieldElement() (*big.Int, error) {
 		// Mask to account for field sizes that are not a whole number of bytes.
 		buf = utils.MaskScalar(buf, bitLen)
 		// Check if scalar is in the correct range.
-		if new(big.Int).SetBytes(buf).Cmp(N) >= 0 {
+		if new(big.Int).SetBytes(buf).Cmp(n) >= 0 {
 			continue
 		}
 		break
@@ -166,7 +209,7 @@ func (c GroupCurve) ScalarToBytes(x *big.Int) []byte {
 }
 
 // Name returns the name of the elliptic curve that is being used (e.g. P384).
-func (c GroupCurve) Name() string { return c.name }
+func (c GroupCurve) Name() string { return IDtoName(c.id) }
 
 // Hash returns the name of the hash function used in conjunction with the
 // elliptic curve. This is also used when encoding bytes as random elements in
@@ -265,6 +308,7 @@ func (p Point) Add(ge gg.GroupElement) (gg.GroupElement, error) {
 	}
 
 	if !p.IsValid() {
+		fmt.Printf("point p %v is invalid\n", p)
 		return nil, oerr.ErrInvalidGroupElement
 	}
 
@@ -346,12 +390,12 @@ func (p Point) decompress(curve GroupCurve, buf []byte) (Point, error) {
 	var y2 *big.Int
 	x := new(big.Int).SetBytes(buf[1:])
 	switch curve.encoding {
-	case "weier":
+	case EncodingWeierstrass:
 		x2Plusa := new(big.Int).Add(new(big.Int).Exp(x, constants.Two, order), curve.consts.a)
 		x3Plusax := new(big.Int).Mul(x2Plusa, x)
 		x3PlusaxPlusb := new(big.Int).Add(x3Plusax, curve.ops.Params().B)
 		y2 = new(big.Int).Mod(x3PlusaxPlusb, order)
-	case "mont":
+	case EncodingMontgomery:
 		xPlusa := new(big.Int).Add(x, curve.consts.a)
 		x2Plusax := new(big.Int).Mul(xPlusa, x)
 		x2PlusaxPlus1 := new(big.Int).Add(x2Plusax, constants.One)

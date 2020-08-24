@@ -14,16 +14,18 @@ import (
 	"github.com/alxdavids/voprf-poc/go/jsonrpc"
 	"github.com/alxdavids/voprf-poc/go/oprf"
 	gg "github.com/alxdavids/voprf-poc/go/oprf/groups"
-	"github.com/alxdavids/voprf-poc/go/oprf/groups/dleq"
+)
+
+const (
+	version2 = "2.0"
 )
 
 var (
-	storedInputs                 [][]byte
-	storedElements               []gg.GroupElement
-	storedBlinds                 []*big.Int
-	storedEvaluation             oprf.Evaluation
+	storedTokens                 []*oprf.Token
+	storedBlindedTokens          []gg.GroupElement
+	storedEvaluations            oprf.BatchedEvaluation
 	storedFinalOutputs           [][]byte
-	storedUnblindedElements      [][]byte
+	storedUnblindedTokens        [][]byte
 	storedFinalInputs            [][]byte
 	storedUnblindedInputElements [][]byte
 )
@@ -41,7 +43,7 @@ type Config struct {
 
 // CreateConfig instantiates the client that will communicate with the HTTP
 // server running the (V)OPRF
-func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputPath string, testIndex int) (*Config, error) {
+func CreateConfig(ciphersuite int, pogInit gg.PrimeOrderGroup, n int, outputPath string, testIndex int) (*Config, error) {
 	ptpnt, err := oprf.Client{}.Setup(ciphersuite, pogInit)
 	if err != nil {
 		return nil, err
@@ -61,14 +63,14 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputP
 		test:       test,
 	}
 	if test {
-		bytes, err := ioutil.ReadFile(fmt.Sprintf("../test-vectors/%s.json", ciphersuite))
+		raw, err := ioutil.ReadFile(fmt.Sprintf("../test-vectors/%s.json", gg.IDtoName(ciphersuite)))
 		if err != nil {
 			return nil, err
 		}
 		testVectors := []testVector{}
-		err = json.Unmarshal(bytes, &testVectors)
+		err = json.Unmarshal(raw, &testVectors)
 		if err != nil {
-		  return nil, err
+			return nil, err
 		}
 		cfg.testVector = testVectors[testIndex]
 		cfg.n = len(cfg.testVector.Inputs)
@@ -82,7 +84,7 @@ func CreateConfig(ciphersuite string, pogInit gg.PrimeOrderGroup, n int, outputP
 }
 
 // SendOPRFRequest constructs and sends an OPRF request to the OPRF server
-// instance. The response is processed by running the Unblind() and Finalize()
+// instance. The response is processed by running the BatchUnblind() and Finalize()
 // functionalities.
 func (cfg *Config) SendOPRFRequest() error {
 	oprfReq, err := cfg.createOPRFRequest()
@@ -114,7 +116,7 @@ func (cfg *Config) SendOPRFRequest() error {
 	}
 
 	// Process and finalize the server response, and then store
-	storedFinalOutputs, storedFinalInputs, storedUnblindedElements, storedEvaluation, err = cfg.processServerResponse(jsonrpcResp)
+	storedFinalOutputs, storedFinalInputs, storedUnblindedTokens, storedEvaluations, err = cfg.processServerResponse(jsonrpcResp)
 	if err != nil {
 		return err
 	}
@@ -129,9 +131,9 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 	if n < 1 {
 		return nil, errors.New("The value of n must be greater than 0")
 	}
-	var inputs [][]byte
-	var elements []gg.GroupElement
-	var blinds []*big.Int
+
+	var tokens []*oprf.Token
+	var blindTokens []gg.GroupElement
 	var encodedElements [][]byte
 	var unblindedInputElements [][]byte
 	var err error
@@ -151,7 +153,7 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 				return nil, err
 			}
 		}
-		inputs = append(inputs, buf)
+		token := &oprf.Token{Data: buf}
 
 		// create a blinded group element
 		var ge gg.GroupElement
@@ -165,7 +167,7 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 			blind = new(big.Int).SetBytes(bufBlind)
 			ge, gx, err = cfg.ocli.BlindFixed(buf, blind)
 			if err != nil {
-			  return nil, err
+				return nil, err
 			}
 		} else {
 			ge, gx, blind, err = cfg.ocli.BlindInternal(buf)
@@ -174,14 +176,15 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 		if err != nil {
 			return nil, err
 		}
-		blinds = append(blinds, blind)
+		token.Blind = blind
+		tokens = append(tokens, token)
 
 		// Encode group element
 		encoded, err := ge.Serialize()
 		if err != nil {
 			return nil, err
 		}
-		elements = append(elements, ge)
+		blindTokens = append(blindTokens, ge)
 		encodedElements = append(encodedElements, encoded)
 
 		// Encode group element
@@ -192,76 +195,75 @@ func (cfg *Config) createOPRFRequest() (*jsonrpc.Request, error) {
 		unblindedInputElements = append(unblindedInputElements, encoded)
 	}
 	// store in globals
-	storedInputs = inputs
-	storedElements = elements
+	storedBlindedTokens = blindTokens
 	storedUnblindedInputElements = unblindedInputElements
-	storedBlinds = blinds
+	storedTokens = tokens
 	// return JSONRPC Request object
 	return cfg.createJSONRPCRequest(encodedElements, 1), nil
 }
 
 // processServerResponse parses the JSONRPC response sent by the server
-func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) ([][]byte, [][]byte, [][]byte, oprf.Evaluation, error) {
+func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) ([][]byte, [][]byte, [][]byte, oprf.BatchedEvaluation, error) {
 	// parse returned group element and unblind
 	result := jsonrpcResp.Result
 	pog := cfg.ocli.Ciphersuite().POG()
-	ev := oprf.Evaluation{Elements: make([]gg.GroupElement, cfg.n)}
+	ev := oprf.BatchedEvaluation{Elements: make([]gg.GroupElement, cfg.n)}
 	// get evaluation results
 	for i := 0; i < cfg.n; i++ {
 		buf, err := hex.DecodeString(result.Data[i])
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
-		Z, err := gg.CreateGroupElement(pog).Deserialize(buf)
+		elem, err := gg.CreateGroupElement(pog).Deserialize(buf)
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
-		ev.Elements[i] = Z
+		ev.Elements[i] = elem
 	}
 
 	// if the ciphersuite is verifiable then construct the proof object
-	if cfg.ocli.Ciphersuite().Verifiable() {
+	if cfg.ocli.Verifiable() {
 		cBytes, err := hex.DecodeString(result.Proof[0])
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
 		sBytes, err := hex.DecodeString(result.Proof[1])
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
 		var proofBytes = [][]byte{cBytes, sBytes}
-		ev.Proof = dleq.Proof{}.Deserialize(pog, proofBytes)
+		ev.Proof = oprf.Proof{}.Deserialize(pog, proofBytes)
 	}
 
 	// run the unblinding steps
-	ret, err := cfg.ocli.Unblind(ev, storedElements, storedBlinds)
+	unblindedTokens, err := cfg.ocli.BatchUnblind(ev, storedTokens, storedBlindedTokens)
 	if err != nil {
-		return nil, nil, nil, oprf.Evaluation{}, err
+		return nil, nil, nil, oprf.BatchedEvaluation{}, err
 	}
 
 	// finalize outputs
-	var finalOutputs [][]byte
-	var finalizeInputs [][]byte
-	var encodedUnblindedElements [][]byte
-	for i, N := range ret {
-		aux := []byte("oprf_finalization_step")
-		y, err := cfg.ocli.Finalize(N, storedInputs[i], aux)
+	finalOutputs := make([][]byte, len(unblindedTokens))
+	finalizeInputs := make([][]byte, len(unblindedTokens))
+	encodedUnblindedElements := make([][]byte, len(unblindedTokens))
+	for i, unblindedToken := range unblindedTokens {
+		info := []byte("oprf_finalization_step")
+		y, err := cfg.ocli.Finalize(storedTokens[i], unblindedToken, info)
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
-		finalOutputs = append(finalOutputs, y)
+		finalOutputs[i] = y
 
-		finalizeInput, err := cfg.ocli.CreateFinalizeInput(N, storedInputs[i], aux)
+		finalizeInput, err := cfg.ocli.CreateFinalizeInput(storedTokens[i], unblindedToken, info)
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
-		finalizeInputs = append(finalizeInputs, finalizeInput)
+		finalizeInputs[i] = finalizeInput
 
-		encodedN, err := N.Serialize()
+		encodedN, err := unblindedToken.Serialize()
 		if err != nil {
-			return nil, nil, nil, oprf.Evaluation{}, err
+			return nil, nil, nil, oprf.BatchedEvaluation{}, err
 		}
-		encodedUnblindedElements = append(encodedUnblindedElements, encodedN)
+		encodedUnblindedElements[i] = encodedN
 	}
 	return finalOutputs, finalizeInputs, encodedUnblindedElements, ev, nil
 }
@@ -269,16 +271,16 @@ func (cfg *Config) processServerResponse(jsonrpcResp *jsonrpc.ResponseSuccess) (
 // createJSONRPCRequest creates the JSONRPC Request object for sending to the
 // OPRF server instance
 func (cfg *Config) createJSONRPCRequest(eles [][]byte, id int) *jsonrpc.Request {
-	var hexParams []string
-	for _, buf := range eles {
-		hexParams = append(hexParams, hex.EncodeToString(buf))
+	hexParams := make([]string, len(eles))
+	for i, buf := range eles {
+		hexParams[i] = hex.EncodeToString(buf)
 	}
 	return &jsonrpc.Request{
-		Version: "2.0",
+		Version: version2,
 		Method:  "eval",
 		Params: jsonrpc.RequestParams{
 			Data:        hexParams,
-			Ciphersuite: cfg.ocli.Ciphersuite().Name(),
+			Ciphersuite: cfg.ocli.Ciphersuite().ID(),
 		},
 		ID: id,
 	}
@@ -301,7 +303,7 @@ func (cfg *Config) parseJSONRPCResponse(body []byte) (*jsonrpc.ResponseSuccess, 
 		e2 := json.Unmarshal(body, jsonrpcError)
 		if e2 != nil || jsonrpcError.Error.Message == "" {
 			// either error or unable to parse error
-			return nil, errors.New("Failed to parse JSONRPC error response")
+			return nil, errors.New("failed to parse JSONRPC error response")
 		}
 		return nil, errors.New(jsonrpcError.Error.Message)
 	}
@@ -328,26 +330,28 @@ func (cfg *Config) SetPublicKey(pk string) error {
 // PrintStorage outputs all the current stored variables to either stdout or file
 // (if a filepath is specified)
 func (cfg *Config) PrintStorage() error {
-	var bufBlinds [][]byte
-	for _, v := range storedBlinds {
-		bufBlinds = append(bufBlinds, cfg.ocli.Ciphersuite().POG().ScalarToBytes(v))
+	bufInputs := make([][]byte, len(storedTokens))
+	bufBlinds := make([][]byte, len(storedTokens))
+	for i, token := range storedTokens {
+		bufInputs[i] = token.Data
+		bufBlinds[i] = cfg.ocli.Ciphersuite().POG().ScalarToBytes(token.Blind)
 	}
 
 	// construct output strings
-	arrays := [][][]byte{storedInputs, storedUnblindedInputElements, bufBlinds, storedUnblindedElements, storedFinalInputs, storedFinalOutputs}
+	arrays := [][][]byte{bufInputs, storedUnblindedInputElements, bufBlinds, storedUnblindedTokens, storedFinalInputs, storedFinalOutputs}
 	outputStrings := make([]string, len(arrays))
 	for j, s := range arrays {
 		outString := ""
 		for i, byt := range s {
 			outString += hex.EncodeToString(byt)
-			if i != len(storedInputs)-1 {
+			if i != len(storedTokens)-1 {
 				outString += "\n"
 			}
 		}
 		outputStrings[j] = outString
 	}
 
-	evJSON, err := storedEvaluation.ToJSON(cfg.ocli.Ciphersuite().Verifiable())
+	evJSON, err := storedEvaluations.ToJSON(cfg.ocli.Verifiable())
 	if err != nil {
 		return err
 	}

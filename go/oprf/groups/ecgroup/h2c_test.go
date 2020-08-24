@@ -10,6 +10,8 @@ import (
 	"math/big"
 	"strings"
 	"testing"
+
+	gg "github.com/alxdavids/voprf-poc/go/oprf/groups"
 )
 
 type hashToCurveTestVectors struct {
@@ -28,7 +30,7 @@ type expectedPoint struct {
 }
 
 func TestHashToCurveP384(t *testing.T) {
-	curve := initCurve(t, "P-384")
+	curve := initCurve(t, gg.GROUP_CURVE448)
 	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/P384_XMD:SHA-512_SSWU_RO_.json")
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +47,7 @@ func TestHashToCurveP384(t *testing.T) {
 }
 
 func TestHashToCurveP521(t *testing.T) {
-	curve := initCurve(t, "P-521")
+	curve := initCurve(t, gg.GROUP_P521)
 	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/P521_XMD:SHA-512_SSWU_RO_.json")
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +64,7 @@ func TestHashToCurveP521(t *testing.T) {
 }
 
 func TestHashToCurve448(t *testing.T) {
-	curve := initCurve(t, "curve-448")
+	curve := initCurve(t, gg.GROUP_CURVE448)
 	buf, err := ioutil.ReadFile("../../../../test-vectors/hash-to-curve/curve448_XMD:SHA-512_ELL2_RO_.json")
 	if err != nil {
 		t.Fatal(err)
@@ -122,15 +124,15 @@ func performHashToCurve(curve GroupCurve, testVectors hashToCurveTestVectors) er
 }
 
 func BenchmarkHashToCurveP384(b *testing.B) {
-	benchmarkHashToCurve(b, benchInitCurve(b, "P-384"))
+	benchmarkHashToCurve(b, benchInitCurve(b, gg.GROUP_CURVE448))
 }
 
 func BenchmarkHashToCurveP521(b *testing.B) {
-	benchmarkHashToCurve(b, benchInitCurve(b, "P-521"))
+	benchmarkHashToCurve(b, benchInitCurve(b, gg.GROUP_P521))
 }
 
 func BenchmarkHashToCurveC448(b *testing.B) {
-	benchmarkHashToCurve(b, benchInitCurve(b, "curve-448"))
+	benchmarkHashToCurve(b, benchInitCurve(b, gg.GROUP_CURVE448))
 }
 
 func benchmarkHashToCurve(b *testing.B, curve GroupCurve) {
@@ -153,8 +155,8 @@ func benchmarkHashToCurve(b *testing.B, curve GroupCurve) {
 	}
 }
 
-func benchInitCurve(b *testing.B, curveName string) GroupCurve {
-	gg, err := GroupCurve{}.New(curveName)
+func benchInitCurve(b *testing.B, curveID int) GroupCurve {
+	gg, err := GroupCurve{}.New(curveID)
 	if err != nil {
 		b.Fatal(err)
 	}

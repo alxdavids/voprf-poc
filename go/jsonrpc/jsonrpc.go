@@ -13,7 +13,7 @@ type Request struct {
 // RequestParams objects are sent as the main payload of the Request object
 type RequestParams struct {
 	Data        []string `json:"data"`
-	Ciphersuite string   `json:"ciph"`
+	Ciphersuite int      `json:"ciph"`
 }
 
 // ResponseSuccess constructs a successful JSONRPC response back to a
